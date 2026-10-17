@@ -1,5 +1,6 @@
 import type { Character, Look } from "@agentsquad/shared"
 import { roster } from "./roster"
+import { DEFAULT_LEAD_LOOK } from "../ui/sprites"
 
 export const STEPS = ["lead", "squad", "scene"] as const
 export type Step = "title" | (typeof STEPS)[number]
@@ -9,7 +10,7 @@ export type Member = { id: string; model: Character["model"] }
 export type Draft = {
   step: Step
   name: string
-  look: Look | null
+  look: Look
   members: Member[]
   scene: string
 }
@@ -17,18 +18,30 @@ export type Draft = {
 export const MAX_MEMBERS = 4
 const KEY = "agentsquad.draft"
 
-export const emptyDraft: Draft = { step: "title", name: "Lead Agent", look: null, members: [], scene: "uf-campus" }
+export const emptyDraft: Draft = { step: "title", name: "Lead Agent", look: DEFAULT_LEAD_LOOK, members: [], scene: "uf-campus" }
 
 const MODELS = ["haiku", "sonnet", "opus", "inherit"]
-const LOOK_KEYS = ["body", "hair", "hairColor", "outfit", "hat"] as const
+export const BODIES = ["a", "b"]
+export const OUTFITS = ["blazer", "hoodie", "flannel", "track"]
+
+// Older drafts saved layered looks like { body: "body-a", outfit: "outfit-hoodie" }. Keep what still maps to a variant.
+function parseLook(look: unknown): Look {
+  if (!look || typeof look !== "object") return DEFAULT_LEAD_LOOK
+  const l = look as Record<string, unknown>
+  const body = typeof l.body === "string" ? l.body.replace(/^body-/, "") : ""
+  const outfit = typeof l.outfit === "string" ? l.outfit.replace(/^outfit-/, "") : ""
+  return {
+    ...DEFAULT_LEAD_LOOK,
+    body: BODIES.includes(body) ? body : DEFAULT_LEAD_LOOK.body,
+    outfit: OUTFITS.includes(outfit) ? outfit : DEFAULT_LEAD_LOOK.outfit,
+  }
+}
 
 // Saved drafts come from old versions or hand edits; anything malformed falls back to the empty draft.
 function parseDraft(raw: string): Draft {
   try {
     const d = JSON.parse(raw)
     if (!d || typeof d !== "object" || Array.isArray(d)) return emptyDraft
-    const look = d.look ?? null
-    if (look !== null && (typeof look !== "object" || LOOK_KEYS.some((k) => typeof look[k] !== "string"))) return emptyDraft
     if (d.members !== undefined && !Array.isArray(d.members)) return emptyDraft
     const members: Member[] = []
     for (const m of d.members ?? []) {
@@ -40,7 +53,7 @@ function parseDraft(raw: string): Draft {
     return {
       step: d.step === "title" || STEPS.includes(d.step) ? d.step : "title",
       name: typeof d.name === "string" ? d.name : emptyDraft.name,
-      look,
+      look: parseLook(d.look),
       members,
       scene: typeof d.scene === "string" ? d.scene : emptyDraft.scene,
     }

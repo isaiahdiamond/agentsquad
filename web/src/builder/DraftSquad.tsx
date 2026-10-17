@@ -2,7 +2,7 @@ import { motion } from "framer-motion"
 import type { Character } from "@agentsquad/shared"
 import { MAX_MEMBERS, type Draft } from "./draft"
 import { roster } from "./roster"
-import LeadPreview from "./LeadPreview"
+import { spriteSet, useSprites } from "../ui/sprites"
 import Portrait from "./Portrait"
 
 const MODELS = ["haiku", "sonnet", "opus"] as const
@@ -13,6 +13,8 @@ type Props = { draft: Draft; update: (p: Partial<Draft>) => void; back: () => vo
 
 export default function DraftSquad({ draft, update, back, next }: Props) {
   const members = draft.members
+  const { sprites } = useSprites()
+  const lead = { name: draft.name, color: "#f5c542", portrait: spriteSet(sprites, "lead", draft.look)?.front ?? "" }
   const slotOf = (id: string) => members.findIndex((m) => m.id === id)
 
   const toggle = (c: Character) => {
@@ -48,7 +50,7 @@ export default function DraftSquad({ draft, update, back, next }: Props) {
                 </span>
               )}
               <div className="flex gap-3 p-3">
-                <Portrait c={c} className="h-32 w-24 shrink-0 border-2 border-black" />
+                <Portrait c={c} className="h-36 w-28 shrink-0 border-2 border-black" />
                 <div className="flex min-w-0 flex-1 flex-col gap-2">
                   <h3 className="font-pixel text-[12px] leading-snug" style={{ color: c.color }}>
                     {c.name.toUpperCase()}
@@ -84,8 +86,8 @@ export default function DraftSquad({ draft, update, back, next }: Props) {
           </p>
         </div>
 
-        <div className="flex h-44 w-32 shrink-0 flex-col items-center justify-end border-3 border-gold-400 bg-navy-800 pb-1">
-          <div className="flex flex-1 items-end overflow-hidden">{draft.look && <LeadPreview look={draft.look} height={110} />}</div>
+        <div className="flex h-44 w-36 shrink-0 flex-col items-center justify-end border-3 border-gold-400 bg-navy-800 pb-1">
+          <Portrait c={lead} className="w-full flex-1" />
           <span className="font-pixel text-[8px] text-gold-300">LEAD</span>
           <span className="max-w-full truncate px-1 font-ui text-[11px] text-slate-300">{draft.name}</span>
         </div>

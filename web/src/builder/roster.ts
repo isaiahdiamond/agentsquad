@@ -15,7 +15,7 @@ const specialist = (
   role,
   isLead: false,
   look: null,
-  portrait: `/art/roster/${id}.png`,
+  portrait: `/art/sprites/${id}-front.png`,
   color,
   stats: { speed: 50, rigor: 50, creativity: 50 },
   tools,
