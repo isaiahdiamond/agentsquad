@@ -176,11 +176,11 @@ export function Toaster({ items, squad, since }: { items: Toast[]; squad: Squad 
   )
 }
 
-export function Pill({ on, onClick, children, label }: { on?: boolean; onClick: () => void; children: React.ReactNode; label?: string }) {
+export function Pill({ on, onClick, children, label, title }: { on?: boolean; onClick: () => void; children: React.ReactNode; label?: string; title?: string }) {
   return (
     <button
       className={`flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium transition-colors ${GLASS} ${on ? "text-text ring-1 ring-accent/70" : "text-muted hover:text-text"}`}
-      onClick={onClick} aria-pressed={on} aria-label={label}
+      onClick={onClick} aria-pressed={on} aria-label={label} title={title}
     >
       {children}
     </button>

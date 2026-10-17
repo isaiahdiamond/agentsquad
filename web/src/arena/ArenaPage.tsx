@@ -162,6 +162,68 @@ export default function ArenaPage() {
     if (shown && cam.view.w) cam.moveTo(homeOf(shown), 1, 0)
   }, [shown?.id, cam.view.w, cam.view.h])
 
+  // Follow: ease toward the newest event (800ms, up to 1.3x), never more than once every 3s; rapid events settle on the latest.
+  // When the mission ends the camera eases back to the whole scene.
+  const locateRef = useRef<(id: string) => Point | null>(() => null)
+  const lastMove = useRef(0)
+  const toward = (p: Point) => {
+    const home = homeOf(shown!)
+    lastMove.current = Date.now()
+    cam.moveTo({ x: home.x + (p.x - home.x) * 0.75, y: home.y + (p.y - home.y) * 0.75 }, 1.3)
+  }
+  useEffect(() => {
+    if (!follow || !shown || !arena.focusId || finished) return
+    const t = setTimeout(() => {
+      const p = locateRef.current(arena.focusId!)
+      if (p) toward(p)
+    }, Math.max(0, lastMove.current + 3000 - Date.now()))
+    return () => clearTimeout(t)
+  }, [arena.focusAt, follow, shown?.id, !!finished])
+  useEffect(() => {
+    if (!follow || !finished || !shown) return
+    lastMove.current = Date.now()
+    cam.moveTo(homeOf(shown), 1)
+  }, [!!finished, follow])
+
+  // Drag pans and the wheel zooms; either one hands the camera to the user, turning Follow off.
+  const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null)
+  const dragged = useRef(false)
+  const onChrome = (t: EventTarget) => !!(t as HTMLElement).closest?.("[data-chrome], .pointer-events-auto")
+  const pointer = {
+    onPointerDown: (e: React.PointerEvent) => {
+      if (e.button !== 0 || onChrome(e.target)) return
+      drag.current = { x: e.clientX, y: e.clientY, moved: false }
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      const d = drag.current
+      if (!d) return
+      if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 5) return
+      if (!d.moved) {
+        d.moved = true
+        setFollow(false)
+        ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+      }
+      cam.panBy(e.clientX - d.x, e.clientY - d.y)
+      d.x = e.clientX
+      d.y = e.clientY
+    },
+    onPointerUp: () => {
+      dragged.current = !!drag.current?.moved
+      drag.current = null
+    },
+    onClickCapture: (e: React.MouseEvent) => {
+      if (!dragged.current) return
+      dragged.current = false
+      e.stopPropagation()
+      e.preventDefault()
+    },
+    onWheel: (e: React.WheelEvent) => {
+      if (onChrome(e.target)) return
+      setFollow(false)
+      cam.zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0015))
+    },
+  }
+
   if (!scene) return <div className="p-10 text-sm text-muted">Loading scene...</div>
 
   const specialists = Object.values(arena.agents).filter((a) => a.type !== "lead").sort((a, b) => a.order - b.order)
@@ -184,6 +246,7 @@ export default function ArenaPage() {
     }
     return null
   }
+  locateRef.current = locate
   const pick = (id: string) => {
     const p = locate(id)
     if (!p) return
@@ -192,7 +255,7 @@ export default function ArenaPage() {
   }
 
   return (
-    <div ref={cam.ref} className="fixed inset-0 overflow-hidden bg-bg">
+    <div ref={cam.ref} className="fixed inset-0 touch-none select-none overflow-hidden bg-bg" {...pointer}>
       <Stage.Provider value={{ fit: cam.cover, ui: cam.ui }}>
         <motion.div
           className="absolute left-0 top-0 origin-top-left" data-stage
@@ -232,7 +295,7 @@ export default function ArenaPage() {
         </motion.div>
       </Stage.Provider>
 
-      <div className="pointer-events-none absolute inset-0 z-10">
+      <div className="pointer-events-none absolute inset-0 z-10 select-text">
         <div className="pointer-events-auto absolute left-4 top-4 flex items-center gap-2">
           <NavPill />
           <MissionPill arena={arena} finished={finished} connected={connected} />
@@ -259,7 +322,7 @@ export default function ArenaPage() {
             <svg viewBox="0 0 16 16" className="h-4 w-4"><path d="M3 4h10M3 8h10M3 12h6" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" /></svg>
             Log
           </Pill>
-          <Pill on={follow} onClick={() => setFollow((f) => !f)} label="Follow the action">
+          <Pill on={follow} onClick={() => setFollow((f) => !f)} label="Follow the action" title={follow ? "Following the action. Drag or scroll to look around." : "Follow the action"}>
             <svg viewBox="0 0 16 16" className="h-4 w-4"><circle cx={8} cy={8} r={5} fill="none" stroke="currentColor" strokeWidth={1.6} /><circle cx={8} cy={8} r={1.6} fill="currentColor" /></svg>
             Follow
           </Pill>
