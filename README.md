@@ -7,9 +7,29 @@ Build a squad of AI coding agents, deploy them into Claude Code, and watch them 
 
 The plan, the data shapes and each team's tasks live in `vault/`. Start with `vault/00 Start Here.md`.
 
+## Test it on a new machine (about 10 minutes)
+
+You need Node.js 22 or newer, git, and Claude Code installed and logged in (`claude` works in a terminal).
+
+1. Get the code and install:
+   ```
+   git clone https://github.com/isaiahdiamond/agentsquad.git
+   cd agentsquad
+   npm install
+   ```
+2. Optional, for friendly status lines: create `.env.local` in the repo root with one line, `GEMINI_API_KEY=your-key` (free key at aistudio.google.com/apikey). Never commit it. Without it you get plain template lines.
+3. Make a demo project to work in (outside the repo): `npm run setup-target -w demo`. It prints the folder, by default `~/agentsquad-demo-target`. Then `cd ~/agentsquad-demo-target && npm install && cd -`.
+4. Start AgentViz pointed at that project: `TARGET=~/agentsquad-demo-target npm run dev`, then open http://localhost:5173.
+5. In the browser: **Build your squad** → customize your lead → pick a team (include the reviewer) → pick a scene → **Deploy squad**. The arena should say "Waiting for Claude Code".
+6. Only now, in a second terminal: `cd ~/agentsquad-demo-target && claude`. Answer **Yes, I trust this folder** (the default is No). The arena switches to "Connected". If `claude` was already running, quit and restart it: it only reads hooks at startup.
+7. Give the lead a task, for example: "Use frontend-dev to build a simple landing page in site/index.html with a hero, three feature cards and a footer, then have reviewer check it." Watch http://localhost:5173/arena: "Got it", the team portals in, works at desks, and Mission complete appears when everyone is done.
+8. Clean up when finished: `curl -X POST localhost:4317/undeploy -H 'content-type: application/json' -d '{}'` removes everything AgentViz wrote into the demo project.
+
+If the arena stays on "Waiting for Claude Code": you started `claude` before deploying (restart it), you answered No to the trust prompt, or `claude` isn't running in the demo folder.
+
 ## What you need
 
-- Node.js 20 or newer (`node -v` to check)
+- Node.js 22 or newer (`node -v` to check)
 
 ## First time
 
