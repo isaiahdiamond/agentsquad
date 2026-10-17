@@ -1,6 +1,6 @@
 import type { Character, Look } from "@agentsquad/shared"
 import { roster } from "./roster"
-import { DEFAULT_LEAD_LOOK } from "../ui/sprites"
+import { DEFAULT_LOOK, normalizeLook } from "../ui/lead"
 
 export const STEPS = ["lead", "squad", "scene"] as const
 export type Step = "title" | (typeof STEPS)[number]
@@ -18,24 +18,9 @@ export type Draft = {
 export const MAX_MEMBERS = 4
 const KEY = "agentsquad.draft"
 
-export const emptyDraft: Draft = { step: "title", name: "Lead Agent", look: DEFAULT_LEAD_LOOK, members: [], scene: "uf-campus" }
+export const emptyDraft: Draft = { step: "title", name: "Lead Agent", look: DEFAULT_LOOK, members: [], scene: "uf-campus" }
 
 const MODELS = ["haiku", "sonnet", "opus", "inherit"]
-export const BODIES = ["a", "b"]
-export const OUTFITS = ["blazer", "hoodie", "flannel", "track"]
-
-// Older drafts saved layered looks like { body: "body-a", outfit: "outfit-hoodie" }. Keep what still maps to a variant.
-function parseLook(look: unknown): Look {
-  if (!look || typeof look !== "object") return DEFAULT_LEAD_LOOK
-  const l = look as Record<string, unknown>
-  const body = typeof l.body === "string" ? l.body.replace(/^body-/, "") : ""
-  const outfit = typeof l.outfit === "string" ? l.outfit.replace(/^outfit-/, "") : ""
-  return {
-    ...DEFAULT_LEAD_LOOK,
-    body: BODIES.includes(body) ? body : DEFAULT_LEAD_LOOK.body,
-    outfit: OUTFITS.includes(outfit) ? outfit : DEFAULT_LEAD_LOOK.outfit,
-  }
-}
 
 // Saved drafts come from old versions or hand edits; anything malformed falls back to the empty draft.
 function parseDraft(raw: string): Draft {
@@ -53,7 +38,7 @@ function parseDraft(raw: string): Draft {
     return {
       step: d.step === "title" || STEPS.includes(d.step) ? d.step : "title",
       name: typeof d.name === "string" ? d.name : emptyDraft.name,
-      look: parseLook(d.look),
+      look: normalizeLook(d.look),
       members,
       scene: typeof d.scene === "string" ? d.scene : emptyDraft.scene,
     }

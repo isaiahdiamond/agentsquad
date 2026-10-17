@@ -1,42 +1,57 @@
-import { useState } from "react"
+import type { CSSProperties } from "react"
 import type { Look } from "@agentsquad/shared"
-import { spriteSet, useSprites, type SpriteView } from "../ui/sprites"
+import { useLeadSprite, type LeadView } from "../ui/lead"
 
-type Props = {
-  look: Look
-  height: number          // max CSS height in px; the sprite is drawn at the largest whole-number scale that fits
-  view?: SpriteView
-  className?: string
-}
+type Props = { look: Look; scale: number; view?: LeadView; className?: string }
 
-// The lead's sprite variant (lead-<body>-<outfit>), drawn pixelated and anchored at the feet.
-export default function LeadPreview({ look, height, view = "front", className = "" }: Props) {
-  const { sprites, error } = useSprites()
-  const [failed, setFailed] = useState("")
-  const native = sprites?.height ?? 96
-  const h = native * Math.max(1, Math.floor(height / native))
-  const src = spriteSet(sprites, "lead", look)?.[view]
-
-  if (!sprites && !error) return <div className={className} style={{ height: h }} />
-  if (!src || failed === src) {
+// The composed lead (outfit + skin + hair, or a character), drawn pixelated at a whole-number scale.
+// The box is the sprite's size, anchored at the feet (bottom center).
+export default function LeadPreview({ look, scale, view = "front", className = "" }: Props) {
+  const { sprite, failed } = useLeadSprite(look, view)
+  if (failed && !sprite) {
     return (
       <div
         className={`flex items-center justify-center rounded-lg bg-accent-soft text-[11px] font-semibold text-accent ${className}`}
-        style={{ height: h, width: h * 0.4 }}
-        title={`missing art: lead-${look.body}-${look.outfit} ${view}`}
+        style={{ height: 96 * scale, width: 38 * scale }}
+        title={`missing lead art: ${look.body} ${look.outfit} ${view}`}
       >
         Lead
       </div>
     )
   }
+  if (!sprite) return <div className={className} style={{ height: 96 * scale, width: 38 * scale }} />
   return (
     <img
-      src={src}
+      src={sprite.url}
       alt="Lead"
       draggable={false}
-      onError={() => setFailed(src)}
       className={`pixelated block max-w-none ${className}`}
-      style={{ height: h }}
+      style={{ width: sprite.width * scale, height: sprite.height * scale }}
     />
+  )
+}
+
+type HeadProps = { look: Look; scale: number; top?: number; className?: string; style?: CSSProperties }
+
+// Head crop of the composed front view: the head's top-center sits `top` sprite pixels below the frame's top center. Position the frame (relative or absolute) via className.
+export function LeadHead({ look, scale, top = 3, className = "", style }: HeadProps) {
+  const { sprite } = useLeadSprite(look, "front")
+  return (
+    <div className={`overflow-hidden ${className}`} style={style}>
+      {sprite && (
+        <img
+          src={sprite.url}
+          alt=""
+          draggable={false}
+          className="pixelated absolute max-w-none"
+          style={{
+            width: sprite.width * scale,
+            height: sprite.height * scale,
+            left: `calc(50% - ${sprite.head[0] * scale}px)`,
+            top: (top - sprite.head[1]) * scale,
+          }}
+        />
+      )}
+    </div>
   )
 }

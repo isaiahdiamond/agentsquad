@@ -4,8 +4,8 @@ import { AnimatePresence, motion } from "framer-motion"
 import type { Character, Scene, Squad } from "@agentsquad/shared"
 import { saveSquad, type Draft } from "./draft"
 import { roster } from "./roster"
-import { spriteSet, useSprites } from "../ui/sprites"
 import Portrait from "./Portrait"
+import { LeadHead } from "./LeadPreview"
 import ArtImage from "../ui/ArtImage"
 import { BackButton, Progress } from "./parts"
 
@@ -107,8 +107,7 @@ export default function SceneDeploy({ draft, update, back }: Props) {
     const c = roster.find((r) => r.id === m.id)
     return c ? [{ c, model: m.model }] : []
   })
-  const { sprites } = useSprites()
-  const lead = { name: draft.name.trim() || "Lead Agent", color: "#f5c542", portrait: spriteSet(sprites, "lead", draft.look)?.front ?? "" }
+  const leadName = draft.name.trim() || "Lead Agent"
   const planned = [
     ...members.map(({ c }) => `.claude/agents/${c.id}.md`),
     "CLAUDE.md (team section)",
@@ -171,8 +170,18 @@ export default function SceneDeploy({ draft, update, back }: Props) {
       </AnimatePresence>
       <div className={`card relative flex items-center gap-6 px-6 py-4 ${error ? "mt-3" : "mt-8"}`}>
         <div className="flex gap-3">
-          {[{ c: lead, model: "lead" }, ...members].map(({ c, model }, i) => (
-            <div key={i} className="flex flex-col items-center gap-1" title={c.name}>
+          <div className="flex flex-col items-center gap-1" title={leadName}>
+            <LeadHead
+              look={draft.look}
+              scale={1}
+              top={4}
+              className="relative h-11 w-11 rounded-full"
+              style={{ background: "radial-gradient(circle at 50% 35%, #f5c542, color-mix(in srgb, #f5c542 70%, black))" }}
+            />
+            <span className="text-[11px] font-medium text-faint">Lead</span>
+          </div>
+          {members.map(({ c, model }) => (
+            <div key={c.id} className="flex flex-col items-center gap-1" title={c.name}>
               <Portrait c={c} scale={1} top={3} className="h-11 w-11 rounded-full" />
               <span className="text-[11px] font-medium text-faint">{cap(model)}</span>
             </div>
@@ -180,7 +189,7 @@ export default function SceneDeploy({ draft, update, back }: Props) {
         </div>
         <div className="h-8 w-px bg-line" />
         <p className="text-[16px] font-medium text-white">
-          {lead.name} + {members.length} agent{members.length === 1 ? "" : "s"}
+          {leadName} + {members.length} agent{members.length === 1 ? "" : "s"}
         </p>
         <div className="h-8 w-px bg-line" />
         <div ref={filesRef} className="relative">
