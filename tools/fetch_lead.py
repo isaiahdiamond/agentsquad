@@ -9,6 +9,7 @@ from PIL import Image, ImageChops, ImageFilter
 H = 96
 R = 2
 RAMP = 6
+SCALP = 6
 U = "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_"
 VIEWS = ("front", "hand", "sit")
 here = Path(__file__).parent
@@ -37,6 +38,8 @@ def hsv(c):
 
 
 def load(name, key):
+    if key.startswith("file:"):
+        return clean(Image.open(root / key[5:]).convert("RGBA"))
     p = raw / f"{name}.png"
     if not p.exists():
         urllib.request.urlretrieve(U + key + ".png", p)
@@ -199,6 +202,56 @@ def cover_rim(layer, base, bottom):
             layer.putpixel(p, c)
 
 
+def skull(base, bh):
+    rows = {}
+    span = None
+    for dy in range(SCALP - 1, -4, -1):
+        y = bh[1] + dy
+        if y >= 0 and base.getpixel((bh[0], y))[3]:
+            lo = hi = bh[0]
+            while lo > 0 and base.getpixel((lo - 1, y))[3]:
+                lo -= 1
+            while hi < base.width - 1 and base.getpixel((hi + 1, y))[3]:
+                hi += 1
+            span = (lo - bh[0] - 2, hi - bh[0] + 2)
+        if span:
+            rows[dy] = span
+    return rows
+
+
+def cover_scalp(layer, off, views, rows):
+    pad = 3
+    big = Image.new("RGBA", (layer.width + pad * 2, layer.height + pad * 2))
+    big.paste(layer, (pad, pad))
+    ox, oy = off[0] - pad, off[1] - pad
+    scalp = set()
+    for im, (hx, hy) in views:
+        for dy, (lo, hi) in rows.items():
+            for dx in range(lo, hi + 1):
+                x, y = hx + dx, hy + dy
+                lx, ly = dx - ox, dy - oy
+                if 0 <= x < im.width and 0 <= y < im.height and im.getpixel((x, y))[3] and 0 <= lx < big.width and 0 <= ly < big.height:
+                    scalp.add((lx, ly))
+    dark = min((p for p in big.get_flattened_data() if p[3]), key=lum)
+    todo = [p for p in scalp if big.getpixel(p)[3]]
+    filled = []
+    while todo:
+        nxt = []
+        for x, y in todo:
+            for q in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+                if q in scalp and not big.getpixel(q)[3]:
+                    big.putpixel(q, big.getpixel((x, y)))
+                    nxt.append(q)
+        filled += nxt
+        todo = nxt
+    for x, y in filled:
+        near = ((x - 1, y), (x + 1, y), (x, y - 1))
+        if any(0 <= q[0] < big.width and 0 <= q[1] and not big.getpixel(q)[3] for q in near):
+            big.putpixel((x, y), dark)
+    b = big.getbbox()
+    return big.crop(b), [ox + b[0], oy + b[1]]
+
+
 def hair_mask(base, hair, st):
     b, h = small(base), small(hair)
     cand = Image.new("L", h.size)
@@ -259,9 +312,11 @@ for body, b in src["bodies"].items():
     base, base_m = shrink(base_raw, bb, scale, pal, st, ramp)
     tpl = head_template(base_m)
     bh = head(base_m)
+    rows = skull(base, bh)
     raw_head = (bb[0] + bh[0] / scale, bb[1] + bh[1] / scale)
     base.save(out / f"{body}-base.png")
     entry = {"skin": [hexc(c) for c in ramp], "base": f"/art/lead/{body}-base.png", "outfits": {}, "hair": {"bald": None}}
+    views = []
     for o in b["outfits"]:
         entry["outfits"][o] = {}
         for v in VIEWS:
@@ -272,6 +327,7 @@ for body, b in src["bodies"].items():
             name = f"{body}-{o}-{v}.png"
             im.save(out / name)
             entry["outfits"][o][v] = {"src": f"/art/lead/{name}", "head": fit_head(m, tpl, guess)}
+            views.append((im, entry["outfits"][o][v]["head"]))
     for s in b["hair"]:
         hr = images[f"{body}-hair-{s}"]
         mask = hair_mask(base_raw, hr, st)
@@ -290,8 +346,9 @@ for body, b in src["bodies"].items():
         if not lb:
             print("WARNING: empty hair layer", body, s)
             continue
-        layer.crop(lb).save(out / f"{body}-hair-{s}.png")
-        entry["hair"][s] = {"src": f"/art/lead/{body}-hair-{s}.png", "offset": [lb[0] - hx, lb[1] - hy]}
+        layer, off = cover_scalp(layer.crop(lb), [lb[0] - hx, lb[1] - hy], views, rows)
+        layer.save(out / f"{body}-hair-{s}.png")
+        entry["hair"][s] = {"src": f"/art/lead/{body}-hair-{s}.png", "offset": off}
     manifest["bodies"][body] = entry
     print(body, "skin ramp:", entry["skin"], "hair styles:", len(entry["hair"]) - 1)
 

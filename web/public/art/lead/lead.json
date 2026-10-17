@@ -196,14 +196,14 @@
           "src": "/art/lead/a-hair-locs.png",
           "offset": [
             -20,
-            -1
+            -2
           ]
         },
         "waves": {
           "src": "/art/lead/a-hair-waves.png",
           "offset": [
             -15,
-            0
+            -2
           ]
         },
         "afro": {
@@ -362,14 +362,14 @@
           "src": "/art/lead/b-hair-braids.png",
           "offset": [
             -16,
-            0
+            -2
           ]
         },
         "straight": {
           "src": "/art/lead/b-hair-straight.png",
           "offset": [
             -17,
-            0
+            -2
           ]
         },
         "puff": {
@@ -383,7 +383,7 @@
           "src": "/art/lead/b-hair-bob.png",
           "offset": [
             -16,
-            -1
+            -2
           ]
         },
         "buns": {
@@ -397,17 +397,6 @@
     }
   },
   "characters": {
-    "robot": {
-      "front": {
-        "src": "/art/lead/robot-front.png"
-      },
-      "hand": {
-        "src": "/art/lead/robot-hand.png"
-      },
-      "sit": {
-        "src": "/art/lead/robot-sit.png"
-      }
-    },
     "dog": {
       "front": {
         "src": "/art/lead/dog-front.png"

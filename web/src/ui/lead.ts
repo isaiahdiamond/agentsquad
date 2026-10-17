@@ -23,8 +23,8 @@ export type LeadManifest = {
 export type LeadSprite = { canvas: HTMLCanvasElement; url: string; width: number; height: number; head: Point }
 
 export const PEOPLE = ["a", "b"]
-export const CHARACTERS = ["robot", "dog", "gator"]
-export const DEFAULT_LOOK: Look = { body: "a", outfit: "blazer", skin: "s4", hair: "sidepart", hairColor: "black", hat: "none" }
+export const CHARACTERS = ["dog", "gator"]
+export const DEFAULT_LOOK: Look = { body: "a", outfit: "blazer", skin: "s4", hair: "sidepart", hairColor: "brown", hat: "none" }
 const DEFAULT_HAIR: Record<string, string> = { a: "sidepart", b: "straight" }
 const OLD_HAIR_COLORS: Record<string, string> = { "#000000": "black" }
 
@@ -78,6 +78,7 @@ export function normalizeLook(raw: unknown, m?: LeadManifest | null): Look {
   const str = (v: unknown) => (typeof v === "string" ? v : "")
   const types = m ? [...Object.keys(m.bodies), ...Object.keys(m.characters)] : [...PEOPLE, ...CHARACTERS]
   const body = str(l.body).replace(/^body-/, "") || str(l.type)
+  if (body === "robot") return normalizeLook(DEFAULT_LOOK, m)
   const look: Look = { ...DEFAULT_LOOK, body: types.includes(body) ? body : DEFAULT_LOOK.body, hat: "none" }
   const outfit = str(l.outfit).replace(/^outfit-/, "")
   const skin = str(l.skin)
@@ -98,7 +99,7 @@ export function normalizeLook(raw: unknown, m?: LeadManifest | null): Look {
     ...look,
     outfit: outfits.includes(outfit) ? outfit : outfits.includes(DEFAULT_LOOK.outfit) ? DEFAULT_LOOK.outfit : outfits[0],
     skin: skin in m.skinTones ? skin : DEFAULT_LOOK.skin,
-    hair: hair in b.hair ? hair : DEFAULT_HAIR[look.body] in b.hair ? DEFAULT_HAIR[look.body] : "bald",
+    hair: hair in b.hair ? hair : DEFAULT_HAIR[look.body] in b.hair ? DEFAULT_HAIR[look.body] : Object.keys(b.hair).find((s) => s !== "bald") ?? "bald",
     hairColor: hairColor in m.hairColors ? hairColor : nearestColor(hairColor, m.hairColors) ?? DEFAULT_LOOK.hairColor,
   }
 }

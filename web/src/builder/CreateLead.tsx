@@ -14,7 +14,7 @@ const TAB_ICONS: Record<Tab, () => ReactNode> = {
 }
 
 const LABELS: Record<string, string> = {
-  a: "Body 1", b: "Body 2", robot: "Robot", dog: "Dog", gator: "Gator",
+  a: "Body 1", b: "Body 2", dog: "Dog", gator: "Gator",
   drip: "Drip", blazer: "Blazer", hoodie: "Hoodie", gameday: "Game day", debugger: "Debugger", sundress: "Sundress",
   bald: "Bald", locs: "Locs", waves: "Waves", afro: "Afro", sidepart: "Side part", fringe: "Fringe",
   braids: "Braids", straight: "Straight", puff: "Puff", bob: "Bob", buns: "Buns",
@@ -75,7 +75,7 @@ export default function CreateLead({ draft, update, back, next }: Props) {
       body,
       outfit: pick(Object.keys(b.outfits)),
       skin: pick(Object.keys(m.skinTones)),
-      hair: pick(Object.keys(b.hair)),
+      hair: pick(Object.keys(b.hair).filter((s) => s !== "bald")),
       hairColor: pick(Object.keys(m.hairColors)),
     })
   }
@@ -233,7 +233,7 @@ function Stage({ look, view }: { look: Look; view: LeadView }) {
     <div ref={ref} className="relative min-h-[200px] flex-1">
       <div className="absolute bottom-0 left-1/2 w-[240px] -translate-x-1/2">
         <div
-          className="absolute inset-x-0 bottom-0 rounded-[50%] bg-[#262a33]"
+          className="absolute inset-x-0 bottom-0 rounded-[50%] bg-[#161618]"
           style={{ height: PEDESTAL_TOP + PEDESTAL_SIDE }}
         />
         <div
@@ -241,8 +241,8 @@ function Stage({ look, view }: { look: Look; view: LeadView }) {
           style={{
             bottom: PEDESTAL_SIDE,
             height: PEDESTAL_TOP,
-            background: "radial-gradient(ellipse at 50% 40%, #2b303b, #181b22 75%)",
-            boxShadow: "0 0 28px rgba(90,143,230,0.25)",
+            background: "radial-gradient(ellipse at 50% 40%, #232326, #0e0e10 75%)",
+            boxShadow: "0 0 28px rgba(255,255,255,0.12)",
           }}
         />
       </div>

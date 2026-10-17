@@ -14,7 +14,7 @@ export default function TitleScreen({ draft, start, reset }: { draft: Draft; sta
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 55% 50% at 45% 40%, rgba(11,13,18,0.85), rgba(11,13,18,0.35) 70%, transparent), linear-gradient(to bottom, rgba(11,13,18,0.55), transparent 30%, transparent 70%, rgba(11,13,18,0.7))",
+            "radial-gradient(ellipse 55% 50% at 45% 40%, rgba(5,5,5,0.85), rgba(5,5,5,0.35) 70%, transparent), linear-gradient(to bottom, rgba(5,5,5,0.55), transparent 30%, transparent 70%, rgba(5,5,5,0.7))",
         }}
       />
 

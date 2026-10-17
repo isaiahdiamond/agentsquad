@@ -142,7 +142,7 @@ export default function SceneDeploy({ draft, update, back }: Props) {
               <ArtImage
                 src={s.background}
                 label={s.name}
-                color={s.kind === "map" ? "#1f3a2c" : "#1d2540"}
+                color={s.kind === "map" ? "#161618" : "#111113"}
                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
               />
               <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
