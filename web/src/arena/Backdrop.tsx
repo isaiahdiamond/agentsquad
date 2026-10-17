@@ -4,14 +4,14 @@ import { useImage } from "./Sprite"
 const W = 1600
 const H = 900
 
-// The scene image stretched to the 16:9 stage (the art is 1.768:1, so it stretches 0.5% and spot fractions stay exact).
+// The scene image at native size: it is the stage.
 // Without the image it draws the scene in code so the arena never looks broken.
 export default function Backdrop({ scene }: { scene: Scene }) {
   const ok = useImage(scene.background)
-  if (ok) return <img src={scene.background} alt={scene.name} draggable={false} className="absolute inset-0 h-full w-full select-none" />
+  if (ok) return <img src={scene.background} alt={scene.name} draggable={false} className="pixelated absolute inset-0 h-full w-full select-none" />
   if (ok === undefined) return <div className="absolute inset-0 bg-bg" />
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 h-full w-full" shapeRendering="crispEdges">
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full" shapeRendering="crispEdges">
       {scene.kind === "map" ? <MapArt scene={scene} /> : <RoomArt scene={scene} />}
     </svg>
   )

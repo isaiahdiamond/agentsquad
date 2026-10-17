@@ -1,57 +1,127 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { animate, motion, useMotionValue } from "framer-motion"
 import type { Scene, Spot, Squad } from "@agentsquad/shared"
 import Backdrop from "./Backdrop"
-import { Placed, StaticActor } from "./MapView"
-import { Actor, useFacing, usePx } from "./Sprite"
+import { sceneScale } from "./MapView"
+import { Actor, H, SEAT_LIFT, TALL, W, useFacing, useManifest, useNatural, useUi, type Size } from "./Sprite"
 import { who, type Agent, type Arena } from "./store"
 
-function Mover({ agent, squad, from, to, leave }: { agent: Agent; squad: Squad | null; from: Spot; to: Spot; leave?: boolean }) {
-  const x = useMotionValue(from.x), y = useMotionValue(from.y), s = useMotionValue(from.scale), o = useMotionValue(1)
-  useEffect(() => {
-    const spring = { type: "spring" as const, stiffness: 70, damping: 15 }
-    const cs = [animate(x, to.x, spring), animate(y, to.y, spring), animate(s, to.scale, spring)]
-    if (leave) cs.push(animate(o, 0, { delay: 0.9, duration: 0.6 }))
-    return () => cs.forEach((c) => c.stop())
-  }, [to.x, to.y, to.scale, leave])
-  const k = usePx(s)
-  const face = useFacing(x, y)
+const SPEED = 0.12
+const DESK = { w: 62, h: 52 }
+
+// Desk image size in art pixels, or the fallback size when the art is missing. Undefined while loading.
+export function useDesk(sceneId: string) {
+  const { m, ready } = useManifest()
+  const src = m?.desks?.[sceneId]
+  const nat = useNatural(src)
+  if (!ready || (src && nat === undefined)) return { src, size: undefined }
+  return { src: nat ? src : undefined, size: nat || DESK }
+}
+
+export function deskSpots(scene: Scene) {
+  return [...(scene.lead.kind === "desk" ? [scene.lead] : []), ...scene.stations.filter((s) => s.kind === "desk")]
+}
+
+// Always drawn, empty or not. Bottom center on the station, y-sorted with the agents.
+function Desk({ spot, s, src, size }: { spot: Spot; s: number; src?: string; size: Size }) {
+  const w = size.w * s, h = size.h * s
   return (
-    <Placed x={x} y={y} o={o}>
-      <Actor who={who(agent.type, squad)} agent={agent} seed={agent.type} k={k} face={face} />
-    </Placed>
+    <div className="pointer-events-none absolute" style={{ left: spot.x * W - w / 2, top: spot.y * H - h, width: w, height: h, zIndex: Math.round(spot.y * H) }}>
+      {src ? <img src={src} alt="" draggable={false} className="pixelated block h-full w-full select-none" /> : (
+        <div className="h-full w-full bg-[#6b4a2e]" style={{ borderWidth: 2 * s, borderColor: "#2a1710", borderTopWidth: 14 * s, borderTopColor: "#8a6440" }} />
+      )}
+    </div>
   )
 }
 
-// Rooms: a whole-scene room (bar, beach) with the lead, or a building interior showing only the agents inside it.
+type Target = { to: Spot; sit: boolean; leave?: boolean }
+
+// Walks in a straight line at a steady pace (standing sprite with step bob), then sits if the target is a desk seat.
+function Worker({ type, agent, squad, s, from, target, raise }: { type: string; agent?: Agent; squad: Squad | null; s: number; from: Spot; target: Target; raise?: number }) {
+  const x = useMotionValue(from.x), y = useMotionValue(from.y), o = useMotionValue(1)
+  const [seated, setSeated] = useState(false)
+  const { to, sit, leave } = target
+  useEffect(() => {
+    setSeated(false)
+    const d = Math.hypot(to.x - x.get(), (to.y - y.get()) * (H / W))
+    const opts = { duration: Math.max(0.15, d / SPEED), ease: "linear" as const }
+    const cs = [animate(x, to.x, opts), animate(y, to.y, opts)]
+    let alive = true
+    Promise.all(cs).then(() => alive && sit && setSeated(true))
+    if (leave) cs.push(animate(o, 0, { delay: opts.duration, duration: 0.5 }))
+    return () => {
+      alive = false
+      cs.forEach((c) => c.stop())
+    }
+  }, [to.x, to.y, sit, leave])
+  const face = useFacing(x, y)
+  return <Actor who={who(type, squad)} agent={agent} seed={type} s={s} x={x} y={y} o={o} face={face} seated={seated} raise={raise} />
+}
+
+// Rooms: a whole-scene room (office, beach) with the lead, or a building interior showing only the agents inside it.
 export default function RoomView({ scene, arena, squad, members, main }: { scene: Scene; arena: Arena; squad: Squad | null; members: Agent[]; main: boolean }) {
   const opened = useRef(Date.now())
+  const taken = useRef(new Map<string, number>())
+  const ui = useUi()
+  const s = sceneScale(scene)
+  const { src, size } = useDesk(scene.id)
   const lead = Object.values(arena.agents).find((a) => a.type === "lead")
-  const n = Math.max(1, scene.stations.length)
+  const leadDesk = scene.lead.kind === "desk"
+  const desks = scene.stations.filter((st) => st.kind === "desk")
   const working = members.filter((a) => !a.doneAt)
   const done = members.filter((a) => a.doneAt).sort((a, b) => a.doneAt - b.doneAt)
-  const station = (i: number): Spot => {
-    const st = scene.stations[i % n] ?? scene.bench
-    const lap = Math.floor(i / n)
-    return { x: st.x + lap * 0.04 * st.scale, y: st.y + lap * 0.008 * st.scale, scale: st.scale }
+  const deskH = (size ?? DESK).h
+  const deskW = (size ?? DESK).w
+
+  // Each working agent keeps the first desk that was free when it arrived; finished agents free theirs.
+  const map = taken.current
+  for (const id of [...map.keys()]) if (!working.some((a) => a.id === id)) map.delete(id)
+  for (const a of working) {
+    if (map.has(a.id)) continue
+    const used = new Set(map.values())
+    let i = 0
+    while (used.has(i)) i++
+    map.set(a.id, i)
   }
+
+  // More agents than desks: the extras stand in a row next to the bench, never on a desk station.
+  const station = (i: number): Spot => desks[i] ?? { ...scene.bench, x: scene.bench.x + ((i - desks.length + 1) * 30 * s) / W }
+  const seat = (st: Spot): Spot => ({ ...st, y: st.y - (deskH * s * SEAT_LIFT) / H })
+  // Stand up on the side of the desk facing the middle of the room.
+  const beside = (st: Spot): Spot => ({ ...st, x: st.x + ((st.x > 0.5 ? -1 : 1) * (deskW / 2 + 14) * s) / W, y: st.y - (4 * s) / H })
   const home = (i: number): Spot => {
     const side = i % 2 ? 1 : -1
-    return { x: scene.lead.x + side * 0.045 * scene.lead.scale * (Math.floor(i / 2) + 1), y: scene.lead.y + 0.02, scale: scene.lead.scale }
+    const gap = (leadDesk ? deskW / 2 + 16 : 20) * s + (Math.floor(i / 2) + (leadDesk && side === (scene.lead.x > 0.5 ? -1 : 1) ? 1 : 0)) * 34 * s
+    return { ...scene.lead, x: scene.lead.x + (side * gap) / W, y: scene.lead.y + (6 * s) / H }
+  }
+  const targetFor = (a: Agent): Target => {
+    if (a.doneAt) return main ? { to: home(done.indexOf(a)), sit: false } : { to: scene.bench, sit: false, leave: true }
+    const i = map.get(a.id) ?? 0
+    const st = station(i)
+    const isDesk = !!desks[i]
+    if (a.state === "waiting" && isDesk) return { to: beside(st), sit: false }
+    return isDesk ? { to: seat(st), sit: true } : { to: st, sit: false }
+  }
+  const leadTarget = (): Target => {
+    if (!leadDesk) return { to: scene.lead, sit: false }
+    if (lead && (lead.state === "waiting" || lead.doneAt)) return { to: beside(scene.lead), sit: false }
+    return { to: seat(scene.lead), sit: true }
   }
   const fresh = (a: Agent) => a.firstAt > opened.current - 300
+  const head = (p: Spot) => ({ x: p.x * W, y: p.y * H - TALL * s * 0.75 })
 
+  if (!size) return <div className="absolute inset-0"><Backdrop scene={scene} /></div>
   return (
     <div className="absolute inset-0">
       <Backdrop scene={scene} />
       {main && (
-        <svg viewBox="0 0 1600 900" className="pointer-events-none absolute inset-0 z-[5] h-full w-full">
+        <svg viewBox={`0 0 ${W} ${H}`} className="pointer-events-none absolute inset-0 z-[4000] h-full w-full">
           {working.filter(fresh).map((a, i) => {
-            const st = station(members.indexOf(a))
+            const p = head(scene.lead), q = head(targetFor(a).to)
             return (
               <motion.line
-                key={a.id} x1={scene.lead.x * 1600} y1={(scene.lead.y - scene.lead.scale * 0.06) * 900} x2={st.x * 1600} y2={(st.y - st.scale * 0.06) * 900}
-                stroke={who(a.type, squad).color} strokeWidth={4} strokeLinecap="round"
+                key={a.id} x1={p.x} y1={p.y} x2={q.x} y2={q.y}
+                stroke={who(a.type, squad).color} strokeWidth={4 * ui} strokeLinecap="round"
                 initial={{ pathLength: 0, opacity: 1 }} animate={{ pathLength: 1, opacity: [1, 1, 0] }}
                 transition={{ duration: 2.2, delay: i * 0.05, times: [0, 0.6, 1] }}
               />
@@ -59,18 +129,16 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
           })}
         </svg>
       )}
-      {main && (
-        <StaticActor spot={scene.lead} who={who("lead", squad)} agent={lead} seed="lead" />
-      )}
+      {main && <Worker type="lead" agent={lead} squad={squad} s={s} from={leadTarget().to} target={leadTarget()} />}
       {members.map((a) => {
-        const i = members.indexOf(a)
         if (!main && a.doneAt && a.doneAt < opened.current) return null
-        const to = !a.doneAt ? station(i) : main ? home(done.indexOf(a)) : scene.bench
-        return <Mover key={a.id} agent={a} squad={squad} from={fresh(a) ? scene.bench : station(i)} to={to} leave={!main && a.doneAt > 0} />
+        const t = targetFor(a)
+        return <Worker key={a.id} type={a.type} agent={a} squad={squad} s={s} from={fresh(a) ? scene.bench : t.to} target={t} raise={((map.get(a.id) ?? 0) % 2) * 52} />
       })}
+      {deskSpots(scene).map((d, i) => <Desk key={i} spot={d} s={s} src={src} size={size} />)}
       {!working.length && !main && (
-        <div className="absolute inset-x-0 top-[45%] flex justify-center">
-          <div className="card px-4 py-2.5 text-sm text-muted shadow-[0_8px_24px_rgba(0,0,0,.45)]">Nobody is working in here right now.</div>
+        <div className="absolute inset-x-0 top-[45%] z-[4500] flex justify-center">
+          <div className="card px-4 py-2.5 text-sm text-muted shadow-[0_8px_24px_rgba(0,0,0,.45)]" style={{ transform: `scale(${ui})` }}>Nobody is working in here right now.</div>
         </div>
       )}
     </div>

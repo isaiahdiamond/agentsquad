@@ -1,44 +1,23 @@
-import { useCallback, useContext, useEffect, useState } from "react"
-import { animate, motion, useAnimationControls, useMotionValue, useTransform, type MotionValue } from "framer-motion"
+import { useCallback, useEffect, useState } from "react"
+import { animate, motion, useAnimationControls, useMotionValue } from "framer-motion"
 import type { Building, Scene, Spot, Squad } from "@agentsquad/shared"
 import Backdrop from "./Backdrop"
-import { Actor, FlameBadge, Portrait, Stage, useFacing, usePx } from "./Sprite"
+import { Actor, FlameBadge, Portrait, useFacing, useUi } from "./Sprite"
 import { buildingFor, who, type Agent, type Arena } from "./store"
 
 const SPEED = 0.1
 
-// Puts the child's bottom center on (x, y), as fractions of the stage, snapped to whole pixels.
-export function Placed({ x, y, o, z, children }: { x: MotionValue<number>; y: MotionValue<number>; o?: MotionValue<number>; z?: number; children: React.ReactNode }) {
-  const { w, h } = useContext(Stage)
-  const left = useMotionValue(0), top = useMotionValue(0)
-  useEffect(() => {
-    const fx = () => left.set(Math.round(x.get() * w))
-    const fy = () => top.set(Math.round(y.get() * h))
-    fx()
-    fy()
-    const offX = x.on("change", fx), offY = y.on("change", fy)
-    return () => {
-      offX()
-      offY()
-    }
-  }, [x, y, w, h])
-  const zIndex = useTransform(y, (v) => z ?? Math.round(v * 100) + 10)
-  return (
-    <motion.div className="pointer-events-none absolute -translate-x-1/2 -translate-y-full" style={{ left, top, opacity: o, zIndex }}>
-      {children}
-    </motion.div>
-  )
+export function sceneScale(scene: Scene) {
+  return scene.scale ?? (scene.kind === "map" ? 0.92 : 2.75)
 }
 
-export function StaticActor({ spot, ...props }: { spot: Spot } & Omit<React.ComponentProps<typeof Actor>, "k">) {
-  const x = useMotionValue(spot.x), y = useMotionValue(spot.y), s = useMotionValue(spot.scale)
+export function StaticActor({ spot, ...props }: { spot: Spot } & Omit<React.ComponentProps<typeof Actor>, "x" | "y">) {
+  const x = useMotionValue(spot.x), y = useMotionValue(spot.y)
   useEffect(() => {
     x.set(spot.x)
     y.set(spot.y)
-    s.set(spot.scale)
-  }, [spot.x, spot.y, spot.scale])
-  const k = usePx(s)
-  return <Placed x={x} y={y}><Actor {...props} k={k} /></Placed>
+  }, [spot.x, spot.y])
+  return <Actor {...props} x={x} y={y} />
 }
 
 const dist = (a: Spot, b: Spot) => Math.hypot(b.x - a.x, (b.y - a.y) * 0.5625)
@@ -83,8 +62,8 @@ function toward(path: Spot[], target: Spot): Spot[] {
 }
 
 // Walks out along the path to the door and fades in; on done, fades in at the door, walks back to the lead, then to its parking spot.
-function Walker({ agent, squad, path, park, onArrive }: { agent: Agent; squad: Squad | null; path: Spot[]; park: Spot; onArrive: (id: string) => void }) {
-  const x = useMotionValue(path[0].x), y = useMotionValue(path[0].y), s = useMotionValue(path[0].scale), o = useMotionValue(0)
+function Walker({ agent, squad, path, park, s, onArrive }: { agent: Agent; squad: Squad | null; path: Spot[]; park: Spot; s: number; onArrive: (id: string) => void }) {
+  const x = useMotionValue(path[0].x), y = useMotionValue(path[0].y), o = useMotionValue(0)
   const done = agent.doneAt > 0
 
   useEffect(() => {
@@ -100,16 +79,15 @@ function Walker({ agent, squad, path, park, onArrive }: { agent: Agent; squad: S
       for (let i = 1; i < pts.length; i++) d.push(d[i - 1] + dist(pts[i - 1], pts[i]))
       const total = d[d.length - 1] || 0.001
       const opts = { duration: Math.max(0.5, total / SPEED), times: d.map((v) => v / total), ease: "linear" as const }
-      const cs = [animate(x, pts.map((p) => p.x), opts), animate(y, pts.map((p) => p.y), opts), animate(s, pts.map((p) => p.scale), opts)]
+      const cs = [animate(x, pts.map((p) => p.x), opts), animate(y, pts.map((p) => p.y), opts)]
       running.push(...cs)
       return Promise.all(cs)
     }
     const put = (p: Spot) => {
       x.set(p.x)
       y.set(p.y)
-      s.set(p.scale)
     }
-    const here = () => ({ x: x.get(), y: y.get(), scale: s.get() })
+    const here = () => ({ x: x.get(), y: y.get(), scale: 1 })
     const run = async () => {
       if (!done) {
         put(path[0])
@@ -135,17 +113,13 @@ function Walker({ agent, squad, path, park, onArrive }: { agent: Agent; squad: S
     }
   }, [done, park.x, park.y])
 
-  const k = usePx(s)
   const face = useFacing(x, y)
-  return (
-    <Placed x={x} y={y} o={o}>
-      <Actor who={who(agent.type, squad)} agent={agent} seed={agent.type} icon={done} k={k} face={face} />
-    </Placed>
-  )
+  return <Actor who={who(agent.type, squad)} agent={agent} seed={agent.type} icon={done} s={s} x={x} y={y} o={o} face={face} />
 }
 
 function Badge({ b, inside, squad }: { b: Building; inside: Agent[]; squad: Squad | null }) {
   const controls = useAnimationControls()
+  const ui = useUi()
   const pulse = Math.max(0, ...inside.map((a) => a.pulseAt))
   useEffect(() => {
     if (pulse) controls.start({ scale: [1, 1.12, 1], transition: { duration: 0.35 } })
@@ -154,10 +128,10 @@ function Badge({ b, inside, squad }: { b: Building; inside: Agent[]; squad: Squa
   const waiting = inside.some((a) => a.state === "waiting")
   const error = inside.some((a) => a.state === "error")
   return (
-    <div className="pointer-events-none absolute z-[200] -translate-x-1/2" style={{ left: `${b.badge.x * 100}%`, top: `${Math.max(0.01, b.badge.y) * 100}%` }}>
+    <div className="pointer-events-none absolute z-[6000]" style={{ left: `${b.badge.x * 100}%`, top: `${Math.max(0.01, b.badge.y) * 100}%`, transform: `translateX(-50%) scale(${ui})`, transformOrigin: "50% 0" }}>
       <motion.div
         animate={controls}
-        className={`flex items-center gap-2 rounded-2xl border p-1.5 pr-3 backdrop-blur-md ${waiting ? "border-amber-300/80 bg-amber-400/90 text-[#0b0d12] shadow-[0_0_24px_6px_rgba(251,191,36,.55)]" : "border-line-strong bg-panel/90 text-text shadow-[0_8px_24px_rgba(0,0,0,.45)]"}`}
+        className={`flex items-center gap-2 rounded-2xl border p-1.5 pr-3 ${waiting ? "border-amber-300/80 bg-amber-400 text-[#0b0d12] shadow-[0_0_24px_6px_rgba(251,191,36,.55)]" : "border-line-strong bg-panel text-text shadow-[0_8px_24px_rgba(0,0,0,.45)]"}`}
       >
         <div className="flex -space-x-1.5">
           {inside.map((a) => (
@@ -177,6 +151,8 @@ export default function MapView({ scene, arena, squad, onOpen }: { scene: Scene;
   const agents = Object.values(arena.agents).filter((a) => a.type !== "lead").sort((a, b) => a.order - b.order)
   const lead = Object.values(arena.agents).find((a) => a.type === "lead")
   const done = agents.filter((a) => a.doneAt).sort((a, b) => a.doneAt - b.doneAt)
+  const ui = useUi()
+  const s = sceneScale(scene)
   const [arrived, setArrived] = useState<string[]>([])
   const onArrive = useCallback((id: string) => setArrived((ids) => (ids.includes(id) ? ids : [...ids, id])), [])
   const pathFor = (a: Agent) => {
@@ -190,10 +166,10 @@ export default function MapView({ scene, arena, squad, onOpen }: { scene: Scene;
       {buildings.map((b) => (
         <button
           key={b.id} onClick={() => onOpen(b)} title={`Look inside ${b.name}`}
-          className="group absolute z-[5] cursor-pointer rounded-2xl border-2 border-transparent transition-colors hover:border-accent/80 hover:bg-accent/10"
+          className="group absolute z-[5] cursor-pointer rounded-[32px] border-[5px] border-transparent transition-colors hover:border-accent/80 hover:bg-accent/10"
           style={{ left: `${b.area.x * 100}%`, top: `${b.area.y * 100}%`, width: `${b.area.w * 100}%`, height: `${b.area.h * 100}%` }}
         >
-          <span className="absolute bottom-3 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded-full bg-accent px-3 py-1 text-xs font-semibold text-on-accent shadow-lg group-hover:block">
+          <span className="absolute bottom-[24px] left-1/2 hidden whitespace-nowrap rounded-full bg-accent px-3 py-1 text-xs font-semibold text-on-accent shadow-lg group-hover:block" style={{ transform: `translateX(-50%) scale(${ui})`, transformOrigin: "50% 100%" }}>
             Look inside {b.name}
           </span>
         </button>
@@ -201,10 +177,10 @@ export default function MapView({ scene, arena, squad, onOpen }: { scene: Scene;
       {buildings.map((b, i) => (
         <Badge key={b.id} b={b} squad={squad} inside={agents.filter((a) => !a.doneAt && arrived.includes(a.id) && buildingFor(scene, a.type) === i)} />
       ))}
-      <StaticActor spot={scene.lead} who={who("lead", squad)} agent={lead} seed="lead" />
+      <StaticActor spot={scene.lead} who={who("lead", squad)} agent={lead} seed="lead" s={s} />
       {agents.map((a) => {
         const k = done.indexOf(a)
-        return <Walker key={a.id} agent={a} squad={squad} path={pathFor(a)} park={parkSpot(scene, Math.max(0, k))} onArrive={onArrive} />
+        return <Walker key={a.id} agent={a} squad={squad} path={pathFor(a)} park={parkSpot(scene, Math.max(0, k))} s={s} onArrive={onArrive} />
       })}
     </div>
   )
