@@ -3,3 +3,5 @@ dist/
 .DS_Store
 .obsidian/workspace*.json
 .claude/worktrees/
+tools/.venv/
+assets/raw/

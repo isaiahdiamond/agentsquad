@@ -1,0 +1,97 @@
+{
+  "height": 44,
+  "lead": {
+    "bodies": [
+      "a",
+      "b"
+    ],
+    "outfits": [
+      "blazer",
+      "hoodie",
+      "flannel",
+      "track"
+    ],
+    "looks": {
+      "lead-a-blazer": {
+        "front": "/art/sprites/lead-a-blazer-front.png",
+        "back": "/art/sprites/lead-a-blazer-back.png",
+        "hand": "/art/sprites/lead-a-blazer-hand.png"
+      },
+      "lead-a-hoodie": {
+        "front": "/art/sprites/lead-a-hoodie-front.png",
+        "back": "/art/sprites/lead-a-hoodie-back.png",
+        "hand": "/art/sprites/lead-a-hoodie-hand.png"
+      },
+      "lead-a-flannel": {
+        "front": "/art/sprites/lead-a-flannel-front.png",
+        "back": "/art/sprites/lead-a-flannel-back.png",
+        "hand": "/art/sprites/lead-a-flannel-hand.png"
+      },
+      "lead-a-track": {
+        "front": "/art/sprites/lead-a-track-front.png",
+        "back": "/art/sprites/lead-a-track-back.png",
+        "hand": "/art/sprites/lead-a-track-hand.png"
+      },
+      "lead-b-blazer": {
+        "front": "/art/sprites/lead-b-blazer-front.png",
+        "back": "/art/sprites/lead-b-blazer-back.png",
+        "hand": "/art/sprites/lead-b-blazer-hand.png"
+      },
+      "lead-b-hoodie": {
+        "front": "/art/sprites/lead-b-hoodie-front.png",
+        "back": "/art/sprites/lead-b-hoodie-back.png",
+        "hand": "/art/sprites/lead-b-hoodie-hand.png"
+      },
+      "lead-b-flannel": {
+        "front": "/art/sprites/lead-b-flannel-front.png",
+        "back": "/art/sprites/lead-b-flannel-back.png",
+        "hand": "/art/sprites/lead-b-flannel-hand.png"
+      },
+      "lead-b-track": {
+        "front": "/art/sprites/lead-b-track-front.png",
+        "back": "/art/sprites/lead-b-track-back.png",
+        "hand": "/art/sprites/lead-b-track-hand.png"
+      }
+    }
+  },
+  "team": {
+    "frontend-dev": {
+      "front": "/art/sprites/frontend-dev-front.png",
+      "back": "/art/sprites/frontend-dev-back.png",
+      "hand": "/art/sprites/frontend-dev-hand.png"
+    },
+    "backend-dev": {
+      "front": "/art/sprites/backend-dev-front.png",
+      "back": "/art/sprites/backend-dev-back.png",
+      "hand": "/art/sprites/backend-dev-hand.png"
+    },
+    "test-engineer": {
+      "front": "/art/sprites/test-engineer-front.png",
+      "back": "/art/sprites/test-engineer-back.png",
+      "hand": "/art/sprites/test-engineer-hand.png"
+    },
+    "reviewer": {
+      "front": "/art/sprites/reviewer-front.png",
+      "back": "/art/sprites/reviewer-back.png",
+      "hand": "/art/sprites/reviewer-hand.png"
+    },
+    "scout": {
+      "front": "/art/sprites/scout-front.png",
+      "back": "/art/sprites/scout-back.png",
+      "hand": "/art/sprites/scout-hand.png"
+    },
+    "docs-writer": {
+      "front": "/art/sprites/docs-writer-front.png",
+      "back": "/art/sprites/docs-writer-back.png",
+      "hand": "/art/sprites/docs-writer-hand.png"
+    }
+  },
+  "scenes": {
+    "uf-campus": "/art/scenes/uf-campus.png",
+    "interior-library": "/art/scenes/interior-library.png",
+    "interior-lab": "/art/scenes/interior-lab.png",
+    "interior-union": "/art/scenes/interior-union.png",
+    "office": "/art/scenes/office.png",
+    "beach": "/art/scenes/beach.png"
+  }
+}

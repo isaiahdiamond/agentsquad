@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Sprite Fit</title>
+<style>
+  body { margin: 0; background: #0f1424; color: #e8e2c8; font: 14px/1.4 system-ui, sans-serif; }
+  .bar { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; padding: 12px 16px; background: #1a2140; border-bottom: 2px solid #c9a24a; }
+  .bar label { display: flex; gap: 6px; align-items: center; }
+  .bar input[type=range] { width: 120px; }
+  button { background: #c9a24a; color: #1a2140; border: 0; padding: 6px 12px; font-weight: 700; cursor: pointer; }
+  #info { color: #9fb0d8; }
+  canvas { display: block; width: 100%; image-rendering: pixelated; cursor: crosshair; }
+  .hint { padding: 40px 16px; color: #9fb0d8; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <label>Scene <input type="file" id="bgFile" accept="image/*"></label>
+  <label>Sprite <input type="file" id="spFile" accept="image/*"></label>
+  <label>Sprite height <input type="range" id="h" min="24" max="128" value="44"> <span id="hv"></span>px</label>
+  <label>Scale <input type="range" id="s" min="1" max="10" value="2"> <span id="sv"></span>x</label>
+  <label><input type="checkbox" id="raw"> Raw (no cleanup)</label>
+  <button id="clear">Clear</button>
+  <span id="info"></span>
+</div>
+<div class="hint" id="hint">Pick a scene and a sprite, then click the scene to place copies. Feet land where you click.</div>
+<canvas id="c" hidden></canvas>
+<script>
+const c = document.getElementById("c")
+const ctx = c.getContext("2d")
+const el = id => document.getElementById(id)
+let bg = null, sp = null, small = null, spots = []
+
+function load(file, done) {
+  const img = new Image()
+  img.onload = () => done(img)
+  img.src = URL.createObjectURL(file)
+}
+
+function trim(img) {
+  const t = document.createElement("canvas")
+  t.width = img.width
+  t.height = img.height
+  const tx = t.getContext("2d")
+  tx.drawImage(img, 0, 0)
+  const d = tx.getImageData(0, 0, t.width, t.height).data
+  let x0 = t.width, y0 = t.height, x1 = 0, y1 = 0
+  for (let y = 0; y < t.height; y++)
+    for (let x = 0; x < t.width; x++)
+      if (d[(y * t.width + x) * 4 + 3] > 128) {
+        if (x < x0) x0 = x
+        if (y < y0) y0 = y
+        if (x > x1) x1 = x
+        if (y > y1) y1 = y
+      }
+  return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 }
+}
+
+function shrink() {
+  if (!sp) return
+  const b = trim(sp)
+  const h = +el("h").value
+  const w = Math.max(1, Math.round(b.w * h / b.h))
+  small = document.createElement("canvas")
+  small.width = w
+  small.height = h
+  const sx = small.getContext("2d")
+  sx.imageSmoothingEnabled = true
+  sx.imageSmoothingQuality = "high"
+  sx.drawImage(sp, b.x, b.y, b.w, b.h, 0, 0, w, h)
+  const im = sx.getImageData(0, 0, w, h)
+  for (let i = 3; i < im.data.length; i += 4) im.data[i] = im.data[i] > 128 ? 255 : 0
+  sx.putImageData(im, 0, 0)
+  small.box = b
+}
+
+function draw() {
+  if (!bg) return
+  el("hint").hidden = true
+  c.hidden = false
+  c.width = bg.width
+  c.height = bg.height
+  ctx.imageSmoothingEnabled = false
+  ctx.drawImage(bg, 0, 0)
+  const s = +el("s").value
+  const h = +el("h").value
+  el("hv").textContent = h
+  el("sv").textContent = s
+  if (!small) return
+  const raw = el("raw").checked
+  const dw = small.width * s
+  const dh = small.height * s
+  for (const p of spots) {
+    if (raw) {
+      const b = small.box
+      ctx.imageSmoothingEnabled = true
+      ctx.drawImage(sp, b.x, b.y, b.w, b.h, p.x - dw / 2, p.y - dh, dw, dh)
+      ctx.imageSmoothingEnabled = false
+    } else {
+      ctx.drawImage(small, p.x - dw / 2, p.y - dh, dw, dh)
+    }
+  }
+  el("info").textContent = `on screen: ${dh}px tall = ${(dh / bg.height * 100).toFixed(1)}% of scene height | sprite ${small.width}x${small.height}`
+}
+
+el("bgFile").onchange = e => load(e.target.files[0], img => { bg = img; draw() })
+el("spFile").onchange = e => load(e.target.files[0], img => { sp = img; shrink(); draw() })
+el("h").oninput = () => { shrink(); draw() }
+el("s").oninput = draw
+el("raw").onchange = draw
+el("clear").onclick = () => { spots = []; draw() }
+c.onclick = e => {
+  const r = c.getBoundingClientRect()
+  spots.push({ x: (e.clientX - r.left) * c.width / r.width, y: (e.clientY - r.top) * c.height / r.height })
+  draw()
+}
+draw()
+</script>
+</body>
+</html>

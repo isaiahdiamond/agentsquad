@@ -37,6 +37,16 @@ These fill gaps in [[Contracts]] without changing any type.
 - **Turns:** REPORT narrations arrive after each turn's Stop; session_end only on SessionEnd.
 - **Missing art:** every image the UI loads has a code-drawn fallback (colored box plus label) so the app runs before art lands. No agent generates image files. Art requests go to the Art stream (a human) through `vault/Art Requests.md`.
 
+### Art Pack 01 (2026-10-17, delivered by Art)
+
+See [[Art Pack]]. It supersedes the sizes in [[Art Requests]] where they differ.
+
+- **Characters** are single images per view: `front`, `back`, `hand` (hand raised), 44px tall, one shared 64-color palette, listed in `web/public/art/sprites.json`. Left/right facing = flip front/back horizontally. No walk-cycle frames: walking is the front or back image with a bob. Draw at integer scale, anchored at the feet.
+- **Lead looks** are full variants, not layers: body `a` or `b` × outfit `blazer`, `hoodie`, `flannel`, `track`. In `Look`, `body` is `"a"`/`"b"`, `outfit` is the outfit id, `hair` and `hat` are `"none"`, `hairColor` is unused for now. The Color/Hair/Hat tabs are hidden until recolor art lands. `looks.json` is retired.
+- **Portraits** come from each character's `front` sprite (head crop, upscaled in code). No separate portrait files.
+- **Scenes:** `uf-campus` (map) with 3 buildings: top-left Library (scout, docs-writer → `interior-library`), top-right Lab (backend-dev, test-engineer → `interior-lab`), bottom-right Union (frontend-dev, reviewer → `interior-union`). Rooms you can pick directly: `office` (back from the cut list, since art exists) and `beach`. The Bar has no art yet and is hidden.
+- Scene art is 2688×1520; render it to fit the 16:9 stage.
+
 ## Open (owner decides by the hour shown)
 
 | Question | Owner | By |
@@ -53,7 +63,7 @@ These fill gaps in [[Contracts]] without changing any type.
 
 Agents: write contract change requests here, then stop and wait.
 
-- (none yet)
+- **Replace `LookManifest` with a `SpriteManifest` type** matching `web/public/art/sprites.json` (architect, pending human approval). Until then, code reads `sprites.json` with a local type and `LookManifest` goes unused.
 
 ## Log
 
