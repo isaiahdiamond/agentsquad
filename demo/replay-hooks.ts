@@ -16,7 +16,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms / speed))
 
 const GAP: Record<string, number> = {
   SessionStart: 0, UserPromptSubmit: 800, PreToolUse: 1600, PostToolUse: 1400, PostToolUseFailure: 1400,
-  SubagentStart: 200, SubagentStop: 1200, Notification: 500, Stop: 1500, SessionEnd: 1500,
+  SubagentStart: 200, SubagentStop: 1200, Notification: 500, Stop: 1500, SessionEnd: 50,
 }
 
 async function post(raw: unknown) {
@@ -53,8 +53,10 @@ function scripted(sessionId: string): [number, any][] {
     if (e.kind === "tool_end" && e.state === "error") out.push([ms, { ...base, ...who, ...tool, hook_event_name: "PostToolUseFailure", error: `Exit code 1\n${e.text ?? ""}`, is_interrupt: false }])
     else if (e.kind === "tool_end") out.push([ms, { ...base, ...who, ...tool, hook_event_name: "PostToolUse", tool_response: {} }])
     if (e.kind === "agent_done" && e.agentId !== "lead") out.push([ms, { ...base, ...who, hook_event_name: "SubagentStop", last_assistant_message: e.text }])
-    if (e.kind === "agent_done" && e.agentId === "lead") out.push([ms, { ...base, hook_event_name: "Stop" }])
-    if (e.kind === "session_end") out.push([ms + 3000, { ...base, hook_event_name: "SessionEnd", reason: "other" }])
+    if (e.kind === "agent_done" && e.agentId === "lead") {
+      out.push([ms, { ...base, hook_event_name: "Stop" }])
+      out.push([ms + 50, { ...base, hook_event_name: "SessionEnd", reason: "other" }])
+    }
   }
   return out.sort((a, b) => a[0] - b[0])
 }
