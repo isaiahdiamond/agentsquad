@@ -4,7 +4,7 @@ import type { Character } from "@agentsquad/shared"
 import { MAX_MEMBERS, type Draft } from "./draft"
 import { roster } from "./roster"
 import Portrait from "./Portrait"
-import { ArrowRight, BackButton, Progress } from "./parts"
+import { BackButton, Progress } from "./parts"
 
 const MODELS = ["haiku", "sonnet", "opus"] as const
 
@@ -42,24 +42,14 @@ export default function DraftSquad({ draft, update, back, next }: Props) {
     update({ members: members.map((m) => (m.id === id ? { ...m, model } : m)) })
 
   return (
-    <div
-      className="relative flex min-h-screen flex-col items-center px-6 pt-7 pb-6"
-      style={{ backgroundImage: "radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px)", backgroundSize: "28px 28px" }}
-    >
+    <div className="relative flex min-h-screen flex-col items-center px-6 pt-7 pb-6">
       <div className="absolute top-7 left-8">
         <BackButton onClick={back} />
       </div>
       <Progress step="squad" className="items-center" />
 
-      <div
-        className="mt-[max(16px,calc(14.6vh_-_74px))] h-20 w-20 rounded-full"
-        style={{
-          background: "radial-gradient(circle at 38% 32%, #d9d2ff, #9d8cf8 40%, #5b47d6 85%)",
-          boxShadow: "0 0 60px rgba(139,124,246,0.45), 0 0 140px rgba(139,124,246,0.2)",
-        }}
-      />
-      <h1 className="mt-[max(12px,calc(8.75vh_-_40px))] text-[36px] font-semibold tracking-[-0.02em] text-white">Pick your team</h1>
-      <p className="mt-2 text-[17px] text-muted">Each one is a real Claude Code subagent. Pick up to four.</p>
+      <h1 className="mt-[max(32px,calc(24vh_-_80px))] text-[36px] font-semibold tracking-[-0.02em] text-white">Pick your team</h1>
+      <p className="mt-2 text-[17px] text-muted">Each one is a Claude Code subagent. Pick up to four.</p>
 
       <div className="mt-[max(16px,calc(11.7vh_-_52px))] flex flex-wrap justify-center gap-x-7 gap-y-6">
         {roster.map((c) => {
@@ -76,10 +66,9 @@ export default function DraftSquad({ draft, update, back, next }: Props) {
               className={`group flex flex-col items-center gap-3 outline-none ${full ? "cursor-not-allowed" : ""}`}
             >
               <motion.span
-                whileHover={full ? {} : { y: -3 }}
                 whileTap={full ? {} : { scale: 0.96 }}
                 className={`relative block rounded-full p-1 transition-all ${
-                  selected ? "ring-[3px] ring-white" : "ring-0"
+                  selected ? "ring-[3px] ring-accent" : "ring-0"
                 } group-focus-visible:outline-2 group-focus-visible:outline-offset-4 group-focus-visible:outline-accent`}
               >
                 <Portrait
@@ -95,7 +84,7 @@ export default function DraftSquad({ draft, update, back, next }: Props) {
                       animate={{ scale: 1 }}
                       exit={{ scale: 0 }}
                       transition={{ type: "spring", stiffness: 500, damping: 28 }}
-                      className="absolute top-1 right-1 flex h-7 w-7 items-center justify-center rounded-full bg-white text-black shadow"
+                      className="absolute top-1 right-1 flex h-7 w-7 items-center justify-center rounded-full bg-accent text-on-accent shadow"
                     >
                       <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M3.5 8.5l3 3 6-7" />
@@ -108,7 +97,7 @@ export default function DraftSquad({ draft, update, back, next }: Props) {
                 <span className={`text-[16px] font-medium transition-colors ${selected ? "text-white" : "text-muted"}`}>{shortName(c)}</span>
                 <span
                   className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-                    selected ? "border-accent/40 bg-accent-soft text-accent" : "invisible border-transparent"
+                    selected ? "border-line-strong text-muted" : "invisible border-transparent"
                   }`}
                 >
                   {cap(members.find((m) => m.id === c.id)?.model ?? c.model)}
@@ -129,7 +118,7 @@ export default function DraftSquad({ draft, update, back, next }: Props) {
                   key={model}
                   onClick={() => setModel(focused.id, model)}
                   className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
-                    focusedMember.model === model ? "bg-accent text-white" : "text-faint hover:text-text"
+                    focusedMember.model === model ? "bg-accent text-on-accent" : "text-faint hover:text-text"
                   }`}
                 >
                   {cap(model)}
@@ -148,16 +137,14 @@ export default function DraftSquad({ draft, update, back, next }: Props) {
       <p className="mt-[max(12px,calc(8.75vh_-_40px))] text-[13px] text-faint">
         {members.length} of {MAX_MEMBERS} picked
       </p>
-      <motion.button
-        whileHover={members.length ? { scale: 1.05 } : {}}
-        whileTap={members.length ? { scale: 0.95 } : {}}
+      <button
         onClick={next}
         disabled={members.length === 0}
-        title={members.length === 0 ? "Pick at least one agent" : "Continue"}
-        className="mt-3 flex h-14 w-14 items-center justify-center rounded-full border border-line-strong bg-panel text-white transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-line-strong"
+        title={members.length === 0 ? "Pick at least one agent" : undefined}
+        className="btn-primary mt-3 h-12 min-w-48 rounded-xl! text-[15px]!"
       >
-        <ArrowRight className="h-5 w-5" />
-      </motion.button>
+        Continue
+      </button>
     </div>
   )
 }

@@ -1,10 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
-import { AnimatePresence, motion } from "framer-motion"
+import { motion } from "framer-motion"
 import type { Look } from "@agentsquad/shared"
 import { useSprites, type SpriteView } from "../ui/sprites"
 import { BODIES, OUTFITS, type Draft } from "./draft"
 import LeadPreview from "./LeadPreview"
-import { ArrowRight, BackButton, Progress } from "./parts"
+import { BackButton, Progress } from "./parts"
 
 // Hair, Skin and Headset come back when the recolor art lands (see Decisions, Art Pack 01).
 const TABS = ["body", "outfit"] as const
@@ -62,54 +62,24 @@ export default function CreateLead({ draft, update, back, next }: Props) {
         <aside className="flex flex-col gap-1 overflow-auto border-r border-line p-6 xl:p-7">
           <h1 className="mb-5 text-[22px] font-semibold tracking-tight text-white">Customize your lead</h1>
           {TABS.map((t) => (
-            <div key={t}>
-              <button
-                onClick={() => setTab(t)}
-                className={`flex w-full items-center gap-3 rounded-lg px-1 py-2.5 text-left text-[15px] transition-colors ${
-                  t === tab ? "text-white" : "text-muted hover:text-text"
-                }`}
-              >
-                {t === "body" ? <BodyIcon /> : <ShirtIcon />}
-                <span className="flex-1 font-medium">{t === "body" ? "Body" : "Outfit"}</span>
-                <Chevron up={t === tab} />
-              </button>
-              <AnimatePresence initial={false}>
-                {t === tab && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="overflow-hidden"
-                  >
-                    <div className="flex flex-col gap-1 pt-1 pb-2 pl-2">
-                      {optsFor(t).map((o) => {
-                        const selected = o === look[t]
-                        return (
-                          <button
-                            key={o}
-                            onClick={() => set({ [t]: o })}
-                            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-left text-[14px] transition-colors ${
-                              selected ? "bg-panel-2 text-white" : "text-muted hover:text-text"
-                            }`}
-                          >
-                            <span className={`h-1.5 w-1.5 rounded-full ${selected ? "bg-accent" : "border border-faint"}`} />
-                            {LABELS[o] ?? o}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              aria-pressed={t === tab}
+              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] transition-colors ${
+                t === tab ? "bg-panel-2 text-white [&>svg]:text-accent" : "text-muted hover:text-text"
+              }`}
+            >
+              {t === "body" ? <BodyIcon /> : <ShirtIcon />}
+              <span className="flex-1 font-medium">{t === "body" ? "Body" : "Outfit"}</span>
+            </button>
           ))}
           {[
             ["Hair", <HairIcon key="i" />],
             ["Skin", <SparkleIcon key="i" />],
             ["Headset", <HeadsetIcon key="i" />],
           ].map(([label, icon]) => (
-            <div key={label as string} className="flex items-center gap-3 px-1 py-2.5 text-[15px] text-faint" title="Needs recolor art. Coming soon.">
+            <div key={label as string} className="flex items-center gap-3 px-3 py-2.5 text-[15px] text-faint" title="Needs recolor art. Coming soon.">
               {icon}
               <span className="flex-1 font-medium">{label}</span>
               <span className="rounded-full border border-line px-2 py-0.5 text-[11px] font-medium">Soon</span>
@@ -129,24 +99,21 @@ export default function CreateLead({ draft, update, back, next }: Props) {
             {opts.map((o) => {
               const selected = o === look[tab]
               return (
-                <motion.button
+                <button
                   key={`${tab}-${o}`}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  whileHover={{ y: -2 }}
                   onClick={() => set({ [tab]: o })}
                   title={LABELS[o] ?? o}
                   className={`flex h-[216px] items-end justify-center rounded-xl pb-3 bg-panel-2 transition-shadow ${
-                    selected ? "ring-2 ring-white" : "hover:ring-1 hover:ring-line-strong"
+                    selected ? "ring-2 ring-accent" : "hover:ring-1 hover:ring-line-strong"
                   }`}
                 >
                   <LeadPreview look={{ ...look, [tab]: o }} height={SPRITE_HEIGHT * 2} />
-                </motion.button>
+                </button>
               )
             })}
           </div>
           <p className="mt-5 text-[13px] text-faint">
-            {LABELS[look[tab]] ?? look[tab]} · use ← and → to cycle
+            {LABELS[look[tab]] ?? look[tab]}. Arrow keys switch options.
           </p>
         </section>
 
@@ -176,7 +143,7 @@ export default function CreateLead({ draft, update, back, next }: Props) {
             </div>
           </div>
           <button onClick={next} disabled={!draft.name.trim()} className="btn-primary h-13 w-full rounded-xl! text-[15px]">
-            Continue <ArrowRight />
+            Continue
           </button>
         </section>
       </div>
@@ -203,22 +170,18 @@ function Stage({ look, view }: { look: Look; view: SpriteView }) {
 
   return (
     <div ref={ref} className="relative min-h-[200px] flex-1">
-      <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-[85%]"
-        style={{ background: "radial-gradient(ellipse 45% 55% at 50% 70%, rgba(139,124,246,0.28), transparent 70%)" }}
-      />
       <div className="absolute bottom-0 left-1/2 w-[240px] -translate-x-1/2">
         <div
-          className="absolute inset-x-0 bottom-0 rounded-[50%] bg-accent-strong"
-          style={{ height: PEDESTAL_TOP + PEDESTAL_SIDE, boxShadow: "0 18px 50px rgba(116,97,240,0.45)" }}
+          className="absolute inset-x-0 bottom-0 rounded-[50%] bg-[#262a33]"
+          style={{ height: PEDESTAL_TOP + PEDESTAL_SIDE }}
         />
         <div
-          className="absolute inset-x-0 rounded-[50%] border-2 border-[#c4bbfb]"
+          className="absolute inset-x-0 rounded-[50%] border-2 border-accent/70"
           style={{
             bottom: PEDESTAL_SIDE,
             height: PEDESTAL_TOP,
-            background: "radial-gradient(ellipse at 50% 40%, #4b3fa8, #2a2366 75%)",
-            boxShadow: "0 0 40px rgba(139,124,246,0.55), inset 0 0 24px rgba(196,187,251,0.25)",
+            background: "radial-gradient(ellipse at 50% 40%, #2b303b, #181b22 75%)",
+            boxShadow: "0 0 28px rgba(90,143,230,0.25)",
           }}
         />
       </div>
@@ -244,14 +207,6 @@ const iconProps = {
   strokeWidth: 1.6,
   strokeLinecap: "round" as const,
   strokeLinejoin: "round" as const,
-}
-
-function Chevron({ up }: { up: boolean }) {
-  return (
-    <svg {...iconProps} className={`h-4 w-4 shrink-0 transition-transform ${up ? "rotate-180" : ""}`}>
-      <path d="M6 9l6 6 6-6" />
-    </svg>
-  )
 }
 
 function BodyIcon() {

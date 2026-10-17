@@ -7,7 +7,7 @@ import { roster } from "./roster"
 import { spriteSet, useSprites } from "../ui/sprites"
 import Portrait from "./Portrait"
 import ArtImage from "../ui/ArtImage"
-import { ArrowRight, BackButton, Progress } from "./parts"
+import { BackButton, Progress } from "./parts"
 
 type DeployedFile = { path: string; content: string }
 
@@ -133,12 +133,11 @@ export default function SceneDeploy({ draft, update, back }: Props) {
           return (
             <motion.button
               key={s.id}
-              whileHover={{ y: -3 }}
               whileTap={{ scale: 0.99 }}
               onClick={() => update({ scene: s.id })}
               aria-pressed={selected}
               className={`group relative h-[min(540px,calc(100vh-400px))] min-h-[200px] overflow-hidden rounded-[var(--radius-card)] border text-left transition-shadow ${
-                selected ? "border-accent shadow-[0_0_0_3px_var(--color-accent),0_0_36px_6px_rgba(139,124,246,0.45)]" : "border-line hover:border-line-strong"
+                selected ? "border-accent shadow-[0_0_0_2px_var(--color-accent)]" : "border-line hover:border-line-strong"
               }`}
             >
               <ArtImage
@@ -188,7 +187,7 @@ export default function SceneDeploy({ draft, update, back }: Props) {
           <button
             onClick={() => setFilesOpen((v) => !v)}
             aria-expanded={filesOpen}
-            className="flex items-center gap-2 font-mono text-[13px] text-muted transition-colors hover:text-text"
+            className="flex items-center gap-2 text-[14px] text-muted transition-colors hover:text-text"
           >
             {planned.length} files will be written
             <svg viewBox="0 0 16 16" className={`h-3.5 w-3.5 transition-transform ${filesOpen ? "" : "rotate-180"}`} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -287,7 +286,7 @@ function FilesModal({ files, onClose, onArena }: { files: DeployedFile[]; onClos
             Close
           </button>
           <button onClick={onArena} className="btn-primary">
-            Go to Arena <ArrowRight />
+            Go to Arena
           </button>
         </div>
       </motion.div>

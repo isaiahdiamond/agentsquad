@@ -1,7 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 
-/* Shared UI theme, per vault/References.md: a clean dark, monochrome product UI (white on black); pixel art only in characters and scenes.
+/* Shared UI theme, per vault/References.md: a clean dark product UI with one restrained blue accent; pixel art only in characters and scenes.
    Owned by the architect; streams use these tokens and classes, not their own copies. */
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -13,9 +13,9 @@
   --color-text: #e8e9ee;
   --color-muted: #9097a6;
   --color-faint: #5d6474;
-  --color-accent: #f4f4f5;
-  --color-accent-strong: #d4d4d8;
-  --color-accent-soft: rgb(255 255 255 / 0.1);
+  --color-accent: #5a8fe6;
+  --color-accent-strong: #78a4ec;
+  --color-accent-soft: rgb(90 143 230 / 0.14);
   --color-on-accent: #0b0d12;
   --radius-card: 16px;
 }
