@@ -8,15 +8,16 @@ import { who, type Agent, type Arena } from "./store"
 
 const ROOM_W = CHAR_W * 1.7
 
-function Mover({ agent, squad, from, to }: { agent: Agent; squad: Squad | null; from: Spot; to: Spot }) {
-  const x = useMotionValue(from.x), y = useMotionValue(from.y), s = useMotionValue(from.scale)
+function Mover({ agent, squad, from, to, leave }: { agent: Agent; squad: Squad | null; from: Spot; to: Spot; leave?: boolean }) {
+  const x = useMotionValue(from.x), y = useMotionValue(from.y), s = useMotionValue(from.scale), o = useMotionValue(1)
   useEffect(() => {
     const spring = { type: "spring" as const, stiffness: 70, damping: 15 }
     const cs = [animate(x, to.x, spring), animate(y, to.y, spring), animate(s, to.scale, spring)]
+    if (leave) cs.push(animate(o, 0, { delay: 0.9, duration: 0.6 }))
     return () => cs.forEach((c) => c.stop())
-  }, [to.x, to.y, to.scale])
+  }, [to.x, to.y, to.scale, leave])
   return (
-    <Placed x={x} y={y} s={s} size={ROOM_W}>
+    <Placed x={x} y={y} s={s} o={o} size={ROOM_W}>
       <Actor who={who(agent.type, squad)} agent={agent} seed={agent.type} />
     </Placed>
   )
@@ -65,10 +66,11 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
       )}
       {members.map((a) => {
         const i = members.indexOf(a)
-        const to = a.doneAt ? home(done.indexOf(a)) : station(i)
-        return <Mover key={a.id} agent={a} squad={squad} from={fresh(a) ? scene.bench : to} to={to} />
+        if (!main && a.doneAt && a.doneAt < opened.current) return null
+        const to = !a.doneAt ? station(i) : main ? home(done.indexOf(a)) : scene.bench
+        return <Mover key={a.id} agent={a} squad={squad} from={fresh(a) ? scene.bench : station(i)} to={to} leave={!main && a.doneAt > 0} />
       })}
-      {!members.length && !main && (
+      {!working.length && !main && (
         <div className="absolute inset-x-0 top-[45%] text-center font-pixel text-[11px] text-gold-300 drop-shadow-[2px_2px_0_#000]">
           Nobody is working in here right now.
         </div>

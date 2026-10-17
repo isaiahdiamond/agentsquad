@@ -21,6 +21,8 @@ export default function ArenaPage() {
   const [origin, setOrigin] = useState("50% 50%")
   const [debug, setDebug] = useState(params.has("debug"))
   const [top, setTop] = useState(0)
+  const [notice, setNotice] = useState("")
+  const [stalled, setStalled] = useState(0)
   const latest = useRef(arena)
   latest.current = arena
 
@@ -65,27 +67,42 @@ export default function ArenaPage() {
   const replay = params.get("replay")
   useEffect(() => {
     if (!replay || !connected) return
-    fetch(`/api/replay/${encodeURIComponent(replay)}`).catch(() => {})
+    fetch(`/api/replay/${encodeURIComponent(replay)}`)
+      .then((r) => setNotice(r.ok ? "" : "That run wasn't recorded. Mock sessions aren't saved."))
+      .catch(() => setNotice("Could not reach the server to start the replay."))
     setParams((p) => {
       p.delete("replay")
       return p
     }, { replace: true })
   }, [replay, connected])
 
-  const finished = finishedAt(arena)
+  // If the lead is done but a specialist never reports back, give up waiting after 15s of silence.
+  const leadDone = arena.agents.lead?.doneAt ?? 0
+  useEffect(() => {
+    if (!leadDone || finishedAt(arena)) return
+    const t = setTimeout(() => setStalled(arena.lastAt), 15000)
+    return () => clearTimeout(t)
+  }, [leadDone, arena.lastAt])
+
+  // Wait 2s for REPORT lines, 1.5s more after each one, never more than 6s.
+  const finished = finishedAt(arena) || (stalled && stalled === arena.lastAt ? stalled : 0)
   useEffect(() => {
     if (!finished) return
+    const due = Math.min(finished + 6000, Math.max(finished + 2000, arena.reportAt + 1500))
     const t = setTimeout(() => {
       saveReport({ arena: latest.current, squad })
       navigate("/report")
-    }, 2000)
+    }, due - Date.now())
     return () => clearTimeout(t)
-  }, [finished])
+  }, [finished, arena.reportAt])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "d" || e.key === "D") setDebug((d) => !d)
-      if (e.key === "Escape") setView(null)
+      if (e.key === "Escape") {
+        setView(null)
+        setZoom(null)
+      }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
@@ -98,7 +115,7 @@ export default function ArenaPage() {
   const building = buildings.find((b) => b.id === view || b.interior === view)
   const interior = building && scenes.find((s) => s.id === building.interior)
   const specialists = Object.values(arena.agents).filter((a) => a.type !== "lead").sort((a, b) => a.order - b.order)
-  const inside = building ? specialists.filter((a) => !a.doneAt && buildingFor(scene, a.type) === buildings.indexOf(building)) : []
+  const inside = building ? specialists.filter((a) => buildingFor(scene, a.type) === buildings.indexOf(building)) : []
   const open = (b: Building) => {
     setOrigin(`${(b.area.x + b.area.w / 2) * 100}% ${(b.area.y + b.area.h / 2) * 100}%`)
     setZoom(b)
@@ -146,6 +163,12 @@ export default function ArenaPage() {
               )}
             </AnimatePresence>
             {debug && <Debug scene={interior ?? scene} />}
+            {notice && (
+              <div className="panel absolute left-1/2 top-4 z-[900] flex -translate-x-1/2 items-center gap-4 px-5 py-3 font-pixel text-[10px] text-gold-300">
+                {notice}
+                <button className="text-slate-400 hover:text-gold-300" onClick={() => setNotice("")}>x</button>
+              </div>
+            )}
             <AnimatePresence>
               {finished > 0 && (
                 <motion.div

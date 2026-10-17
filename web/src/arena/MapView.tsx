@@ -23,7 +23,9 @@ export function Placed({ x, y, s, o, z, size = CHAR_W, children }: { x: MotionVa
 export function StaticPlaced({ spot, children, z, size }: { spot: Spot; children: React.ReactNode; z?: number; size?: number }) {
   const x = useMotionValue(spot.x), y = useMotionValue(spot.y), s = useMotionValue(spot.scale)
   useEffect(() => {
-    x.set(spot.x); y.set(spot.y); s.set(spot.scale)
+    x.set(spot.x)
+    y.set(spot.y)
+    s.set(spot.scale)
   }, [spot.x, spot.y, spot.scale])
   return <Placed x={x} y={y} s={s} z={z} size={size}>{children}</Placed>
 }
@@ -49,8 +51,12 @@ function Walker({ agent, squad, path, home }: { agent: Agent; squad: Squad | nul
       running.push(...cs)
       return Promise.all(cs)
     }
-    const put = (p: Spot) => { x.set(p.x); y.set(p.y); s.set(p.scale) }
-    ;(async () => {
+    const put = (p: Spot) => {
+      x.set(p.x)
+      y.set(p.y)
+      s.set(p.scale)
+    }
+    const run = async () => {
       if (!done) {
         put(path[0])
         await fade(1)
@@ -63,7 +69,8 @@ function Walker({ agent, squad, path, home }: { agent: Agent; squad: Squad | nul
       put(back[0])
       await fade(1)
       if (alive) await walk([...back, home])
-    })()
+    }
+    run()
     return () => {
       alive = false
       running.forEach((c) => c.stop())

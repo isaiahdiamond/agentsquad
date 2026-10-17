@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentState, Scene, Squad } from "@agentsquad/shared"
+import type { AgentEvent, AgentState, Look, Scene, Squad } from "@agentsquad/shared"
 import { roster } from "../builder/roster"
 
 export type Received = AgentEvent & { at: number }
@@ -40,19 +40,29 @@ export type Arena = {
   files: FileTouch[]
   spans: Span[]
   open: Record<string, number>
+  lastAt: number
+  reportAt: number
+  seen: string[]
+  feedN: number
 }
 
 export const emptyArena = (): Arena => ({
-  startAt: 0, endAt: 0, toolCount: 0, agents: {}, feed: [], files: [], spans: [], open: {},
+  startAt: 0, endAt: 0, toolCount: 0, agents: {}, feed: [], files: [], spans: [], open: {}, lastAt: 0, reportAt: 0, seen: [], feedN: 0,
 })
 
 const FILE_TOOLS = ["Read", "Edit", "Write", "NotebookEdit", "MultiEdit"]
 const CHANGE_TOOLS = ["Edit", "Write", "NotebookEdit", "MultiEdit"]
 
 export function reduce(prev: Arena, e: Received): Arena {
+  if (prev.seen.includes(e.id)) return prev
+  // Another session can only take over once this one is finished or has gone quiet for a minute.
+  if (prev.sessionId && e.sessionId !== prev.sessionId) {
+    if (!finishedAt(prev) && e.at - prev.lastAt < 60000) return prev
+    prev = emptyArena()
+  }
   if (e.kind === "session_start") prev = { ...emptyArena(), sessionId: e.sessionId, startAt: e.at }
   if (e.kind === "prompt" && (prev.endAt || prev.agents.lead?.doneAt)) prev = { ...emptyArena(), sessionId: e.sessionId, startAt: e.at }
-  const s: Arena = { ...prev, agents: { ...prev.agents } }
+  const s: Arena = { ...prev, agents: { ...prev.agents }, lastAt: e.at, seen: [...prev.seen.slice(-299), e.id] }
   if (!s.startAt) s.startAt = e.at
   if (!s.sessionId) s.sessionId = e.sessionId
 
@@ -63,10 +73,14 @@ export function reduce(prev: Arena, e: Received): Arena {
   }
   s.agents[e.agentId] = a
   a.lastAt = e.at
-  const feed = (text: string) => { s.feed = [{ id: e.id, agentId: a.id, agentType: a.type, text, at: e.at }, ...s.feed].slice(0, 60) }
+  const feed = (text: string) => {
+    s.feed = [{ id: `${e.id}:${s.feedN++}`, agentId: a.id, agentType: a.type, text, at: e.at }, ...s.feed].slice(0, 60)
+  }
 
   if (e.kind === "prompt") s.prompt = e.text
   if (e.kind === "spawn") {
+    a.doneAt = 0
+    a.doneText = undefined
     a.task = e.text
     a.state = e.state ?? "thinking"
     if (e.text) feed(`New task: ${e.text}`)
@@ -74,7 +88,7 @@ export function reduce(prev: Arena, e: Received): Arena {
   if (e.kind === "tool_start") {
     if (e.tool) {
       if (a.state === "error") a.fixedAt = e.at
-      if (a.state === "error" || a.state === "waiting") a.state = "thinking"
+      if (!a.doneAt && (a.state === "error" || a.state === "waiting")) a.state = "thinking"
       s.toolCount++
       a.tools++
       a.tool = e.tool
@@ -97,8 +111,10 @@ export function reduce(prev: Arena, e: Received): Arena {
     s.open = rest
   }
   if (e.kind === "narration" && e.text) {
-    if (e.text.startsWith("REPORT:")) a.report = e.text.slice(7).trim()
-    else if (!a.doneAt) {
+    if (e.text.startsWith("REPORT:")) {
+      a.report = e.text.slice(7).trim()
+      s.reportAt = e.at
+    } else if (!a.doneAt) {
       a.narration = e.text
       a.narrationAt = e.at
       feed(e.text)
@@ -112,15 +128,15 @@ export function reduce(prev: Arena, e: Received): Arena {
   }
   if (e.kind === "session_end") s.endAt = e.at
 
-  if (e.state && e.kind !== "agent_done") {
+  if (e.state && !a.doneAt) {
     if (e.state === "error" && a.state !== "error") feed(e.kind !== "narration" && e.text ? `Error: ${e.text}` : `Hit an error${e.target ? ` on ${e.target}` : e.tool ? ` in ${e.tool}` : ""}.`)
     if (e.state === "waiting" && a.state !== "waiting") feed("Waiting for you.")
-    if (!(e.kind === "session_end" && a.state === "done")) a.state = e.state
+    a.state = e.state
   }
   return s
 }
 
-export type Who = { name: string; role: string; color: string; portrait: string; lead: boolean }
+export type Who = { name: string; role: string; color: string; portrait?: string; look?: Look; lead: boolean }
 
 export const LEAD_COLOR = "#f5c542"
 
@@ -130,12 +146,12 @@ export function who(type: string, squad: Squad | null): Who {
       name: squad?.lead.name || "Lead",
       role: squad?.lead.role || "Lead Agent",
       color: LEAD_COLOR,
-      portrait: squad?.lead.portrait || "/art/roster/lead.png",
+      look: squad?.lead.look ?? undefined,
       lead: true,
     }
   }
   const c = squad?.members.find((m) => m.id === type) ?? roster.find((r) => r.id === type)
-  if (!c) return { name: type, role: "Specialist", color: "#94a3b8", portrait: `/art/roster/${type}.png`, lead: false }
+  if (!c) return { name: type, role: "Specialist", color: "#94a3b8", lead: false }
   return { name: c.name, role: c.role, color: c.color, portrait: c.portrait, lead: false }
 }
 
@@ -184,11 +200,19 @@ export function saveReport(r: Report) {
   } catch {}
 }
 
+function validReport(r: unknown): r is Report {
+  const a = (r as Report | null)?.arena
+  if (!a || typeof a !== "object" || !a.agents || typeof a.agents !== "object") return false
+  if (![a.feed, a.files, a.spans].every(Array.isArray) || typeof a.startAt !== "number") return false
+  return Object.values(a.agents).every((g) => g && typeof g.type === "string" && Array.isArray(g.files) && Array.isArray(g.changed))
+}
+
 export function loadReport(): Report | null {
   if (saved) return saved
   try {
     const raw = sessionStorage.getItem(KEY)
-    return raw ? (JSON.parse(raw) as Report) : null
+    const r = raw ? JSON.parse(raw) : null
+    return validReport(r) ? r : null
   } catch {
     return null
   }

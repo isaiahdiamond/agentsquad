@@ -88,7 +88,8 @@ export default function ReportPage() {
                 </div>
                 <p className="text-center font-ui text-[11px] text-slate-400">{w.role}</p>
                 <div className="flex flex-col gap-2 border-y-2 border-navy-700 py-2">
-                  <Stat label="FILES" value={a.changed.length || a.files.length} />
+                  <Stat label="CHANGED" value={a.changed.length} />
+                  <Stat label="READ" value={a.files.filter((f) => !a.changed.includes(f)).length} />
                   <Stat label="TOOLS" value={a.tools} />
                   <Stat label="TIME" value={clock(activeMs(a, arena))} />
                 </div>

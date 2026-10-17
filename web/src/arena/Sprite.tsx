@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import type { AgentState } from "@agentsquad/shared"
+import type { AgentState, Look } from "@agentsquad/shared"
+import LeadPreview from "../builder/LeadPreview"
 import ArtImage from "../ui/ArtImage"
 import type { Agent, Who } from "./store"
 
@@ -74,25 +75,57 @@ export function Sprite({ color, seed, lead, raise, bust }: { color: string; seed
 
 const probed = new Map<string, boolean>()
 
-export function useImage(src: string) {
-  const [ok, setOk] = useState(probed.get(src))
+export function useImage(src?: string) {
+  const [ok, setOk] = useState(src ? probed.get(src) : false)
   useEffect(() => {
+    if (!src) return setOk(false)
     if (probed.has(src)) return setOk(probed.get(src))
     const img = new Image()
-    img.onload = () => { probed.set(src, true); setOk(true) }
-    img.onerror = () => { probed.set(src, false); setOk(false) }
+    const settle = (ok: boolean) => {
+      probed.set(src, ok)
+      setOk(ok)
+    }
+    img.onload = () => settle(true)
+    img.onerror = () => settle(false)
     img.src = src
   }, [src])
   return ok
 }
 
+// The lead's deployed look, scaled to whatever width the parent gives it.
+function LeadLook({ look, crop }: { look: Look; crop?: boolean }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [w, setW] = useState(0)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setW(el.clientWidth))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  return (
+    <div
+      ref={ref} className="flex w-full justify-center"
+      style={{ aspectRatio: crop ? "1" : "20 / 22", alignItems: crop ? "flex-start" : "flex-end", overflow: crop ? "hidden" : "visible" }}
+    >
+      {w > 0 && <LeadPreview look={look} height={crop ? w * 4 : w * 1.4} />}
+    </div>
+  )
+}
+
+// One path for every character body: the deployed lead look, otherwise the drawn chibi.
+function Body({ who, seed, raise, bust }: { who: Who; seed: string; raise?: boolean; bust?: boolean }) {
+  if (who.look) return <LeadLook look={who.look} crop={bust} />
+  return <Sprite color={who.color} seed={seed} lead={who.lead} raise={raise} bust={bust} />
+}
+
 export function Portrait({ who, seed, className = "" }: { who: Who; seed: string; className?: string }) {
   const ok = useImage(who.portrait)
-  if (ok) return <ArtImage src={who.portrait} label={who.name} color={who.color} className={`object-cover ${className}`} />
+  if (ok && who.portrait) return <ArtImage src={who.portrait} label={who.name} color={who.color} className={`object-cover ${className}`} />
   return (
     <div className={`overflow-hidden border-2 border-black/70 ${className}`} style={{ background: shade(who.color, 0.35) }}>
       <div className="px-[8%] pt-[10%]">
-        <Sprite color={who.color} seed={seed} lead={who.lead} bust />
+        <Body who={who} seed={seed} bust />
       </div>
     </div>
   )
@@ -232,7 +265,7 @@ export function Actor({ who, agent, seed, bubble = true, icon = true }: { who: W
       )}
       <div className="absolute bottom-[-4%] left-1/2 h-[10%] w-[80%] -translate-x-1/2 rounded-[50%] bg-black/35" />
       <motion.div className="relative" animate={{ y: ["0%", "-4%", "0%"] }} transition={{ duration: bob, repeat: Infinity, ease: "easeInOut" }}>
-        <Sprite color={who.color} seed={seed} lead={who.lead} raise={waiting} />
+        <Body who={who} seed={seed} raise={waiting} />
         {error && <Fire />}
         {agent && Date.now() - agent.fixedAt < 1500 && <Puff key={agent.fixedAt} />}
       </motion.div>
