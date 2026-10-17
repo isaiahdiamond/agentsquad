@@ -5,10 +5,12 @@ type Props = {
   label: string
   color?: string
   className?: string
+  pixelated?: boolean
 }
 
 // Every art file may be missing until the Art stream delivers it. Draw a labeled box instead.
-export default function ArtImage({ src, label, color = "#334155", className = "" }: Props) {
+// Big scene art is shown smaller than it was drawn, so it scales smoothly; pass `pixelated` for sprites at integer scale.
+export default function ArtImage({ src, label, color = "#334155", className = "", pixelated = false }: Props) {
   const [failed, setFailed] = useState(false)
   if (failed) {
     return (
@@ -21,5 +23,5 @@ export default function ArtImage({ src, label, color = "#334155", className = ""
       </div>
     )
   }
-  return <img src={src} alt={label} className={`pixelated ${className}`} onError={() => setFailed(true)} draggable={false} />
+  return <img src={src} alt={label} className={`${pixelated ? "pixelated " : ""}${className}`} onError={() => setFailed(true)} draggable={false} />
 }
