@@ -1,5 +1,10 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { NavLink } from "react-router-dom"
+import { AnimatePresence, motion } from "framer-motion"
+import type { Squad } from "@agentsquad/shared"
+import { Portrait, useSettled } from "./Sprite"
+import { clock, who, type Agent, type Arena, type Toast } from "./store"
+import { nameOf, statusLine, teamOf } from "./world"
 
 export const GLASS = "border border-white/[0.08] bg-[rgba(11,13,18,0.6)] backdrop-blur-[12px]"
 
@@ -30,5 +35,154 @@ export function NavPill({ children }: { children?: React.ReactNode }) {
       </nav>
       {children}
     </div>
+  )
+}
+
+// "Add a dark mode toggle that remembers…": the prompt's first sentence, cut on a word.
+export function titleOf(prompt?: string, max = 46) {
+  if (!prompt) return ""
+  const first = prompt.split(/(?<=[.!?])\s|\n/)[0].replace(/[.!?]+$/, "").trim()
+  if (first.length <= max) return first
+  return first.slice(0, max).replace(/\s+\S*$/, "") + "…"
+}
+
+export function MissionPill({ arena, finished, connected }: { arena: Arena; finished: number; connected: boolean }) {
+  const now = useNow()
+  const start = arena.promptAt || arena.startAt
+  const title = titleOf(arena.prompt)
+  return (
+    <div className={`flex h-9 items-center gap-2.5 rounded-full px-3.5 text-[13px] ${GLASS}`}>
+      <span className={`h-2 w-2 shrink-0 rounded-full ${connected ? "bg-emerald-400" : "bg-red-500"}`} title={connected ? "Live" : "Reconnecting"} />
+      <span className="max-w-[38vw] truncate font-medium text-text" title={arena.prompt}>{title || (connected ? "No mission yet" : "Reconnecting")}</span>
+      {start > 0 && <span className="tabular-nums text-muted">{clock((finished || now) - start)}</span>}
+    </div>
+  )
+}
+
+// What the squad is doing, in one line.
+export function modeOf(arena: Arena, finished: number, connected: boolean) {
+  if (!connected) return "Reconnecting to the server"
+  if (finished) return "Mission complete"
+  const agents = Object.values(arena.agents)
+  if (agents.some((a) => !a.doneAt && a.state === "waiting")) return "Waiting for you"
+  const working = agents.filter((a) => !a.doneAt && a.state !== "idle").length
+  if (working > 1) return `${working} agents working`
+  if (arena.prompt) return `Mission: ${titleOf(arena.prompt, 40).replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase())}`
+  return "Standing by"
+}
+
+export function ModeCaption({ text }: { text: string }) {
+  return (
+    <div className={`relative h-10 overflow-hidden rounded-full px-4 text-[15px] font-medium text-text ${GLASS}`}>
+      <AnimatePresence initial={false} mode="popLayout">
+        <motion.span
+          key={text} className="flex h-10 items-center whitespace-nowrap"
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.25 }}
+        >
+          {text}
+        </motion.span>
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function Chip({ type, agent, label, squad, onPick }: { type: string; agent?: Agent; label: string; squad: Squad | null; onPick: (id: string) => void }) {
+  const [hover, setHover] = useState(false)
+  const w = who(type, squad)
+  const done = !!agent?.doneAt
+  const waiting = !done && agent?.state === "waiting"
+  const error = !done && agent?.state === "error"
+  const working = !!agent && !done && agent.state !== "idle"
+  const ring = waiting ? "ring-amber-400" : error ? "ring-red-500" : working ? "ring-accent" : done ? "ring-emerald-500/70" : "ring-white/10"
+  const status = useSettled(agent ? statusLine(agent) : "On call", !!agent && (done || waiting || error))
+  return (
+    <div className="relative" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+      <button
+        className={`relative block rounded-full ring-2 transition-[box-shadow,opacity] ${ring} ${agent ? "" : "opacity-45 grayscale"}`}
+        onClick={() => agent && onPick(agent.id)} aria-label={`${label}: ${status}`}
+      >
+        {waiting && <motion.span className="absolute -inset-1 rounded-full ring-2 ring-amber-400" animate={{ opacity: [0.9, 0], scale: [1, 1.35] }} transition={{ duration: 1.2, repeat: Infinity }} />}
+        <Portrait who={w} seed={type} size={30} className="rounded-full" />
+        {done && (
+          <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-[#0b0d12]">
+            <svg viewBox="0 0 10 10" className="w-2"><path d="M2 5.2 L4.2 7.4 L8 2.8" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" fill="none" /></svg>
+          </span>
+        )}
+        {waiting && <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[9px] font-extrabold text-[#0b0d12] ring-2 ring-[#0b0d12]">!</span>}
+      </button>
+      <AnimatePresence>
+        {hover && (
+          <motion.div
+            className="absolute right-0 top-[calc(100%+10px)] z-20 w-64 rounded-[14px] border border-white/[0.08] bg-[rgba(11,13,18,0.92)] px-3 py-2.5 text-[13px]"
+            initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
+          >
+            <div className="flex items-center gap-1.5 font-semibold text-text">
+              <span className="h-2 w-2 rounded-full" style={{ background: w.color }} />
+              {label}
+            </div>
+            <p className={`mt-0.5 leading-snug ${waiting ? "text-amber-200" : error ? "text-red-300" : "text-muted"}`}>{status}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// One chip per agent instance (two Frontend agents = two chips), plus one greyed chip per squad member still on call.
+export function TeamChips({ arena, squad, onPick }: { arena: Arena; squad: Squad | null; onPick: (id: string) => void }) {
+  const team = teamOf(arena, squad)
+  return (
+    <div className={`flex items-center gap-2 rounded-full p-1.5 ${GLASS}`}>
+      {team.map((t) => (
+        <Chip key={t.key} type={t.type} agent={t.agent} squad={squad} onPick={onPick} label={t.agent ? nameOf(t.agent, arena, squad) : who(t.type, squad).name} />
+      ))}
+    </div>
+  )
+}
+
+const TONE: Record<Toast["tone"], string> = { info: "bg-accent", wait: "bg-amber-400", error: "bg-red-500", done: "bg-emerald-400" }
+
+// One narration line at a time, 3.5s each. A backlog never grows past two waiting lines: older ones are dropped.
+export function Toaster({ items, squad, since }: { items: Toast[]; squad: Squad | null; since: number }) {
+  const [cur, setCur] = useState<Toast | null>(null)
+  const seen = useRef(new Set<string>())
+  useEffect(() => {
+    if (!cur) return
+    const t = setTimeout(() => setCur(null), 3500)
+    return () => clearTimeout(t)
+  }, [cur])
+  useEffect(() => {
+    if (cur) return
+    const pending = items.filter((t) => !seen.current.has(t.id) && t.at >= since && Date.now() - t.at < 12000).sort((a, b) => a.at - b.at)
+    pending.slice(0, -2).forEach((t) => seen.current.add(t.id))
+    const next = pending.slice(-2)[0]
+    if (!next) return
+    seen.current.add(next.id)
+    setCur(next)
+  }, [cur, items])
+  const text = cur ? (cur.named ? `${who(cur.agentType, squad).name} ${cur.text}` : cur.text) : ""
+  return (
+    <AnimatePresence>
+      {cur && (
+        <motion.div
+          key={cur.id} className={`flex max-w-[min(560px,80vw)] items-center gap-2.5 rounded-full px-4 py-2.5 text-[13px] text-text ${GLASS}`}
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.25 }}
+        >
+          <span className={`h-2 w-2 shrink-0 rounded-full ${TONE[cur.tone]}`} />
+          <span className="truncate">{text}</span>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
+export function Pill({ on, onClick, children, label }: { on?: boolean; onClick: () => void; children: React.ReactNode; label?: string }) {
+  return (
+    <button
+      className={`flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium transition-colors ${GLASS} ${on ? "text-text ring-1 ring-accent/70" : "text-muted hover:text-text"}`}
+      onClick={onClick} aria-pressed={on} aria-label={label}
+    >
+      {children}
+    </button>
   )
 }

@@ -3,12 +3,13 @@ import { useNavigate, useSearchParams } from "react-router-dom"
 import { AnimatePresence, motion } from "framer-motion"
 import type { Building, Scene, Squad } from "@agentsquad/shared"
 import Debug from "./Debug"
-import { homeOf, useCamera } from "./camera"
-import { NavPill } from "./Hud"
+import { homeOf, useCamera, type Point } from "./camera"
+import { MissionPill, ModeCaption, NavPill, Pill, TeamChips, Toaster, modeOf } from "./Hud"
 import MapView from "./MapView"
 import RoomView from "./RoomView"
-import { H, Stage, W } from "./Sprite"
-import { buildingFor, emptyArena, finishedAt, reduce, saveReport, type Received } from "./store"
+import { H, Stage, TALL, W } from "./Sprite"
+import { buildingFor, emptyArena, finishedAt, reduce, saveReport, type Received, type Toast } from "./store"
+import { positions } from "./world"
 
 export default function ArenaPage() {
   const navigate = useNavigate()
@@ -25,6 +26,10 @@ export default function ArenaPage() {
   const [notice, setNotice] = useState("")
   const [stalled, setStalled] = useState(0)
   const cam = useCamera()
+  const [follow, setFollow] = useState(true)
+  const [logOpen, setLogOpen] = useState(false)
+  const [local, setLocal] = useState<Toast[]>([])
+  const [openedAt] = useState(Date.now)
   const latest = useRef(arena)
   latest.current = arena
 
@@ -129,6 +134,24 @@ export default function ArenaPage() {
   }
   const away = !!(interior || zoom)
 
+  // Where an agent is on screen right now; on the map, an agent inside a building is found at its door.
+  const locate = (id: string): Point | null => {
+    const p = positions.get(`${shown!.id}:${id}`)
+    const a = arena.agents[id]
+    if (p && (p.o?.get() ?? 1) > 0.3) return { x: p.x.get() * W, y: p.y.get() * H + (p.dy?.get() ?? 0) - TALL * p.s * 0.6 }
+    if (!interior && scene.kind === "map" && a && a.type !== "lead") {
+      const b = buildings[buildingFor(scene, a.type)]
+      if (b) return { x: b.door.x * W, y: b.door.y * H - 120 }
+    }
+    return null
+  }
+  const pick = (id: string) => {
+    const p = locate(id)
+    if (!p) return
+    setFollow(false)
+    cam.moveTo(p, 1.3)
+  }
+
   return (
     <div ref={cam.ref} className="fixed inset-0 overflow-hidden bg-bg">
       <Stage.Provider value={{ fit: cam.cover, ui: cam.ui }}>
@@ -171,12 +194,30 @@ export default function ArenaPage() {
       </Stage.Provider>
 
       <div className="pointer-events-none absolute inset-0 z-10">
-        <div className="pointer-events-auto absolute left-4 top-4">
+        <div className="pointer-events-auto absolute left-4 top-4 flex items-center gap-2">
           <NavPill />
+          <MissionPill arena={arena} finished={finished} connected={connected} />
         </div>
+        <div className="pointer-events-auto absolute right-4 top-4">
+          <TeamChips arena={arena} squad={squad} onPick={pick} />
+        </div>
+        <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2">
+          <Toaster items={[...arena.toasts, ...local]} squad={squad} since={openedAt} />
+        </div>
+        <div className="pointer-events-auto absolute bottom-4 right-4 flex items-center gap-2">
+          <Pill on={logOpen} onClick={() => setLogOpen((o) => !o)}>
+            <svg viewBox="0 0 16 16" className="h-4 w-4"><path d="M3 4h10M3 8h10M3 12h6" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" /></svg>
+            Log
+          </Pill>
+          <Pill on={follow} onClick={() => setFollow((f) => !f)} label="Follow the action">
+            <svg viewBox="0 0 16 16" className="h-4 w-4"><circle cx={8} cy={8} r={5} fill="none" stroke="currentColor" strokeWidth={1.6} /><circle cx={8} cy={8} r={1.6} fill="currentColor" /></svg>
+            Follow
+          </Pill>
+        </div>
+        <div className="pointer-events-auto absolute bottom-4 left-4 flex flex-col items-start gap-2">
         <AnimatePresence>
           {interior && (
-            <motion.div key="back" className="pointer-events-auto absolute bottom-4 left-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.div key="back" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <button
                 className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-[rgba(11,13,18,0.6)] px-3.5 py-2 text-[13px] font-medium text-text backdrop-blur-[12px] transition-colors hover:border-accent"
                 onClick={() => setView(null)}
@@ -187,6 +228,8 @@ export default function ArenaPage() {
             </motion.div>
           )}
         </AnimatePresence>
+          <ModeCaption text={modeOf(arena, finished, connected)} />
+        </div>
         {notice && (
           <div className="pointer-events-auto absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-4 rounded-[14px] border border-white/[0.08] bg-[rgba(11,13,18,0.6)] px-4 py-3 text-[13px] text-text backdrop-blur-[12px]">
             <span className="h-2 w-2 shrink-0 rounded-full bg-accent" />

@@ -25,6 +25,15 @@ export function labelOf(a: Agent, arena: Arena, squad: Squad | null) {
   return n > 1 ? `${roleOf(a.type, squad)} ${n}` : roleOf(a.type, squad)
 }
 
+// "Frontend Agent", or "Frontend Agent 2"; the lead's own name.
+export function nameOf(a: Agent, arena: Arena, squad: Squad | null) {
+  const w = who(a.type, squad)
+  if (w.lead) return w.name
+  const same = Object.values(arena.agents).filter((g) => g.type === a.type).sort((p, q) => p.order - q.order)
+  const n = same.indexOf(a) + 1
+  return n > 1 ? `${w.name} ${n}` : w.name
+}
+
 // A short status from the agent's state when it hasn't narrated yet.
 export function stateLine(a: Agent) {
   if (a.doneAt) return a.doneText || "Done"
@@ -44,7 +53,7 @@ export function statusLine(a: Agent) {
   return a.narration || stateLine(a)
 }
 
-const TAIL = new Set(["a", "an", "the", "to", "for", "and", "of", "on", "in", "with", "that", "is", "its", "from", "by", "at"])
+const TAIL = new Set(["a", "an", "the", "to", "for", "and", "of", "on", "in", "with", "that", "is", "its", "from", "by", "at", "are", "is", "was", "were", "be", "has", "have", "will", "can", "where", "who", "which"])
 
 // A narration line cut to a nameplate verb: first clause, up to five words, no dangling little words.
 export function shorten(text: string) {
