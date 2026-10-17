@@ -8,10 +8,10 @@ import { buildingFor, who, type Agent, type Arena } from "./store"
 const SPEED = 0.17
 export const CHAR_W = 4.6
 
-export function Placed({ x, y, s, o, z, children }: { x: MotionValue<number>; y: MotionValue<number>; s: MotionValue<number>; o?: MotionValue<number>; z?: number; children: React.ReactNode }) {
+export function Placed({ x, y, s, o, z, size = CHAR_W, children }: { x: MotionValue<number>; y: MotionValue<number>; s: MotionValue<number>; o?: MotionValue<number>; z?: number; size?: number; children: React.ReactNode }) {
   const left = useTransform(x, (v) => `${v * 100}%`)
   const top = useTransform(y, (v) => `${v * 100}%`)
-  const width = useTransform(s, (v) => `${CHAR_W * v}cqw`)
+  const width = useTransform(s, (v) => `${size * v}cqw`)
   const zIndex = useTransform(y, (v) => z ?? Math.round(v * 100) + 10)
   return (
     <motion.div className="pointer-events-none absolute -translate-x-1/2 -translate-y-full" style={{ left, top, width, opacity: o, zIndex }}>
@@ -20,12 +20,12 @@ export function Placed({ x, y, s, o, z, children }: { x: MotionValue<number>; y:
   )
 }
 
-export function StaticPlaced({ spot, children, z }: { spot: Spot; children: React.ReactNode; z?: number }) {
+export function StaticPlaced({ spot, children, z, size }: { spot: Spot; children: React.ReactNode; z?: number; size?: number }) {
   const x = useMotionValue(spot.x), y = useMotionValue(spot.y), s = useMotionValue(spot.scale)
   useEffect(() => {
     x.set(spot.x); y.set(spot.y); s.set(spot.scale)
   }, [spot.x, spot.y, spot.scale])
-  return <Placed x={x} y={y} s={s} z={z}>{children}</Placed>
+  return <Placed x={x} y={y} s={s} z={z} size={size}>{children}</Placed>
 }
 
 function Walker({ agent, squad, path, home }: { agent: Agent; squad: Squad | null; path: Spot[]; home: Spot }) {

@@ -156,12 +156,13 @@ function RoomArt({ scene }: { scene: Scene }) {
             </g>
           ) : (
             <g>
-              <rect x={-70} y={-62} width={140} height={34} fill="#5a3a22" stroke="#1a0f0a" strokeWidth={4} />
-              <rect x={-64} y={-28} width={10} height={24} fill="#3b2416" />
-              <rect x={54} y={-28} width={10} height={24} fill="#3b2416" />
-              <rect x={-22} y={-100} width={44} height={32} fill="#1e293b" stroke="#0b0f1a" strokeWidth={4} />
-              <rect x={-16} y={-94} width={32} height={20} fill={kind === "library" ? "#a7f3d0" : "#7dd3fc"} fillOpacity={0.8} />
-              <rect x={-4} y={-68} width={8} height={6} fill="#0b0f1a" />
+              <rect x={-100} y={-100} width={200} height={40} fill="#5a3a22" stroke="#1a0f0a" strokeWidth={5} />
+              <rect x={-92} y={-60} width={12} height={34} fill="#3b2416" />
+              <rect x={80} y={-60} width={12} height={34} fill="#3b2416" />
+              <rect x={-36} y={-150} width={72} height={46} fill="#1e293b" stroke="#0b0f1a" strokeWidth={5} />
+              <rect x={-28} y={-143} width={56} height={32} fill={kind === "library" ? "#a7f3d0" : "#7dd3fc"} fillOpacity={0.8} />
+              <rect x={-6} y={-104} width={12} height={6} fill="#0b0f1a" />
+              <rect x={50} y={-112} width={34} height={12} fill={["#ef4444", "#3b82f6", "#22c55e", "#eab308"][i % 4]} stroke="#1a0f0a" strokeWidth={2} />
             </g>
           )}
         </g>

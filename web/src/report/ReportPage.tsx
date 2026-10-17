@@ -57,7 +57,7 @@ export default function ReportPage() {
 
   return (
     <main className="min-h-[calc(100vh-36px)] bg-[radial-gradient(ellipse_at_top,#1d3060_0%,#070d1f_70%)] px-6 py-8">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6">
         <motion.header initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="panel px-6 py-5 text-center">
           <h1 className="font-pixel text-2xl text-gold-400 drop-shadow-[3px_3px_0_#000] sm:text-4xl">Task complete</h1>
           {arena.prompt && <p className="mt-3 font-ui text-sm text-slate-300">"{arena.prompt}"</p>}
@@ -66,14 +66,14 @@ export default function ReportPage() {
           </p>
         </motion.header>
 
-        <section className="grid gap-4" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(190px, 1fr))` }}>
+        <section className="flex flex-wrap justify-center gap-4">
           {agents.map((a, i) => {
             const w = who(a.type, squad)
             const isMvp = a.id === mvpId
             return (
               <motion.article
-                key={a.id} initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 + i * 0.08 }}
-                className={`panel relative flex flex-col gap-3 p-4 ${isMvp ? "ring-4 ring-gold-400/60" : ""}`}
+                key={a.id} initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: i * 0.05, duration: 0.3 }}
+                className={`panel relative flex w-[200px] flex-col gap-3 p-4 ${isMvp ? "ring-4 ring-gold-400/60" : ""}`}
               >
                 {isMvp && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2 border-2 border-black bg-gold-400 px-3 py-1 font-pixel text-[10px] text-navy-950 shadow-[2px_2px_0_#000]">

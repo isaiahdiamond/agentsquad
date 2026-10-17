@@ -133,10 +133,10 @@ export function Fire({ small }: { small?: boolean }) {
     <div className="pointer-events-none absolute inset-0">
       <Flame className="bottom-[2%] left-[-12%] w-[45%]" delay={0.1} />
       <Flame className="bottom-[8%] right-[-14%] w-[42%]" delay={0.3} />
-      <Flame className="bottom-[30%] left-[22%] w-[56%]" />
+      <Flame className="bottom-[78%] left-[25%] w-[50%]" delay={0.2} />
       {!small && [0, 1, 2].map((i) => (
         <motion.div
-          key={i} className="absolute top-[10%] rounded-full bg-slate-400/70"
+          key={i} className="absolute top-[-25%] rounded-full bg-slate-400/70"
           style={{ left: `${25 + i * 20}%`, width: "22%", aspectRatio: "1" }}
           animate={{ y: ["0%", "-260%"], opacity: [0, 0.8, 0], scale: [0.5, 1.4] }}
           transition={{ duration: 1.8, repeat: Infinity, delay: i * 0.6, ease: "easeOut" }}
@@ -226,7 +226,7 @@ export function Actor({ who, agent, seed, bubble = true, icon = true }: { who: W
       {waiting && (
         <motion.div
           className="absolute left-1/2 top-1/2 -z-0 w-[190%] -translate-x-1/2 -translate-y-1/2 rounded-full"
-          style={{ aspectRatio: "1", background: "radial-gradient(circle, rgba(253,224,71,.75) 0%, rgba(253,224,71,.25) 45%, rgba(253,224,71,0) 70%)" }}
+          style={{ aspectRatio: "1", background: "radial-gradient(circle, rgba(253,224,71,.95) 0%, rgba(250,204,21,.55) 40%, rgba(250,204,21,0) 70%)" }}
           animate={{ opacity: [0.6, 1, 0.6], scale: [0.95, 1.05, 0.95] }} transition={{ duration: 1.2, repeat: Infinity }}
         />
       )}

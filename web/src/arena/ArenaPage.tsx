@@ -6,7 +6,7 @@ import Debug from "./Debug"
 import { Rail, TopBar } from "./Hud"
 import MapView from "./MapView"
 import RoomView from "./RoomView"
-import { buildingFor, emptyArena, reduce, saveReport, type Received } from "./store"
+import { buildingFor, emptyArena, finishedAt, reduce, saveReport, type Received } from "./store"
 
 export default function ArenaPage() {
   const navigate = useNavigate()
@@ -72,14 +72,15 @@ export default function ArenaPage() {
     }, { replace: true })
   }, [replay, connected])
 
+  const finished = finishedAt(arena)
   useEffect(() => {
-    if (!arena.endAt) return
+    if (!finished) return
     const t = setTimeout(() => {
       saveReport({ arena: latest.current, squad })
       navigate("/report")
     }, 2000)
     return () => clearTimeout(t)
-  }, [arena.endAt])
+  }, [finished])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -146,7 +147,7 @@ export default function ArenaPage() {
             </AnimatePresence>
             {debug && <Debug scene={interior ?? scene} />}
             <AnimatePresence>
-              {arena.endAt > 0 && (
+              {finished > 0 && (
                 <motion.div
                   className="absolute inset-0 z-[800] flex items-center justify-center bg-navy-950/50"
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}

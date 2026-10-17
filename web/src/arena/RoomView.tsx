@@ -2,9 +2,11 @@ import { useEffect, useRef } from "react"
 import { animate, motion, useMotionValue } from "framer-motion"
 import type { Scene, Spot, Squad } from "@agentsquad/shared"
 import Backdrop from "./Backdrop"
-import { Placed, StaticPlaced } from "./MapView"
+import { CHAR_W, Placed, StaticPlaced } from "./MapView"
 import { Actor } from "./Sprite"
 import { who, type Agent, type Arena } from "./store"
+
+const ROOM_W = CHAR_W * 1.7
 
 function Mover({ agent, squad, from, to }: { agent: Agent; squad: Squad | null; from: Spot; to: Spot }) {
   const x = useMotionValue(from.x), y = useMotionValue(from.y), s = useMotionValue(from.scale)
@@ -14,7 +16,7 @@ function Mover({ agent, squad, from, to }: { agent: Agent; squad: Squad | null; 
     return () => cs.forEach((c) => c.stop())
   }, [to.x, to.y, to.scale])
   return (
-    <Placed x={x} y={y} s={s}>
+    <Placed x={x} y={y} s={s} size={ROOM_W}>
       <Actor who={who(agent.type, squad)} agent={agent} seed={agent.type} />
     </Placed>
   )
@@ -47,7 +49,7 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
             const st = station(members.indexOf(a))
             return (
               <motion.line
-                key={a.id} x1={scene.lead.x * 1600} y1={scene.lead.y * 900 - 30} x2={st.x * 1600} y2={st.y * 900 - 30}
+                key={a.id} x1={scene.lead.x * 1600} y1={scene.lead.y * 900 - 70} x2={st.x * 1600} y2={st.y * 900 - 70}
                 stroke={who(a.type, squad).color} strokeWidth={6} strokeLinecap="round" strokeDasharray="1 0"
                 initial={{ pathLength: 0, opacity: 1 }} animate={{ pathLength: 1, opacity: [1, 1, 0] }}
                 transition={{ duration: 2.2, delay: i * 0.05, times: [0, 0.6, 1] }}
@@ -57,7 +59,7 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
         </svg>
       )}
       {main && (
-        <StaticPlaced spot={scene.lead}>
+        <StaticPlaced spot={scene.lead} size={ROOM_W}>
           <Actor who={who("lead", squad)} agent={lead} seed="lead" />
         </StaticPlaced>
       )}

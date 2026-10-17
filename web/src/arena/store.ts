@@ -51,6 +51,7 @@ const CHANGE_TOOLS = ["Edit", "Write", "NotebookEdit", "MultiEdit"]
 
 export function reduce(prev: Arena, e: Received): Arena {
   if (e.kind === "session_start") prev = { ...emptyArena(), sessionId: e.sessionId, startAt: e.at }
+  if (e.kind === "prompt" && (prev.endAt || prev.agents.lead?.doneAt)) prev = { ...emptyArena(), sessionId: e.sessionId, startAt: e.at }
   const s: Arena = { ...prev, agents: { ...prev.agents } }
   if (!s.startAt) s.startAt = e.at
   if (!s.sessionId) s.sessionId = e.sessionId
@@ -97,7 +98,7 @@ export function reduce(prev: Arena, e: Received): Arena {
   }
   if (e.kind === "narration" && e.text) {
     if (e.text.startsWith("REPORT:")) a.report = e.text.slice(7).trim()
-    else {
+    else if (!a.doneAt) {
       a.narration = e.text
       a.narrationAt = e.at
       feed(e.text)
@@ -112,7 +113,7 @@ export function reduce(prev: Arena, e: Received): Arena {
   if (e.kind === "session_end") s.endAt = e.at
 
   if (e.state && e.kind !== "agent_done") {
-    if (e.state === "error" && a.state !== "error") feed(`Hit an error${e.target ? ` on ${e.target}` : e.tool ? ` in ${e.tool}` : ""}.`)
+    if (e.state === "error" && a.state !== "error") feed(e.kind !== "narration" && e.text ? `Error: ${e.text}` : `Hit an error${e.target ? ` on ${e.target}` : e.tool ? ` in ${e.tool}` : ""}.`)
     if (e.state === "waiting" && a.state !== "waiting") feed("Waiting for you.")
     if (!(e.kind === "session_end" && a.state === "done")) a.state = e.state
   }
@@ -136,6 +137,15 @@ export function who(type: string, squad: Squad | null): Who {
   const c = squad?.members.find((m) => m.id === type) ?? roster.find((r) => r.id === type)
   if (!c) return { name: type, role: "Specialist", color: "#94a3b8", portrait: `/art/roster/${type}.png`, lead: false }
   return { name: c.name, role: c.role, color: c.color, portrait: c.portrait, lead: false }
+}
+
+// The turn is over on session_end, or when the lead is done and no specialist is still working.
+export function finishedAt(arena: Arena) {
+  if (arena.endAt) return arena.endAt
+  const all = Object.values(arena.agents)
+  const lead = arena.agents.lead
+  if (!lead?.doneAt || all.some((a) => !a.doneAt)) return 0
+  return Math.max(...all.map((a) => a.doneAt))
 }
 
 export function buildingFor(scene: Scene, type: string) {
