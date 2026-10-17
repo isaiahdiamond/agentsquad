@@ -143,6 +143,36 @@ Bridge: emit `waiting` when Claude Code fires a `Notification` hook (permission 
 | POST | `/undeploy` | removes all of the above |
 | GET | `/runs` | list of recorded runs |
 | GET | `/replay/:file?speed=1` | plays a run over `/ws` |
-| GET | `/state` | current squad and scene, so a refresh restores the arena |
+| GET | `/state` | current squad and scene, plus the live session, so a refresh (or an arena opened mid-session) restores the right state |
+
+`GET /state` shape (the live fields were added 2026-10-17; `squad`, `scene`, `target` are unchanged):
+
+```ts
+type StateResponse = {
+  squad: Squad | null
+  scene: string | null
+  target: string | null
+  deployedAt: number | null      // ms, last POST /deploy
+  connected: boolean             // a Claude Code session is live (hooks arrived, no SessionEnd yet)
+  hooksSinceDeploy: boolean      // any hook arrived since the last deploy
+  lastHookAt: number | null
+  live: null | {                 // the most recently active session
+    sessionId: string
+    startedAt: number
+    lastEventAt: number
+    phase: "connected" | "mission" | "done"   // done = lead agent_done for the current mission
+    mission: { prompt: string; startedAt: number; endedAt: number | null } | null
+    agents: {
+      agentId: string; agentType: string; parentId?: string
+      state: AgentState; done: boolean; since: number
+      task?: string              // spawn text (prompt for the lead)
+      status?: string            // latest narration line
+      report?: string            // REPORT text without the prefix, after the mission ends
+    }[]
+  }
+}
+```
+
+Arena states: `squad && !connected` = deployed, waiting for Claude (show "Run `claude` in this project. Restart it if it was already running"); `connected && phase === "connected"` = connected; `"mission"` = mission running; `"done"` = mission complete.
 
 Port 4317. Web dev server proxies `/api` and `/ws` to it.

@@ -42,27 +42,19 @@ This plays a pretend 60-second session over and over: the lead thinks, hands wor
 
 ## Watch a real Claude Code session
 
-1. Make a demo project outside this repo (only once):
+Full steps and the demo prompt: `demo/PROMPT.md`. Short version:
 
-   ```
-   npm run setup-target -w demo
-   ```
-
-   This copies a tiny todo app to `~/agentsquad-demo-target`.
-
-2. Start AgentSquad pointed at it:
-
-   ```
-   TARGET=~/agentsquad-demo-target npm run dev
-   ```
-
+1. Make a demo project outside this repo (only once): `npm run setup-target -w demo`, then `cd ~/agentsquad-demo-target && npm install`.
+2. Start AgentSquad pointed at it: `TARGET=~/agentsquad-demo-target npm run dev`.
 3. Open http://localhost:5173/builder, build your squad and hit **Deploy Squad**. That writes the agent files, a "Your team" section in the project's `CLAUDE.md`, and hooks in `.claude/settings.local.json`.
-4. In another terminal: `cd ~/agentsquad-demo-target && claude`, then give it a task, e.g. "Use frontend-dev to add a dark mode toggle, test-engineer to write tests, and reviewer to check both."
-5. Watch http://localhost:5173/arena.
+4. **Then** in another terminal: `cd ~/agentsquad-demo-target && claude`. Claude Code reads hooks only at startup, so restart it if it was already running. On a new folder, answer **Yes, I trust this folder** (the default is "No, exit"). Hooks don't fire before that.
+5. Give it a task: "Use frontend-dev to add a dark mode toggle, test-engineer to write tests, and reviewer to check both." Watch http://localhost:5173/arena.
+
+`GET /state` (via `/api/state` from the browser) tells you where things stand: `connected: false` means no Claude session yet, and `live.phase` is `connected`, `mission` or `done`.
 
 To remove everything AgentSquad wrote into the project, run `curl -X POST localhost:4317/undeploy -H 'content-type: application/json' -d '{}'`.
 
-Every session is recorded in `demo/runs/`, and the match report's **Replay** button plays it back.
+Every session is recorded in `demo/runs/`, and the match report's **Replay** button plays it back. For debugging, start the server with `AGENTSQUAD_RAW=/tmp/raw.jsonl` to save every raw hook, then `npm run replay-hooks -w demo -- /tmp/raw.jsonl` to feed it back with the original timing.
 
 ## Art
 

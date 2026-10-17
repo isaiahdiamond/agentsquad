@@ -31,10 +31,10 @@ These fill gaps in [[Contracts]] without changing any type.
 - **Paths:** the server answers at bare paths (`/hook`, `/deploy`, ...). The browser calls `/api/...`; the Vite proxy strips `/api`. `/ws` is proxied as is.
 - **Mock feed:** `npm run mock` connects to `/ws` as a client and the server relays its messages to every other client. Dev only.
 - **Map paths:** `paths[i]` is the walk route from `lead` to `buildings[i].door`, in the same order as `buildings`.
-- **Runs:** each run is recorded as `demo/runs/<sessionId>.jsonl`. `GET /runs` returns `{ file, events, startedAt, durationMs }[]`, newest first. `GET /state` returns `{ squad, scene, target }`.
+- **Runs:** each run is recorded as `demo/runs/<sessionId>.jsonl`. `GET /runs` returns `{ file, events, startedAt, durationMs }[]`, newest first. `GET /state` returns `{ squad, scene, target }` plus live session fields (see [[Contracts]] Server endpoints).
 - **Scene for the Arena:** `GET /state` scene if a squad was deployed, otherwise `uf-campus`.
 - **Character fields:** `name` is the display name ("Frontend Agent"); `role` is the one-line job description shown under it. `stats` are unused (send 50/50/50). The lead is sent with `id: "lead"`, `portrait: ""`, `tools: []`, `model: "inherit"`; the Bridge ignores the lead's tools and model and writes no agent file for it.
-- **Turns:** REPORT narrations arrive after each turn's Stop; session_end only on SessionEnd.
+- **Turns / missions:** a mission is one user prompt → one lead `agent_done`. Claude Code 2.1.302 runs subagents in the background, so the lead's `Stop` can fire while specialists still work, and each finished specialist comes back as a `UserPromptSubmit` starting with `<task-notification>`. The Bridge never forwards those as `prompt`, and sends the lead `agent_done` + REPORTs only once the lead has stopped and every spawned agent has hit SubagentStop (8s grace, 3 min stall cap). session_end only on SessionEnd. No status narration after an agent's `agent_done`.
 - **Missing art:** every image the UI loads has a code-drawn fallback (colored box plus label) so the app runs before art lands. No agent generates image files. Art requests go to the Art stream (a human) through `vault/Art Requests.md`.
 
 ### Art Pack 01 (2026-10-17, delivered by Art)
@@ -86,3 +86,4 @@ Add one line per decision made: date, hour, what, who.
 - 2026-10-17: Event conventions above, settling the Phase 0 ambiguities. Architect.
 - 2026-10-17: Hooks attribute subagent tool calls via `agent_id`/`agent_type`; delegation tool is `Agent`; failed tools fire `PostToolUseFailure` (not PostToolUse), so deploy installs that hook plus `SubagentStart` and `SessionEnd`. Notification unverified in headless mode. Bridge.
 - 2026-10-17: Stop fires every turn, so REPORTs are per turn and session_end comes only from SessionEnd. Deploy writes hooks to `.claude/settings.local.json`. Server binds 127.0.0.1 and requires JSON content-type on /deploy and /undeploy. Bridge.
+- 2026-10-17: Real-session round: subagents are async (`tool_response.isAsync`), completions arrive as `<task-notification>` UserPromptSubmits; missions now span them (see Turns / missions). `GET /state` gains live session fields (`connected`, `hooksSinceDeploy`, `live` with phase, mission and per-agent state/status/report) so an arena opened mid-session can jump to the right state; additive, old fields unchanged. Bridge (architect-requested).
