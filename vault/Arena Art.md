@@ -36,6 +36,23 @@ Starting scales (tune with the `D` debug overlay):
 
 These come from the team's test: 44px sprites at 3x looked right on an 805px-tall view of the library, which is about 5.7x at native size.
 
+### Measured scales (2026-10-17, current, for the 96px sprites)
+
+Baseline set by the user in the office: a standing agent is **255 native px** (16.8% of 1520), so office scale = 255 / 96 = 2.656. Every room is derived from that by measuring reference objects in native px on the background art. In the office, 255 px of agent matches a chair back of about 95 cm and a desk of about 74 cm, so the art there runs about 1.51 px/cm and the agent stands about 169 cm. Each room's px/cm comes from its own furniture, using typical real heights, and agent = 169 cm × px/cm. Measurements are approximate (±5 px), read off a 25 px grid.
+
+| Scene | Reference objects (native px → assumed real height) | px/cm | Agent px | scale |
+|---|---|---|---|---|
+| office (baseline) | office chair 152 → 95 cm; desk top 105 → 74 cm; fridge 275 | 1.51 | 255 | **2.656** |
+| interior-library | table chair 140 → 95 cm; reading table 100 → 74 cm | 1.41 | 240 | **2.5** |
+| interior-lab | stool 90 → 65 cm; lab bench 175 → 92 cm | 1.64 | 278 | **2.9** |
+| interior-union | café bar chair 165 → 105 cm; bar table 180 → 105 cm; arcade 212 → 175 cm | 1.57 (median) | 264 | **2.75** |
+| beach | volleyball players 128 → 170 cm; net post 250 → 240 cm | 0.90 | 154 | **1.6** |
+| uf-campus (map) | door openings: Library 132, Union 128, Lab 78 | n/a | 144 (≈1.1× Library/Union doors) | **1.5** |
+
+The art isn't drawn at one consistent scale inside a room: the union's arcade cabinets imply much smaller people than its bar tables do, and the lab bench implies bigger people than its stools. These scales take the median. Campus is a zoomed-out map, so it targets door height instead. The Lab door is much smaller than the others and is still an open question.
+
+Desks follow the agents: a standing agent is about 1.075× the desk's width, so changing a scene's scale resizes its desks too. Standing, walking, waiting and seated sprites all draw at the same `scene.scale`.
+
 ## 3. Desk stations
 
 Add stations to each room scene:
