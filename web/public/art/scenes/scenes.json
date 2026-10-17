@@ -121,7 +121,7 @@
     "kind": "room",
     "background": "/art/scenes/office.png",
     "scale": 2.6,
-    "lead": { "x": 0.55, "y": 0.6, "scale": 2.6, "kind": "desk" },
+    "lead": { "x": 0.62, "y": 0.6, "scale": 2.6, "kind": "desk" },
     "stations": [
       { "x": 0.3, "y": 0.86, "scale": 2.6, "kind": "desk" },
       { "x": 0.44, "y": 0.8, "scale": 2.6, "kind": "desk" },
@@ -138,10 +138,10 @@
     "scale": 1.6,
     "lead": { "x": 0.62, "y": 0.46, "scale": 1.6, "kind": "desk" },
     "stations": [
-      { "x": 0.3, "y": 0.62, "scale": 1.6, "kind": "desk" },
-      { "x": 0.44, "y": 0.76, "scale": 1.6, "kind": "desk" },
-      { "x": 0.66, "y": 0.8, "scale": 1.6, "kind": "desk" },
-      { "x": 0.8, "y": 0.7, "scale": 1.6, "kind": "desk" }
+      { "x": 0.465, "y": 0.4, "scale": 1.6, "kind": "desk" },
+      { "x": 0.56, "y": 0.435, "scale": 1.6, "kind": "desk" },
+      { "x": 0.78, "y": 0.8, "scale": 1.6, "kind": "desk" },
+      { "x": 0.86, "y": 0.6, "scale": 1.6, "kind": "desk" }
     ],
     "bench": { "x": 0.25, "y": 0.5, "scale": 1.6 }
   }

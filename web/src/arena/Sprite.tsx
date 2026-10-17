@@ -177,6 +177,8 @@ function useSpriteSet(who: Who) {
 
 export const TALL = 96
 const BOX = 48
+// Seated agents are always behind a desk: their feet are clipped so they never show under it.
+const FEET = 14
 const TYPING: AgentState[] = ["reading", "writing", "running", "searching"]
 
 function Frame({ src, nat, s, flip, shown = true }: { src: string; nat: Size; s: number; flip?: boolean; shown?: boolean }) {
@@ -233,7 +235,7 @@ function Body({ who, seed, s, view, flip, seated, typing }: { who: Who; seed: st
         )}
       </motion.div>
       {sit && (
-        <motion.div className="absolute inset-0" initial={false} animate={{ opacity: seated ? 1 : 0 }} transition={fade}>
+        <motion.div className="absolute inset-0" style={{ clipPath: `inset(-50% -50% ${FEET * s}px -50%)` }} initial={false} animate={{ opacity: seated ? 1 : 0 }} transition={fade}>
           <Seated sit={sit} s={s} typing={typing} />
         </motion.div>
       )}
@@ -395,6 +397,7 @@ export function Actor({ who, agent, seed, s, x, y, o, face = STANDING, seated = 
           />
           <motion.div
             key={seated ? "seated" : face.walking ? "walk" : "idle"} className="absolute inset-0"
+            style={{ filter: waiting ? `drop-shadow(0 0 ${1.5 * s}px #facc15) drop-shadow(0 0 ${5 * s}px rgba(250,204,21,.75))` : undefined }}
             animate={{ y: seated ? 0 : [0, -s, 0] }}
             transition={seated ? { duration: 0 } : face.walking ? { duration: 0.34, repeat: Infinity, ease: stepped } : { duration: bob, repeat: Infinity, ease: stepped }}
           >
