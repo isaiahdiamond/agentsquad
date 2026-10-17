@@ -6,7 +6,7 @@ import Debug from "./Debug"
 import { homeOf, useCamera, type Point } from "./camera"
 import { MissionPill, ModeCaption, NavPill, Pill, TeamChips, Toaster, modeOf } from "./Hud"
 import MapView from "./MapView"
-import { Briefing, Complete, NeedsYou, delegated } from "./Panels"
+import { Briefing, Complete, LogDrawer, NeedsYou, delegated } from "./Panels"
 import RoomView from "./RoomView"
 import { H, Stage, TALL, W } from "./Sprite"
 import { buildingFor, emptyArena, finishedAt, reduce, saveReport, type Received, type Toast } from "./store"
@@ -126,18 +126,20 @@ export default function ArenaPage() {
   // The briefing opens on each prompt and closes 6s after the last delegation (12s if nobody is delegated).
   const [briefAt, setBriefAt] = useState(0)
   const [briefOpen, setBriefOpen] = useState(false)
+  const [briefPinned, setBriefPinned] = useState(false)
   const lastSpawn = Math.max(0, ...delegated(arena).map((a) => a.firstAt))
   useEffect(() => {
     if (!arena.promptAt || arena.promptAt < openedAt - 2000) return
     setBriefAt(arena.promptAt)
+    setBriefPinned(false)
     setBriefOpen(true)
   }, [arena.promptAt])
   useEffect(() => {
-    if (!briefOpen || briefAt !== arena.promptAt) return
+    if (!briefOpen || briefPinned || briefAt !== arena.promptAt) return
     const due = lastSpawn ? lastSpawn + 6000 : arena.promptAt + 12000
     const t = setTimeout(() => setBriefOpen(false), Math.max(0, due - Date.now()))
     return () => clearTimeout(t)
-  }, [briefOpen, briefAt, lastSpawn])
+  }, [briefOpen, briefPinned, briefAt, lastSpawn])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -333,7 +335,15 @@ export default function ArenaPage() {
         <div className="pointer-events-auto absolute right-4 top-4">
           <TeamChips arena={arena} squad={squad} onPick={pick} />
         </div>
-        <div className="absolute right-4 top-[72px]">
+        <div className="absolute bottom-[64px] right-4 top-[64px]">
+          <AnimatePresence>
+            {logOpen && <LogDrawer arena={arena} squad={squad} onClose={() => setLogOpen(false)} onBriefing={() => {
+              setBriefPinned(true)
+              setBriefOpen(true)
+            }} />}
+          </AnimatePresence>
+        </div>
+        <div className="absolute top-[64px] transition-[right] duration-300" style={{ right: logOpen ? 388 : 16 }}>
           <AnimatePresence>{briefOpen && arena.prompt && <Briefing key={briefAt} arena={arena} squad={squad} onClose={() => setBriefOpen(false)} />}</AnimatePresence>
         </div>
         <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center">
