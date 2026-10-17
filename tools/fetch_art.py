@@ -78,7 +78,7 @@ out = {
     },
     "team": {k: v for k, v in looks.items() if not k.startswith("lead-")},
     "desks": {name: f"/art/desks/{name}.png" for name in src["desks"]},
-    "scenes": {name: f"/art/scenes/{name}.png" for name in src["scenes"] if name != "welcome-bg"},
+    "scenes": {name: f"/art/scenes/{name}.png" for name in src["scenes"] if name != "welcome-bg"} | {"club": "/art/scenes/club.png"},
 }
 (root / "web" / "public" / "art" / "sprites.json").write_text(json.dumps(out, indent=2))
 print("wrote sprites.json, desk width", desk_w)

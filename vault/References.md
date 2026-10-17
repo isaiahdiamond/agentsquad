@@ -44,7 +44,7 @@ https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_2026101
 
 All in `tools/art-sources.json`, pulled by `tools/fetch_art.py`. See `tools/ART.md`.
 
-Scenes: UF Campus (map, buildings open the Library, Lab and Union interiors), Office, Beach. Club dropped.
+Scenes: UF Campus (map, buildings open the Library, Lab and Union interiors), Office, Club. Club dropped.
 
 ## UF inspiration
 

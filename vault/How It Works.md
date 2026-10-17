@@ -8,7 +8,7 @@ The whole thing from the user's side, then what happens underneath each step.
 2. A browser tab opens on the **Squad Builder**.
 3. They design their lead agent: body, hair, hair color, outfit, hat, name.
 4. They pick specialists from the roster ("I need a UI agent, a backend agent, a reviewer").
-5. They pick a scene: UF Campus, The Bar, or The Beach.
+5. They pick a scene: UF Campus, The Office, or The Club.
 6. They hit **Deploy Squad**.
 7. They open a terminal in the same project and run `claude`, then type a task.
 8. The browser switches to the **Arena**. The squad shows up in the chosen scene and works the task live.

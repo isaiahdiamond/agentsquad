@@ -104,7 +104,7 @@ export type Building = {
 }
 
 export type Scene = {
-  id: string             // "uf-campus" | "bar" | "beach" | "interior-library" | "interior-lab"
+  id: string             // "uf-campus" | "bar" | "club" | "interior-library" | "interior-lab"
   name: string
   kind: "map" | "room"
   background: string

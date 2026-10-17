@@ -13,7 +13,7 @@
 - A deployed replay site for judges (static build playing a recorded run).
 - Art style: 32-bit chibi isometric pixel art for everything (characters, scenes, UI). Dark outlines, 3-4 tone shading, isometric 3/4 top-down camera. See [[References]].
 - UI look (updated 2026-10-17 by the user): deep black and white everywhere, matching the welcome screen — background `#050505`, panels `#0E0E10`, white accent with black text on white. Blue dropped. Pixel art only in characters and scenes; agent identity colors stay.
-- Scenes: UF Campus (overview map) with clickable building interiors, The Bar, The Beach. The standalone Office scene is dropped; building interiors replace it.
+- Scenes: UF Campus (overview map) with clickable building interiors, The Office, The Club. The standalone Office scene is dropped; building interiors replace it.
 - Interiors: 2 max, reused across buildings. A library reading room (Collegiate Gothic, inspired by Smathers Library) and a lab.
 - Characters are original. No Marvel, no real people, no NBA players or logos, no UF logos or Gator mascot.
 - Characters are engineers, not heroes. The app is an engineering tool with pixel art inside it, not a game. Roles are named plainly (Frontend Agent, Backend Agent). No villains, powers, or game mechanics.
@@ -44,7 +44,7 @@ See [[Art Pack]]. It supersedes the sizes in [[Art Requests]] where they differ.
 - **Characters** are single images per view: `front`, `back`, `hand` (hand raised), **96px tall, each sprite keeping its own colors** (the first 44px shared-palette pass destroyed the art), listed in `web/public/art/sprites.json`. Typical scales: campus map 1×, rooms 2×, builder preview 4×. Left/right facing = flip front/back horizontally. No walk-cycle frames: walking is the front or back image with a bob. Draw at integer scale, anchored at the feet.
 - **Lead looks** are full variants, not layers: body `a` or `b` × outfit `blazer`, `hoodie`, `flannel`, `track`. In `Look`, `body` is `"a"`/`"b"`, `outfit` is the outfit id, `hair` and `hat` are `"none"`, `hairColor` is unused for now. The Color/Hair/Hat tabs are hidden until recolor art lands. `looks.json` is retired.
 - **Portraits** come from each character's `front` sprite (head crop, upscaled in code). No separate portrait files.
-- **Scenes:** `uf-campus` (map) with 3 buildings: top-left Library (scout, docs-writer → `interior-library`), top-right Lab (backend-dev, test-engineer → `interior-lab`), bottom-right Union (frontend-dev, reviewer → `interior-union`). Rooms you can pick directly: `office` and `beach`. The Bar/Club is dropped. The welcome screen uses `web/public/art/scenes/welcome-bg.png` (not a scene in scenes.json).
+- **Scenes:** `uf-campus` (map) with 3 buildings: top-left Library (scout, docs-writer → `interior-library`), top-right Lab (backend-dev, test-engineer → `interior-lab`), bottom-right Union (frontend-dev, reviewer → `interior-union`). Rooms you can pick directly: `office` and `club` (a pool day-club, which replaced the beach on 2026-10-17). The welcome screen uses `web/public/art/scenes/welcome-bg.png` (not a scene in scenes.json).
 - Scene art is 2688×1520; render it to fit the 16:9 stage.
 
 ### Narrator (2026-10-17, user)
