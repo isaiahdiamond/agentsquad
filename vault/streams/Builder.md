@@ -41,6 +41,7 @@ The reviewer has no Edit or Write. Point this out on its card.
 - [x] Deploy calls `POST /deploy` with the `Squad`; show the returned files; save the squad to localStorage.
 - [x] "Randomize" button on the lead creator (fun in demos, cheap to build).
 - [x] Works with placeholder art until the Art stream delivers. Never hardcode an art file path; always read from the manifests.
+- [x] Art Pack 01: lead creator on real sprite variants (Body + Outfit tabs, rotate front/back/hand), head-crop portraits from front sprites, real title lineup, scene cards on real backgrounds. `looks.json` retired.
 
 ## Done when
 
@@ -49,3 +50,4 @@ You can build a lead, draft 3 specialists, pick UF Campus, hit deploy, and see r
 ## Log
 
 - 2026-10-17: Demo 1 flow done on placeholder art: Title, Create Lead (canvas hair palette swap in `LeadPreview.tsx`, reusable by the Arena), Draft Squad with model toggles, Scene & Deploy with files modal and Go to Arena. Draft saved to `localStorage["agentsquad.draft"]`, deployed squad to `localStorage["agentsquad.squad"]`. Dev-only `?step=` and `?draft=<json>` URL params for screenshots. Waiting on real `/deploy` from Bridge to confirm files land in `demo/target/.claude/agents/`. Builder.
+- 2026-10-17: Art Pack 01 wired in. Lead looks are `lead-<body>-<outfit>` variants via `ui/sprites.ts`; Hair/Color/Hat tabs hidden until recolor art. `LeadPreview` renders the variant (props `look`, `height`, `view`), no canvas swap. Saved layered looks (`body-a`, `outfit-hoodie`) migrate in `parseDraft`; unknown ones fall back to `DEFAULT_LEAD_LOOK`. Portraits are head crops of `/art/sprites/<id>-front.png`. Scene picker shows maps plus rooms no building uses as an interior, and resets a saved scene id that no longer exists. Dev params `?tab=body` and `?view=back|hand` on the lead step. Builder.
