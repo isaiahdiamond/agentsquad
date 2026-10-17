@@ -24,9 +24,11 @@ export default function ReportPage() {
   }
   const replay = async () => {
     try {
-      const runs: unknown[] = await fetch("/api/runs").then((r) => r.json())
-      const last = runs[runs.length - 1] as string | { file?: string; name?: string; id?: string } | undefined
-      const file = typeof last === "string" ? last : last?.file ?? last?.name ?? last?.id
+      let file = report?.arena.sessionId ? `${report.arena.sessionId}.jsonl` : undefined
+      if (!file) {
+        const runs: { file: string }[] = await fetch("/api/runs").then((r) => r.json())
+        file = runs[0]?.file
+      }
       if (!file) return setNote("No recorded runs yet.")
       navigate(`/arena?replay=${encodeURIComponent(file)}`)
     } catch {
