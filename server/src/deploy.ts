@@ -18,13 +18,14 @@ const HOOK_EVENTS = [
 type State = {
   squad: Squad | null
   target: string | null
+  deployedAt: number | null
   agentFiles: string[]
   backedUpAgents: string[]
   createdClaudeMd: boolean
   createdSettings: boolean
 }
 
-const empty = (): State => ({ squad: null, target: null, agentFiles: [], backedUpAgents: [], createdClaudeMd: false, createdSettings: false })
+const empty = (): State => ({ squad: null, target: null, deployedAt: null, agentFiles: [], backedUpAgents: [], createdClaudeMd: false, createdSettings: false })
 
 export function loadState(): State {
   try {
@@ -128,6 +129,7 @@ export function deploy(squad: Squad) {
   if (prev.target && prev.target !== target) undeploy()
   state.target = target
   state.squad = squad
+  state.deployedAt = Date.now()
   const files: { path: string; content: string }[] = []
   const write = (rel: string, content: string) => {
     const abs = path.join(target, rel)

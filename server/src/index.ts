@@ -5,6 +5,7 @@ import { WebSocketServer, WebSocket } from "ws"
 import type { AgentEvent } from "@agentsquad/shared"
 import { handleHook, type Out } from "./hook"
 import { createNarrator, narratorMode } from "./narrator"
+import { sawHook, snapshot, track } from "./live"
 import { ROOT, deploy, loadState, undeploy } from "./deploy"
 
 const PORT = Number(process.env.PORT ?? 4317)
@@ -38,6 +39,7 @@ function emit(e: Out) {
   const line = JSON.stringify(event)
   fs.appendFile(path.join(RUNS, `${e.sessionId.replace(/[^\w.-]/g, "_")}.jsonl`), line + "\n", () => {})
   broadcast(line)
+  track(event)
   narrator.feed(event)
 }
 
@@ -73,7 +75,10 @@ const server = http.createServer(async (req, res) => {
 
   try {
     if (route === "POST /hook") {
-      handleHook(await readJson(req), emit, narrator.reports)
+      const raw = await readJson(req)
+      sawHook()
+      if (process.env.AGENTSQUAD_RAW) fs.appendFile(process.env.AGENTSQUAD_RAW, JSON.stringify(raw) + "\n", () => {})
+      handleHook(raw, emit, narrator.reports)
       return send(res, 200, { ok: true })
     }
     const json = (req.headers["content-type"] ?? "").split(";")[0].trim() === "application/json"
@@ -84,7 +89,8 @@ const server = http.createServer(async (req, res) => {
     if (route === "POST /undeploy") return send(res, 200, undeploy())
     if (route === "GET /state") {
       const state = loadState()
-      return send(res, 200, { squad: state.squad, scene: state.squad?.scene ?? null, target: state.target })
+      const live = snapshot()
+      return send(res, 200, { squad: state.squad, scene: state.squad?.scene ?? null, target: state.target, deployedAt: state.deployedAt, ...live, hooksSinceDeploy: !!live.lastHookAt && live.lastHookAt >= (state.deployedAt ?? 0) })
     }
     if (route === "GET /runs") {
       const runs = fs.readdirSync(RUNS).filter((f) => f.endsWith(".jsonl")).map((file) => {

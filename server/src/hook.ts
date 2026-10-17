@@ -11,6 +11,8 @@ type Session = {
   counts: Map<string, number>
   spawnText: Map<string, string[]>
   turnDone: boolean
+  stopped: boolean
+  endTimer?: NodeJS.Timeout
   pending: Promise<void>
   seenAt: number
 }
@@ -25,6 +27,8 @@ const DELEGATE = new Set(["Agent", "Task"])
 const THINK_MS = 2000
 const IDLE_MS = 30 * 60_000
 const END_WAIT_MS = 5500
+const TEAM_END_MS = 8000
+const NOTIFICATION = /^\s*<task-notification>/
 
 const sessions = new Map<string, Session>()
 
@@ -69,11 +73,12 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
   }
   let s = sessions.get(sessionId)
   if (!s) {
-    s = { cwd: raw.cwd ?? process.cwd(), agents: new Map(), rawIds: new Map(), counts: new Map(), spawnText: new Map(), turnDone: false, pending: Promise.resolve(), seenAt: now }
+    s = { cwd: raw.cwd ?? process.cwd(), agents: new Map(), rawIds: new Map(), counts: new Map(), spawnText: new Map(), turnDone: false, stopped: false, pending: Promise.resolve(), seenAt: now }
     sessions.set(sessionId, s)
   }
   const session = s
   session.seenAt = now
+  clearTimeout(session.endTimer)
 
   const send = (agent: Agent, e: Omit<Out, "sessionId" | "agentId" | "agentType">) => {
     if (e.state) agent.state = e.state
@@ -114,9 +119,14 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
     return known ?? spawn(raw.agent_id, raw.agent_type ?? "subagent")
   }
 
+  const busy = () =>
+    [...session.agents.values()].some((a) => a.id !== "lead" && a.state !== "done") ||
+    [...session.spawnText.values()].some((q) => q.length > 0)
+
   const endTurn = () => {
     if (session.turnDone) return
     session.turnDone = true
+    session.stopped = false
     for (const a of session.agents.values()) clearTimeout(a.timer)
     send(lead(), { kind: "agent_done", state: "done" })
     session.pending = reports(sessionId)
@@ -132,8 +142,13 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
     }
     case "UserPromptSubmit": {
       session.turnDone = false
+      session.stopped = false
       const l = lead()
-      send(l, { kind: "prompt", text: typeof raw.prompt === "string" ? cut(raw.prompt, 300) : undefined })
+      if (typeof raw.prompt === "string" && NOTIFICATION.test(raw.prompt)) {
+        send(l, { kind: "tool_start", state: "thinking" })
+        break
+      }
+      send(l, { kind: "prompt", text: typeof raw.prompt === "string" ? cut(raw.prompt, 80) : undefined })
       send(l, { kind: "tool_start", state: "thinking" })
       break
     }
@@ -143,7 +158,7 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
       clearTimeout(agent.timer)
       if (DELEGATE.has(tool)) {
         const type = raw.tool_input?.subagent_type ?? "general-purpose"
-        const text = cut(raw.tool_input?.description ?? raw.tool_input?.prompt ?? "", 120)
+        const text = firstLine(raw.tool_input?.description) ?? firstLine(raw.tool_input?.prompt) ?? ""
         session.spawnText.set(type, [...(session.spawnText.get(type) ?? []), text])
         break
       }
@@ -155,7 +170,11 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
       if (!tool) break
       const agent = actor()
       think(agent)
-      if (DELEGATE.has(tool)) break
+      if (DELEGATE.has(tool)) {
+        const type = raw.tool_input?.subagent_type ?? "general-purpose"
+        if (raw.hook_event_name === "PostToolUseFailure") session.spawnText.get(type)?.pop()
+        break
+      }
       const bad = raw.hook_event_name === "PostToolUseFailure" ? raw.is_interrupt !== true : failed(raw.tool_response)
       if (bad) send(agent, { kind: "tool_end", tool, target, state: "error", text: firstLine(raw.error) })
       else if (agent.state === "waiting") send(agent, { kind: "tool_end", tool, target, state: "thinking" })
@@ -171,7 +190,8 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
       const agent = actor()
       clearTimeout(agent.timer)
       send(agent, { kind: "agent_done", state: "done", text: firstLine(raw.last_assistant_message) })
-      think(lead())
+      if (session.stopped && !busy()) session.endTimer = setTimeout(endTurn, TEAM_END_MS)
+      else think(lead())
       break
     }
     case "Notification": {
@@ -182,7 +202,8 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
       break
     }
     case "Stop": {
-      endTurn()
+      if (busy()) session.stopped = true
+      else endTurn()
       break
     }
     case "SessionEnd": {
