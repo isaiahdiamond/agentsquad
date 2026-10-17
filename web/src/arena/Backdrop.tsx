@@ -9,7 +9,7 @@ const H = 900
 export default function Backdrop({ scene }: { scene: Scene }) {
   const ok = useImage(scene.background)
   if (ok) return <img src={scene.background} alt={scene.name} draggable={false} className="absolute inset-0 h-full w-full select-none" />
-  if (ok === undefined) return <div className="absolute inset-0 bg-navy-950" />
+  if (ok === undefined) return <div className="absolute inset-0 bg-bg" />
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 h-full w-full" shapeRendering="crispEdges">
       {scene.kind === "map" ? <MapArt scene={scene} /> : <RoomArt scene={scene} />}
@@ -85,8 +85,8 @@ function MapArt({ scene }: { scene: Scene }) {
             <rect x={b.door.x * W - 18} y={b.door.y * H - 40} width={36} height={40} fill="#2a1710" stroke="#e8dcc0" strokeWidth={4} />
             <rect x={b.door.x * W - 30} y={b.door.y * H - 2} width={60} height={10} fill="#e8dcc0" stroke="#1a0f0a" strokeWidth={3} />
             <g transform={`translate(${x + w / 2} ${y + roof + (h - roof) / 2 + 10})`}>
-              <rect x={-(b.name.length * 9 + 22)} y={-20} width={b.name.length * 18 + 44} height={40} fill="#0d1730" stroke="#b8860b" strokeWidth={4} />
-              <text textAnchor="middle" y={7} fontFamily="'Press Start 2P', monospace" fontSize={16} fill="#ffe28a">{b.name}</text>
+              <rect x={-(b.name.length * 9 + 22)} y={-20} width={b.name.length * 18 + 44} height={40} fill="#14161d" stroke="#ffffff" strokeOpacity={0.16} strokeWidth={2} rx={14} />
+              <text textAnchor="middle" y={7} fontFamily="Inter, sans-serif" fontWeight={700} fontSize={18} fill="#e8e9ee">{b.name}</text>
             </g>
           </g>
         )

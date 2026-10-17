@@ -4,7 +4,7 @@ import type { AgentState } from "@agentsquad/shared"
 import { spriteSet, useSprites, type SpriteManifest, type SpriteView } from "../ui/sprites"
 import type { Agent, Who } from "./store"
 
-// Code-drawn chibi, only used when sprites.json has no sprite for a character.
+// Code-drawn chibi, only used when sprites.json has no sprite for a character or its file is broken.
 const BODY = [
   "....oooooooo....",
   "...ohhhhhhhho...",
@@ -30,7 +30,7 @@ const BODY = [
 
 const HAIRS = ["#3b2416", "#1f2937", "#7c2d12", "#a16207", "#4c1d95", "#0f172a"]
 
-function shade(hex: string, f: number) {
+export function shade(hex: string, f: number) {
   const n = parseInt(hex.slice(1), 16)
   const c = [n >> 16, (n >> 8) & 255, n & 255].map((v) => Math.max(0, Math.min(255, Math.round(v * f))))
   return `rgb(${c.join(",")})`
@@ -72,34 +72,43 @@ export function Sprite({ color, seed, lead, raise, bust }: { color: string; seed
   )
 }
 
-const probed = new Map<string, boolean>()
+type Size = { w: number; h: number }
+const probed = new Map<string, Size | false>()
 
-export function useImage(src?: string) {
-  const [ok, setOk] = useState(src ? probed.get(src) : false)
+// Natural size of an image: undefined while loading, false when the file is missing or broken.
+export function useNatural(src?: string) {
+  const [size, setSize] = useState<Size | false | undefined>(src ? probed.get(src) : false)
   useEffect(() => {
-    if (!src) return setOk(false)
-    if (probed.has(src)) return setOk(probed.get(src))
+    if (!src) return setSize(false)
+    if (probed.has(src)) return setSize(probed.get(src))
+    setSize(undefined)
     const img = new Image()
-    const settle = (ok: boolean) => {
-      probed.set(src, ok)
-      setOk(ok)
+    const settle = (s: Size | false) => {
+      probed.set(src, s)
+      setSize(s)
     }
-    img.onload = () => settle(true)
+    img.onload = () => settle(img.naturalWidth ? { w: img.naturalWidth, h: img.naturalHeight } : false)
     img.onerror = () => settle(false)
     img.src = src
   }, [src])
-  return ok
+  return size
 }
 
-// Stage height in px. Sprite pixel scale = round(spot.scale * stage height / 900), so spot.scale is the scale on a 1600x900 stage.
-export const StageH = createContext(900)
+export function useImage(src?: string) {
+  const size = useNatural(src)
+  return size === undefined ? undefined : !!size
+}
+
+// Stage size in px. Sprite pixel scale = round(spot.scale * stage height / 900), so spot.scale is the scale on a 1600x900 stage,
+// but never below the spot's own whole scale, so rooms stay 2x on laptop-sized stages.
+export const Stage = createContext({ w: 1600, h: 900 })
 
 export function pxScale(scale: number, stageH: number) {
-  return Math.max(1, Math.round((scale * stageH) / 900))
+  return Math.max(1, Math.floor(scale), Math.round((scale * stageH) / 900))
 }
 
 export function usePx(s: MotionValue<number>) {
-  const h = useContext(StageH)
+  const { h } = useContext(Stage)
   const [k, setK] = useState(() => pxScale(s.get(), h))
   useEffect(() => {
     setK(pxScale(s.get(), h))
@@ -144,29 +153,36 @@ export function useFacing(x: MotionValue<number>, y: MotionValue<number>) {
 
 let cached: SpriteManifest | null = null
 
+// The manifest, and whether it has settled (loaded or failed), so nothing flashes the fallback while it loads.
 function useManifest() {
-  const { sprites } = useSprites()
+  const { sprites, error } = useSprites()
   if (sprites) cached = sprites
-  return sprites ?? cached
+  const m = sprites ?? cached
+  return { m, ready: !!m || !!error }
 }
 
-function spritesFor(m: SpriteManifest | null, who: Who) {
-  if (!who.lead) return spriteSet(m, who.type)
-  return spriteSet(m, "lead", who.look ?? null) ?? spriteSet(m, "lead")
+function useSpriteSet(who: Who) {
+  const { m, ready } = useManifest()
+  const set = !m ? null : who.lead ? spriteSet(m, "lead", who.look ?? null) ?? spriteSet(m, "lead") : spriteSet(m, who.type)
+  return { set, ready }
 }
 
-const H = 44
-const BOX = 24
+const H = 96
+const BOX = 48
 
 // One path for every character body: the sprite PNG at integer scale k, or the drawn chibi when the art is missing.
+// Positioned in whole pixels so odd-width sprites never land on half pixels.
 function Body({ who, seed, k, view, flip }: { who: Who; seed: string; k: number; view: SpriteView; flip: boolean }) {
-  const set = spritesFor(useManifest(), who)
-  if (set) {
+  const { set, ready } = useSpriteSet(who)
+  const src = set?.[view]
+  const nat = useNatural(src)
+  if (!ready || (src && nat === undefined)) return null
+  if (src && nat) {
     return (
       <img
-        src={set[view]} alt={who.name} draggable={false}
-        className="absolute bottom-0 left-1/2 max-w-none"
-        style={{ height: H * k, imageRendering: "pixelated", transform: `translateX(-50%)${flip ? " scaleX(-1)" : ""}` }}
+        src={src} alt={who.name} draggable={false}
+        className="pixelated absolute bottom-0 max-w-none select-none"
+        style={{ width: nat.w * k, height: nat.h * k, left: Math.round((BOX * k - nat.w * k) / 2), transform: flip ? "scaleX(-1)" : undefined }}
       />
     )
   }
@@ -177,38 +193,37 @@ function Body({ who, seed, k, view, flip }: { who: Who; seed: string; k: number;
   )
 }
 
-// Head crop of the front sprite, scaled up.
-export function Portrait({ who, seed, className = "" }: { who: Who; seed: string; className?: string }) {
-  const set = spritesFor(useManifest(), who)
-  if (set) {
-    return (
-      <div
-        className={`border-2 border-black/70 ${className}`}
-        style={{ background: `url(${set.front}) 50% 6% / auto 260% no-repeat, ${shade(who.color, 0.35)}`, imageRendering: "pixelated" }}
-      />
-    )
-  }
+// Head crop of the front sprite at a whole-number scale, size x size px.
+export function Portrait({ who, seed, size, className = "" }: { who: Who; seed: string; size: number; className?: string }) {
+  const { set, ready } = useSpriteSet(who)
+  const nat = useNatural(set?.front)
+  const k = Math.max(1, Math.round(size / 36))
   return (
-    <div className={`overflow-hidden border-2 border-black/70 ${className}`} style={{ background: shade(who.color, 0.35) }}>
-      <div className="px-[8%] pt-[10%]">
-        <Sprite color={who.color} seed={seed} lead={who.lead} bust />
-      </div>
+    <div className={`relative shrink-0 overflow-hidden ${className}`} style={{ width: size, height: size, background: shade(who.color, 0.3) }}>
+      {ready && set && nat ? (
+        <img
+          src={set.front} alt="" draggable={false} className="pixelated absolute max-w-none select-none"
+          style={{ width: nat.w * k, height: nat.h * k, left: Math.round((size - nat.w * k) / 2), top: -k }}
+        />
+      ) : ready && nat === false ? (
+        <div className="px-[8%] pt-[10%]"><Sprite color={who.color} seed={seed} lead={who.lead} bust /></div>
+      ) : null}
     </div>
   )
 }
 
 function Icon({ state, size }: { state: AgentState; size: number }) {
-  const px = (x: number, y: number, w: number, h: number, c = "#0b0f1a") => <rect x={x} y={y} width={w} height={h} fill={c} />
+  const line = { fill: "none", stroke: "#0b0d12", strokeWidth: 1.6, strokeLinecap: "round" as const, strokeLinejoin: "round" as const }
   let body: React.ReactNode = null
-  if (state === "reading") body = <>{px(1, 2, 4, 7, "#3b82f6")}{px(5, 2, 4, 7, "#60a5fa")}{px(5, 2, 0.6, 7)}{px(1, 9, 8, 1)}</>
-  if (state === "writing") body = <>{px(0, 3, 10, 6, "#334155")}{[1, 3, 5, 7].map((x) => <rect key={x} x={x} y={4} width={1.4} height={1.2} fill="#e2e8f0" />)}{px(2, 6.5, 6, 1.2, "#e2e8f0")}</>
-  if (state === "running") body = <>{px(0, 1, 10, 8)}{px(1, 2, 8, 6, "#0f172a")}{px(2, 3, 1, 1, "#22c55e")}{px(3, 4, 1, 1, "#22c55e")}{px(2, 5, 1, 1, "#22c55e")}{px(4, 6, 3, 1, "#22c55e")}</>
-  if (state === "searching") body = <><circle cx={4} cy={4} r={3} fill="#bae6fd" stroke="#0b0f1a" strokeWidth={1.2} /><rect x={6} y={6.3} width={4} height={1.6} fill="#0b0f1a" transform="rotate(45 6 6.3)" /></>
-  if (state === "thinking") body = <>{[1.5, 5, 8.5].map((x, i) => <motion.circle key={x} cx={x} cy={5} r={1.1} fill="#0b0f1a" animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }} />)}</>
+  if (state === "reading") body = <><path d="M2 4.5c2-1 4-1 6 .5v10c-2-1.5-4-1.5-6-.5z" {...line} /><path d="M18 4.5c-2-1-4-1-6 .5v10c2-1.5 4-1.5 6-.5z" {...line} /></>
+  if (state === "writing") body = <><rect x={2} y={5} width={16} height={10} rx={2} {...line} /><path d="M5 8.5h1M8 8.5h1M11 8.5h1M14 8.5h1M6 12h8" {...line} /></>
+  if (state === "running") body = <><rect x={2} y={3.5} width={16} height={13} rx={2} {...line} /><path d="M5.5 8l2.5 2-2.5 2M10 13h4" {...line} stroke="#16a34a" /></>
+  if (state === "searching") body = <><circle cx={8.5} cy={8.5} r={5} {...line} /><path d="M12.5 12.5L17 17" {...line} /></>
+  if (state === "thinking") body = <>{[5, 10, 15].map((x, i) => <motion.circle key={x} cx={x} cy={10} r={1.6} fill="#0b0d12" animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }} />)}</>
   if (!body) return null
   return (
-    <div className="rounded-[3px] border-2 border-black/80 bg-white/90 p-[2px] shadow-[2px_2px_0_rgba(0,0,0,.5)]" style={{ width: size }}>
-      <svg viewBox="0 0 10 10" className="block w-full" shapeRendering="crispEdges">{body}</svg>
+    <div className="flex items-center justify-center rounded-lg bg-white/95 shadow-[0_2px_8px_rgba(0,0,0,.35)] ring-1 ring-black/10" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 20 20" style={{ width: size * 0.7 }}>{body}</svg>
     </div>
   )
 }
@@ -220,24 +235,25 @@ function Flame({ delay = 0, className = "" }: { delay?: number; className?: stri
       animate={{ scaleY: [1, 1.18, 0.92, 1.1, 1], scaleX: [1, 0.92, 1.06, 0.95, 1], skewX: [0, 3, -3, 2, 0] }}
       transition={{ duration: 0.6, repeat: Infinity, delay, ease: "linear" }}
     >
-      <path d="M10 0 C14 8 20 12 18 20 C17 25 13 28 10 28 C7 28 3 25 2 20 C0 12 6 8 10 0Z" fill="#ef4444" stroke="#7f1d1d" strokeWidth={1.2} />
+      <path d="M10 0 C14 8 20 12 18 20 C17 25 13 28 10 28 C7 28 3 25 2 20 C0 12 6 8 10 0Z" fill="#ef4444" />
       <path d="M10 8 C13 13 16 16 14.5 21 C13.5 24 12 25.5 10 25.5 C8 25.5 6.5 24 5.5 21 C4 16 7 13 10 8Z" fill="#f97316" />
       <path d="M10 15 C12 18 13 20 12 23 C11.5 24.3 10.8 25 10 25 C9.2 25 8.5 24.3 8 23 C7 20 8 18 10 15Z" fill="#fde047" />
     </motion.svg>
   )
 }
 
-export function Fire({ small }: { small?: boolean }) {
+export function Fire() {
   return (
     <div className="pointer-events-none absolute inset-0">
-      <Flame className="bottom-[2%] left-[-12%] w-[45%]" delay={0.1} />
-      <Flame className="bottom-[8%] right-[-14%] w-[42%]" delay={0.3} />
-      <Flame className="bottom-[82%] left-[25%] w-[50%]" delay={0.2} />
-      {!small && [0, 1, 2].map((i) => (
+      <Flame className="bottom-[1%] left-[-6%] w-[40%]" delay={0.1} />
+      <Flame className="bottom-[4%] right-[-8%] w-[36%]" delay={0.3} />
+      <Flame className="bottom-[40%] left-[-14%] w-[30%]" delay={0.45} />
+      <Flame className="bottom-[88%] left-[30%] w-[40%]" delay={0.2} />
+      {[0, 1, 2].map((i) => (
         <motion.div
-          key={i} className="absolute top-[-12%] rounded-full bg-slate-400/70"
-          style={{ left: `${25 + i * 20}%`, width: "22%", aspectRatio: "1" }}
-          animate={{ y: ["0%", "-260%"], opacity: [0, 0.8, 0], scale: [0.5, 1.4] }}
+          key={i} className="absolute top-[-8%] rounded-full bg-slate-400/60"
+          style={{ left: `${22 + i * 20}%`, width: "26%", aspectRatio: "1" }}
+          animate={{ y: ["0%", "-220%"], opacity: [0, 0.7, 0], scale: [0.5, 1.4] }}
           transition={{ duration: 1.8, repeat: Infinity, delay: i * 0.6, ease: "easeOut" }}
         />
       ))}
@@ -245,9 +261,9 @@ export function Fire({ small }: { small?: boolean }) {
   )
 }
 
-export function FlameBadge() {
+export function FlameBadge({ size = 16 }: { size?: number }) {
   return (
-    <div className="relative" style={{ width: "max(14px, 1cqw)", height: "max(20px, 1.4cqw)" }}>
+    <div className="relative" style={{ width: size, height: size * 1.4 }}>
       <Flame className="inset-0 h-full w-full" />
     </div>
   )
@@ -260,10 +276,10 @@ function Puff() {
         const a = (i / 6) * Math.PI * 2
         return (
           <motion.div
-            key={i} className="absolute left-[35%] top-[35%] w-[30%] rounded-full border-2 border-slate-300 bg-white"
+            key={i} className="absolute left-[30%] top-[40%] w-[40%] rounded-full bg-white shadow-[0_0_0_1px_rgba(148,163,184,.6)]"
             style={{ aspectRatio: "1" }}
             initial={{ x: 0, y: 0, opacity: 0.95, scale: 0.4 }}
-            animate={{ x: `${Math.cos(a) * 120}%`, y: `${Math.sin(a) * 120}%`, opacity: 0, scale: 1.4 }}
+            animate={{ x: `${Math.cos(a) * 110}%`, y: `${Math.sin(a) * 110}%`, opacity: 0, scale: 1.3 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
           />
         )
@@ -284,12 +300,13 @@ export function Bubble({ text, color, at }: { text?: string; color: string; at: 
     <AnimatePresence>
       {shown && text && (
         <motion.div
-          key={at} initial={{ opacity: 0, y: 6, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4 }}
-          className="relative mb-[6px] rounded-[3px] border-2 border-black bg-white px-[6px] py-[4px] font-ui leading-tight text-navy-950 shadow-[3px_3px_0_rgba(0,0,0,.45)]"
-          style={{ fontSize: "max(9px, 0.62cqw)", width: "max-content", maxWidth: "max(130px, 10cqw)", borderBottomColor: color, borderBottomWidth: 3 }}
+          key={at} initial={{ opacity: 0, y: 6, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4 }}
+          className="relative mb-2 flex items-start gap-1.5 rounded-xl bg-white px-2.5 py-1.5 font-medium leading-snug text-[#0b0d12] shadow-[0_4px_14px_rgba(0,0,0,.35)]"
+          style={{ fontSize: "max(11px, 0.78cqw)", width: "max-content", maxWidth: "max(160px, 12cqw)" }}
         >
+          <span className="mt-[0.45em] h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: color }} />
           {text}
-          <div className="absolute -bottom-[7px] left-1/2 h-[8px] w-[8px] -translate-x-1/2 rotate-45 border-b-2 border-r-2 border-black bg-white" />
+          <div className="absolute -bottom-1 left-1/2 h-2.5 w-2.5 -translate-x-1/2 rotate-45 rounded-[2px] bg-white" />
         </motion.div>
       )}
     </AnimatePresence>
@@ -298,51 +315,51 @@ export function Bubble({ text, color, at }: { text?: string; color: string; at: 
 
 const stepped = (t: number) => (t < 0.5 ? 0 : 1)
 
-// The character plus every status effect, k sprite pixels per art pixel. The parent puts the bottom center at the feet.
+// The character plus every status effect, k screen pixels per art pixel. The parent puts the bottom center at the feet.
 export function Actor({ who, agent, seed, k, face = STANDING, bubble = true, icon = true }: { who: Who; agent?: Agent; seed: string; k: number; face?: Face; bubble?: boolean; icon?: boolean }) {
   const state = agent?.state ?? "idle"
   const waiting = state === "waiting"
   const error = state === "error"
   const [bob] = useState(() => 1.1 + Math.random() * 0.5)
   const view: SpriteView = waiting ? "hand" : face.back ? "back" : "front"
-  const badge = 10 + 4 * k
+  const badge = 16 + 6 * k
   return (
     <div className="relative" style={{ width: BOX * k, height: H * k }}>
-      <div className="absolute bottom-full left-1/2 flex -translate-x-1/2 flex-col items-center" style={{ marginBottom: k }}>
+      <div className="absolute bottom-full left-1/2 flex -translate-x-1/2 flex-col items-center" style={{ marginBottom: 2 * k }}>
         {bubble && <Bubble text={agent?.narration} color={who.color} at={agent?.narrationAt ?? 0} />}
         {waiting ? (
           <motion.div
-            className="mb-[2px] flex items-center justify-center rounded-[3px] border-2 border-black bg-yellow-300 font-pixel text-black shadow-[2px_2px_0_rgba(0,0,0,.5)]"
-            style={{ width: badge, height: badge * 1.15, fontSize: badge * 0.6 }}
+            className="flex items-center justify-center rounded-full bg-amber-400 font-extrabold text-[#0b0d12] shadow-[0_0_0_3px_rgba(251,191,36,.35),0_2px_8px_rgba(0,0,0,.35)]"
+            style={{ width: badge, height: badge, fontSize: badge * 0.62 }}
             animate={{ y: [0, -4, 0] }} transition={{ duration: 0.7, repeat: Infinity }}
           >!</motion.div>
         ) : state === "done" ? (
           <motion.div
             initial={{ scale: 0 }} animate={{ scale: 1 }}
-            className="mb-[2px] flex items-center justify-center rounded-full border-2 border-black bg-green-500 shadow-[2px_2px_0_rgba(0,0,0,.5)]"
+            className="flex items-center justify-center rounded-full bg-emerald-500 shadow-[0_2px_8px_rgba(0,0,0,.35)]"
             style={{ width: badge, height: badge }}
           >
-            <svg viewBox="0 0 10 10" className="w-[70%]"><path d="M2 5.2 L4.2 7.4 L8 2.8" stroke="white" strokeWidth={1.8} fill="none" /></svg>
+            <svg viewBox="0 0 10 10" className="w-[62%]"><path d="M2 5.2 L4.2 7.4 L8 2.8" stroke="white" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" fill="none" /></svg>
           </motion.div>
         ) : icon && !error ? <Icon state={state} size={badge} /> : null}
       </div>
       {waiting && (
         <motion.div
           className="absolute left-1/2 top-1/2 rounded-full"
-          style={{ width: 40 * k, height: 40 * k, marginLeft: -20 * k, marginTop: -20 * k, background: "radial-gradient(circle, rgba(253,224,71,.95) 0%, rgba(250,204,21,.55) 40%, rgba(250,204,21,0) 70%)" }}
+          style={{ width: 84 * k, height: 110 * k, marginLeft: -42 * k, marginTop: -55 * k, background: "radial-gradient(closest-side, rgba(253,224,71,.8) 0%, rgba(250,204,21,.4) 50%, rgba(250,204,21,0) 100%)" }}
           animate={{ opacity: [0.6, 1, 0.6], scale: [0.95, 1.05, 0.95] }} transition={{ duration: 1.2, repeat: Infinity }}
         />
       )}
-      <div className="absolute left-1/2 rounded-[50%] bg-black/35" style={{ width: 16 * k, height: 4 * k, marginLeft: -8 * k, bottom: -1.5 * k }} />
+      <div className="absolute left-1/2 rounded-[50%] bg-black/35" style={{ width: 28 * k, height: 7 * k, marginLeft: -14 * k, bottom: -3 * k }} />
       <motion.div
         key={face.walking ? "walk" : "idle"} className="absolute inset-0"
         animate={{ y: [0, -k, 0] }}
         transition={face.walking ? { duration: 0.34, repeat: Infinity, ease: stepped } : { duration: bob, repeat: Infinity, ease: stepped }}
       >
         <Body who={who} seed={seed} k={k} view={view} flip={face.flip} />
-        {error && <Fire />}
-        {agent && Date.now() - agent.fixedAt < 1500 && <Puff key={agent.fixedAt} />}
       </motion.div>
+      {error && <Fire />}
+      {agent && Date.now() - agent.fixedAt < 1500 && <Puff key={agent.fixedAt} />}
     </div>
   )
 }

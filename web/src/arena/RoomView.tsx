@@ -33,11 +33,11 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
   const station = (i: number): Spot => {
     const st = scene.stations[i % n] ?? scene.bench
     const lap = Math.floor(i / n)
-    return { x: st.x + lap * 0.04, y: st.y + lap * 0.02, scale: st.scale }
+    return { x: st.x + lap * 0.04 * st.scale, y: st.y + lap * 0.008 * st.scale, scale: st.scale }
   }
   const home = (i: number): Spot => {
     const side = i % 2 ? 1 : -1
-    return { x: scene.lead.x + side * 0.06 * (Math.floor(i / 2) + 1), y: scene.lead.y + 0.03, scale: scene.lead.scale }
+    return { x: scene.lead.x + side * 0.045 * scene.lead.scale * (Math.floor(i / 2) + 1), y: scene.lead.y + 0.02, scale: scene.lead.scale }
   }
   const fresh = (a: Agent) => a.firstAt > opened.current - 300
 
@@ -50,8 +50,8 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
             const st = station(members.indexOf(a))
             return (
               <motion.line
-                key={a.id} x1={scene.lead.x * 1600} y1={(scene.lead.y - scene.lead.scale * 0.03) * 900} x2={st.x * 1600} y2={(st.y - st.scale * 0.03) * 900}
-                stroke={who(a.type, squad).color} strokeWidth={6} strokeLinecap="round" strokeDasharray="1 0"
+                key={a.id} x1={scene.lead.x * 1600} y1={(scene.lead.y - scene.lead.scale * 0.06) * 900} x2={st.x * 1600} y2={(st.y - st.scale * 0.06) * 900}
+                stroke={who(a.type, squad).color} strokeWidth={4} strokeLinecap="round"
                 initial={{ pathLength: 0, opacity: 1 }} animate={{ pathLength: 1, opacity: [1, 1, 0] }}
                 transition={{ duration: 2.2, delay: i * 0.05, times: [0, 0.6, 1] }}
               />
@@ -69,8 +69,8 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
         return <Mover key={a.id} agent={a} squad={squad} from={fresh(a) ? scene.bench : station(i)} to={to} leave={!main && a.doneAt > 0} />
       })}
       {!working.length && !main && (
-        <div className="absolute inset-x-0 top-[45%] text-center font-pixel text-[11px] text-gold-300 drop-shadow-[2px_2px_0_#000]">
-          Nobody is working in here right now.
+        <div className="absolute inset-x-0 top-[45%] flex justify-center">
+          <div className="card px-4 py-2.5 text-sm text-muted shadow-[0_8px_24px_rgba(0,0,0,.45)]">Nobody is working in here right now.</div>
         </div>
       )}
     </div>

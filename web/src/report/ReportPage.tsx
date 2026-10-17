@@ -6,9 +6,18 @@ import { activeMs, clearReport, clock, loadReport, who } from "../arena/store"
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="flex items-center justify-between font-pixel text-[10px]">
-      <span className="text-slate-400">{label}</span>
-      <span className="text-gold-300">{value}</span>
+    <div className="min-w-0 rounded-xl bg-panel-2 px-2 py-2">
+      <div className="text-[11px] text-muted">{label}</div>
+      <div className="text-base font-semibold tabular-nums text-text">{value}</div>
+    </div>
+  )
+}
+
+function Summary({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="flex flex-col items-center gap-0.5 px-6">
+      <span className="text-2xl font-semibold tabular-nums text-text">{value}</span>
+      <span className="text-xs text-muted">{label}</span>
     </div>
   )
 }
@@ -38,12 +47,12 @@ export default function ReportPage() {
 
   if (!report) {
     return (
-      <main className="flex min-h-[80vh] flex-col items-center justify-center gap-6 p-6 text-center">
-        <div className="panel px-10 py-8">
-          <h1 className="font-pixel text-lg text-gold-400">No report yet</h1>
-          <p className="mt-4 max-w-sm font-ui text-sm text-slate-300">Run a task in the Arena. When the squad finishes, the report shows up here.</p>
+      <main className="flex min-h-[80vh] flex-col items-center justify-center gap-6 bg-bg p-6 text-center">
+        <div className="card px-10 py-8">
+          <h1 className="text-xl font-semibold text-text">No report yet</h1>
+          <p className="mt-2 max-w-sm text-sm text-muted">Run a task in the Arena. When the squad finishes, the report shows up here.</p>
         </div>
-        <button className="btn-gold text-xs" onClick={newTask}>Go to Arena</button>
+        <button className="btn-primary" onClick={newTask}>Go to Arena</button>
       </main>
     )
   }
@@ -56,51 +65,61 @@ export default function ReportPage() {
   const end = Math.max(arena.endAt, ...agents.map((a) => a.lastAt))
   const total = Math.max(1, end - start)
   const ticks = [0, 0.25, 0.5, 0.75, 1]
+  const changed = new Set(arena.files.filter((f) => f.changed).map((f) => f.path)).size
 
   return (
-    <main className="min-h-[calc(100vh-36px)] bg-[radial-gradient(ellipse_at_top,#1d3060_0%,#070d1f_70%)] px-6 py-8">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <motion.header initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="panel px-6 py-5 text-center">
-          <h1 className="font-pixel text-2xl text-gold-400 drop-shadow-[3px_3px_0_#000] sm:text-4xl">Task complete</h1>
-          {arena.prompt && <p className="mt-3 font-ui text-sm text-slate-300">"{arena.prompt}"</p>}
-          <p className="mt-2 font-pixel text-[9px] text-slate-400">
-            {clock(total)} total · {arena.toolCount} tool calls · {new Set(arena.files.filter((f) => f.changed).map((f) => f.path)).size} files changed
-          </p>
+    <main className="min-h-[calc(100vh-36px)] bg-bg px-6 py-10">
+      <div className="mx-auto flex max-w-6xl flex-col gap-6">
+        <motion.header initial={{ y: -12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="card flex flex-col items-center gap-5 px-6 py-7 text-center">
+          <div className="flex items-center gap-2 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Task complete
+          </div>
+          {arena.prompt ? <h1 className="max-w-3xl text-2xl font-semibold leading-snug text-text sm:text-3xl">{arena.prompt}</h1> : <h1 className="text-3xl font-semibold text-text">Match report</h1>}
+          <div className="flex flex-wrap justify-center divide-x divide-line">
+            <Summary label="Total time" value={clock(total)} />
+            <Summary label="Tool calls" value={arena.toolCount} />
+            <Summary label="Files changed" value={changed} />
+            <Summary label="Agents" value={agents.length} />
+          </div>
         </motion.header>
 
-        <section className="flex flex-wrap justify-center gap-4">
+        <section className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-4">
           {agents.map((a, i) => {
             const w = who(a.type, squad)
             const isMvp = a.id === mvpId
             return (
               <motion.article
-                key={a.id} initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: i * 0.05, duration: 0.3 }}
-                className={`panel relative flex w-[200px] flex-col gap-3 p-4 ${isMvp ? "ring-4 ring-gold-400/60" : ""}`}
+                key={a.id} initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: i * 0.05, duration: 0.3 }}
+                className={`card relative flex flex-col gap-4 p-5 ${isMvp ? "border-accent/60 shadow-[0_0_0_1px_rgba(139,124,246,.35),0_12px_40px_rgba(139,124,246,.15)]" : ""}`}
               >
                 {isMvp && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 border-2 border-black bg-gold-400 px-3 py-1 font-pixel text-[10px] text-navy-950 shadow-[2px_2px_0_#000]">
-                    ★ MVP
-                  </div>
+                  <div className="absolute right-4 top-4 rounded-full bg-accent px-2.5 py-0.5 text-[11px] font-semibold text-white">MVP</div>
                 )}
-                <Portrait who={w} seed={a.type} className="mx-auto h-24 w-24" />
-                <div className="border-2 border-black px-2 py-1 text-center font-pixel text-[10px] text-white" style={{ background: w.color }}>
-                  {w.name}
+                <div className="flex items-center gap-3">
+                  <Portrait who={w} seed={a.type} size={64} className="rounded-xl" />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 text-[15px] font-semibold text-text">
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: w.color }} />
+                      <span className="truncate">{w.name}</span>
+                    </div>
+                    <p className="mt-0.5 line-clamp-2 text-xs text-muted">{w.role}</p>
+                  </div>
                 </div>
-                <p className="text-center font-ui text-[11px] text-slate-400">{w.role}</p>
-                <div className="flex flex-col gap-2 border-y-2 border-navy-700 py-2">
-                  <Stat label="CHANGED" value={a.changed.length} />
-                  <Stat label="READ" value={a.files.filter((f) => !a.changed.includes(f)).length} />
-                  <Stat label="TOOLS" value={a.tools} />
-                  <Stat label="TIME" value={clock(activeMs(a, arena))} />
+                <div className="grid grid-cols-2 gap-2">
+                  <Stat label="Changed" value={a.changed.length} />
+                  <Stat label="Read" value={a.files.filter((f) => !a.changed.includes(f)).length} />
+                  <Stat label="Tools" value={a.tools} />
+                  <Stat label="Time" value={clock(activeMs(a, arena))} />
                 </div>
-                <p className="whitespace-pre-line font-ui text-[11px] leading-snug text-slate-200">
+                <p className="whitespace-pre-line text-[13px] leading-relaxed text-text/90">
                   {a.report || a.doneText || a.narration || "No summary."}
                 </p>
                 {a.files.length > 0 && (
-                  <ul className="font-ui text-[10px] text-slate-400">
+                  <ul className="flex flex-col gap-1 border-t border-line pt-3">
                     {a.files.map((f) => (
-                      <li key={f} className="truncate" title={f}>
-                        <span className={a.changed.includes(f) ? "text-gold-400" : ""}>{a.changed.includes(f) ? "✎ " : "◦ "}</span>{f}
+                      <li key={f} className="flex items-center gap-2 text-xs" title={f}>
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${a.changed.includes(f) ? "bg-accent" : "bg-faint"}`} />
+                        <span className={`truncate font-mono ${a.changed.includes(f) ? "text-text" : "text-muted"}`}>{f}</span>
                       </li>
                     ))}
                   </ul>
@@ -110,49 +129,52 @@ export default function ReportPage() {
           })}
         </section>
 
-        <section className="panel p-5">
-          <h2 className="font-pixel text-[11px] text-gold-400">Activity timeline</h2>
-          <div className="relative mt-4 border-2 border-black bg-navy-950" style={{ height: Math.max(28, agents.length * 10 + 8) }}>
-            {arena.spans.map((s, i) => {
-              const lane = agents.findIndex((a) => a.id === s.agentId)
-              const left = ((s.start - start) / total) * 100
-              const width = Math.max(0.6, ((s.end - s.start) / total) * 100)
-              const color = who(agents[lane]?.type ?? "", squad).color
-              return (
-                <motion.div
-                  key={i} className="absolute h-[8px]"
-                  initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.4 + (left / 100) * 0.8, duration: 0.2 }}
-                  style={{ left: `${left}%`, width: `${width}%`, top: 4 + lane * 10, background: color, originX: 0 }}
-                />
-              )
-            })}
-          </div>
-          <div className="relative mt-1 h-4 font-pixel text-[8px] text-slate-400">
-            {ticks.map((t) => (
-              <span key={t} className="absolute" style={{ left: `${t * 100}%`, translate: `${-t * 100}% 0` }}>
-                {clock(total * t)}
-              </span>
-            ))}
-          </div>
-          <div className="mt-3 flex flex-wrap justify-center gap-4 font-ui text-xs text-slate-300">
-            {agents.map((a) => {
-              const w = who(a.type, squad)
-              return (
-                <span key={a.id} className="flex items-center gap-2">
-                  <span className="inline-block h-3 w-3 border border-black" style={{ background: w.color }} />
-                  {w.name}{a.id === mvpId ? " (MVP)" : ""}
-                </span>
-              )
-            })}
+        <section className="card p-5">
+          <h2 className="text-sm font-semibold text-text">Activity timeline</h2>
+          <div className="relative mt-4 flex gap-4">
+            <div className="flex shrink-0 flex-col gap-1.5">
+              {agents.map((a) => (
+                <div key={a.id} className="flex h-5 items-center gap-2 text-xs text-muted">
+                  <span className="h-2 w-2 rounded-full" style={{ background: who(a.type, squad).color }} />
+                  {who(a.type, squad).name}{a.id === mvpId ? " (MVP)" : ""}
+                </div>
+              ))}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="relative flex flex-col gap-1.5">
+                {agents.map((a) => (
+                  <div key={a.id} className="relative h-5 overflow-hidden rounded-md bg-panel-2">
+                    {arena.spans.filter((s) => s.agentId === a.id).map((s, i) => {
+                      const left = ((s.start - start) / total) * 100
+                      const width = Math.max(0.6, ((s.end - s.start) / total) * 100)
+                      return (
+                        <motion.div
+                          key={i} className="absolute inset-y-1 rounded-[3px]"
+                          initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.4 + (left / 100) * 0.8, duration: 0.2 }}
+                          style={{ left: `${left}%`, width: `${width}%`, background: who(a.type, squad).color, originX: 0 }}
+                        />
+                      )
+                    })}
+                  </div>
+                ))}
+              </div>
+              <div className="relative mt-2 h-4 text-[11px] tabular-nums text-faint">
+                {ticks.map((t) => (
+                  <span key={t} className="absolute" style={{ left: `${t * 100}%`, translate: `${-t * 100}% 0` }}>
+                    {clock(total * t)}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
 
         <div className="flex flex-col items-center gap-3">
-          <div className="flex gap-6">
-            <button className="btn text-xs" onClick={replay}>↻ Replay</button>
-            <button className="btn-gold text-xs" onClick={newTask}>▶ New task</button>
+          <div className="flex gap-3">
+            <button className="btn-secondary" onClick={replay}>Replay</button>
+            <button className="btn-primary" onClick={newTask}>New task</button>
           </div>
-          {note && <p className="font-ui text-xs text-slate-400">{note}</p>}
+          {note && <p className="text-sm text-muted">{note}</p>}
         </div>
       </div>
     </main>

@@ -35,6 +35,7 @@ export type Arena = {
   startAt: number
   endAt: number
   toolCount: number
+  spawns: number
   agents: Record<string, Agent>
   feed: FeedItem[]
   files: FileTouch[]
@@ -47,7 +48,7 @@ export type Arena = {
 }
 
 export const emptyArena = (): Arena => ({
-  startAt: 0, endAt: 0, toolCount: 0, agents: {}, feed: [], files: [], spans: [], open: {}, lastAt: 0, reportAt: 0, seen: [], feedN: 0,
+  startAt: 0, endAt: 0, toolCount: 0, spawns: 0, agents: {}, feed: [], files: [], spans: [], open: {}, lastAt: 0, reportAt: 0, seen: [], feedN: 0,
 })
 
 const FILE_TOOLS = ["Read", "Edit", "Write", "NotebookEdit", "MultiEdit"]
@@ -79,6 +80,7 @@ export function reduce(prev: Arena, e: Received): Arena {
 
   if (e.kind === "prompt") s.prompt = e.text
   if (e.kind === "spawn") {
+    s.spawns = (s.spawns ?? 0) + 1
     a.doneAt = 0
     a.doneText = undefined
     a.task = e.text
@@ -158,6 +160,8 @@ export function who(type: string, squad: Squad | null): Who {
 
 // The turn is over on session_end, or when the lead is done and no specialist is still working.
 export function finishedAt(arena: Arena) {
+  const real = arena.startAt > 0 && (arena.toolCount > 0 || arena.spawns > 0)
+  if (!real) return 0
   if (arena.endAt) return arena.endAt
   const all = Object.values(arena.agents)
   const lead = arena.agents.lead
