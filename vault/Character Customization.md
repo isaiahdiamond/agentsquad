@@ -14,7 +14,7 @@ Writes `web/public/art/lead/` (sprites, hair layers, `lead.json`) and `assets/le
 
 | Step | Choices |
 |---|---|
-| Type | Person (Body 1 or Body 2), or a character: Robot, Dog, Gator |
+| Type | Person (Body 1 or Body 2), or a character: Dog, Gator |
 | Outfit | 5 per body |
 | Skin | 8 tones |
 | Hair | 5 styles per body + Bald |
@@ -42,7 +42,7 @@ No logos, mascots or team text anywhere.
 
 ### Characters
 
-robot (white office robot, cyan screen eyes, antenna), dog (golden dog in a navy hoodie), gator (original cartoon alligator in a white tee). Each has its own headset built in.
+dog (grey pitbull, backwards cap, black tee, gold chain), gator (green alligator, black hoodie, silver chain). Robot removed (2026-10-17). Both are front views only for now: `hand` and `sit` reuse the front until the art lands; source files in `assets/lead-src/`.
 
 ## lead.json
 
