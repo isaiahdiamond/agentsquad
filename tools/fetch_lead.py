@@ -113,12 +113,12 @@ def make_ramp(st):
     return [tuple(round(sum(p[i] for p in b) / len(b)) for i in range(3)) for b in bins if b]
 
 
-def shrink(im, b, scale, pal, st=None, ramp=None):
+def shrink(im, b, scale, pal, st=None, ramp=None, blob=8):
     size = (max(1, round((b[2] - b[0]) * scale)), max(1, round((b[3] - b[1]) * scale)))
     im = im.crop(b).resize(size, Image.BOX)
     a = im.getchannel("A").point(lambda v: 255 if v > 128 else 0)
     for c in components(a):
-        if len(c) < 8:
+        if len(c) < blob:
             for j in c:
                 a.putpixel((j % a.width, j // a.width), 0)
     q = im.convert("RGB").quantize(palette=pal, dither=Image.Dither.NONE).convert("RGBA")
@@ -286,7 +286,7 @@ for c in src["characters"]:
     manifest["characters"][c] = {}
     for v in VIEWS:
         r = images[f"{c}-{v}"]
-        im, _ = shrink(r, box(r), scale, pal)
+        im, _ = shrink(r, box(r), scale, pal, blob=40)
         im.save(out / f"{c}-{v}.png")
         manifest["characters"][c][v] = {"src": f"/art/lead/{c}-{v}.png"}
 

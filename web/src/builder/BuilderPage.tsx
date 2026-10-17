@@ -5,10 +5,19 @@ import TitleScreen from "./TitleScreen"
 import CreateLead from "./CreateLead"
 import DraftSquad from "./DraftSquad"
 import SceneDeploy from "./SceneDeploy"
+import { normalizeLook, useLeadManifest } from "../ui/lead"
 
 export default function BuilderPage() {
   const [draft, setDraft] = useState<Draft>(loadDraft)
   useEffect(() => saveDraft(draft), [draft])
+  const lead = useLeadManifest()
+  useEffect(() => {
+    if (!lead) return
+    setDraft((d) => {
+      const look = normalizeLook(d.look, lead)
+      return JSON.stringify(look) === JSON.stringify(d.look) ? d : { ...d, look }
+    })
+  }, [lead])
 
   const update = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }))
   const go = (step: Step) => update({ step })
