@@ -89,7 +89,7 @@ export default function ArenaPage() {
   // If the lead is done but a specialist never reports back, give up waiting after 15s of silence.
   const leadDone = arena.agents.lead?.doneAt ?? 0
   useEffect(() => {
-    if (!leadDone || finishedAt(arena)) return
+    if (!leadDone || finishedAt(arena) || (!arena.spawns && !arena.toolCount)) return
     const t = setTimeout(() => setStalled(arena.lastAt), 15000)
     return () => clearTimeout(t)
   }, [leadDone, arena.lastAt])

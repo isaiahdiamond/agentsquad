@@ -7,7 +7,7 @@ import { activeMs, clearReport, clock, loadReport, who } from "../arena/store"
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="min-w-0 rounded-xl bg-panel-2 px-2 py-2">
-      <div className="truncate text-[11px] text-muted">{label}</div>
+      <div className="text-[11px] text-muted">{label}</div>
       <div className="text-base font-semibold tabular-nums text-text">{value}</div>
     </div>
   )
@@ -105,7 +105,7 @@ export default function ReportPage() {
                     <p className="mt-0.5 line-clamp-2 text-xs text-muted">{w.role}</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <Stat label="Changed" value={a.changed.length} />
                   <Stat label="Read" value={a.files.filter((f) => !a.changed.includes(f)).length} />
                   <Stat label="Tools" value={a.tools} />

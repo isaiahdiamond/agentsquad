@@ -33,7 +33,7 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
   const station = (i: number): Spot => {
     const st = scene.stations[i % n] ?? scene.bench
     const lap = Math.floor(i / n)
-    return { x: st.x + lap * 0.04 * st.scale, y: st.y + lap * 0.025 * st.scale, scale: st.scale }
+    return { x: st.x + lap * 0.04 * st.scale, y: st.y + lap * 0.008 * st.scale, scale: st.scale }
   }
   const home = (i: number): Spot => {
     const side = i % 2 ? 1 : -1

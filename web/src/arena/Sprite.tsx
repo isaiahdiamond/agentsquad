@@ -99,11 +99,12 @@ export function useImage(src?: string) {
   return size === undefined ? undefined : !!size
 }
 
-// Stage size in px. Sprite pixel scale = round(spot.scale * stage height / 900), so spot.scale is the scale on a 1600x900 stage.
+// Stage size in px. Sprite pixel scale = round(spot.scale * stage height / 900), so spot.scale is the scale on a 1600x900 stage,
+// but never below the spot's own whole scale, so rooms stay 2x on laptop-sized stages.
 export const Stage = createContext({ w: 1600, h: 900 })
 
 export function pxScale(scale: number, stageH: number) {
-  return Math.max(1, Math.round((scale * stageH) / 900))
+  return Math.max(1, Math.floor(scale), Math.round((scale * stageH) / 900))
 }
 
 export function usePx(s: MotionValue<number>) {

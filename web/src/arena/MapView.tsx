@@ -1,4 +1,4 @@
-import { useContext, useEffect } from "react"
+import { useCallback, useContext, useEffect, useState } from "react"
 import { animate, motion, useAnimationControls, useMotionValue, useTransform, type MotionValue } from "framer-motion"
 import type { Building, Scene, Spot, Squad } from "@agentsquad/shared"
 import Backdrop from "./Backdrop"
@@ -43,33 +43,47 @@ export function StaticActor({ spot, ...props }: { spot: Spot } & Omit<React.Comp
 
 const dist = (a: Spot, b: Spot) => Math.hypot(b.x - a.x, (b.y - a.y) * 0.5625)
 
-// Where the k-th finished agent waits: a queue on the walkway running from the lead through the bench, alternating sides.
+// Point at distance d along the path from its start.
+function along(path: Spot[], d: number): Spot {
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1], b = path[i], len = dist(a, b)
+    if (d <= len) return { x: a.x + ((b.x - a.x) * d) / len, y: a.y + ((b.y - a.y) * d) / len, scale: a.scale }
+    d -= len
+  }
+  return path[path.length - 1]
+}
+
+// Index of the path segment nearest to p, and how far along it p sits.
+function nearest(path: Spot[], p: Spot) {
+  let best = { d: Infinity, i: 0, t: 0 }
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1], b = path[i]
+    const dx = b.x - a.x, dy = (b.y - a.y) * 0.5625
+    const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * 0.5625 * dy) / (dx * dx + dy * dy || 1e-9)))
+    const q = { x: a.x + dx * t, y: a.y + (dy * t) / 0.5625, scale: a.scale }
+    const d = dist(q, p)
+    if (d < best.d - 1e-6) best = { d, i, t }
+  }
+  return best
+}
+
+// Where the k-th finished agent waits: single file down the middle of the walkway that passes the bench, starting at the bench.
 function parkSpot(scene: Scene, k: number): Spot {
-  const { lead, bench } = scene
-  const len = dist(lead, bench) || 1
-  const ux = (bench.x - lead.x) / len, uy = ((bench.y - lead.y) * 0.5625) / len
-  const d = 0.042 * k
-  const side = k % 2 ? 0.011 : -0.011
-  return { x: bench.x + ux * d - uy * side, y: bench.y + (uy * d + ux * side) / 0.5625, scale: bench.scale }
+  const paths = scene.paths ?? []
+  if (!paths.length) return { ...scene.bench, x: scene.bench.x + 0.04 * k }
+  const path = paths.map((p) => ({ p, d: nearest(p, scene.bench).d })).sort((a, b) => a.d - b.d)[0].p
+  return along(path, dist(scene.lead, scene.bench) + 0.042 * k)
 }
 
 // The path cut off where it passes closest to the target, so nobody walks past their spot and back.
 function toward(path: Spot[], target: Spot): Spot[] {
-  let best = { d: Infinity, i: 0, p: path[0] }
-  for (let i = 1; i < path.length; i++) {
-    const a = path[i - 1], b = path[i]
-    const dx = b.x - a.x, dy = (b.y - a.y) * 0.5625
-    const len2 = dx * dx + dy * dy || 1e-9
-    const t = Math.max(0, Math.min(1, ((target.x - a.x) * dx + (target.y - a.y) * 0.5625 * dy) / len2))
-    const p = { x: a.x + dx * t, y: a.y + (dy * t) / 0.5625, scale: a.scale }
-    const d = dist(p, target)
-    if (d < best.d - 1e-6) best = { d, i, p }
-  }
-  return [...path.slice(0, best.i), best.p]
+  const { i, t } = nearest(path, target)
+  const a = path[i - 1], b = path[i]
+  return [...path.slice(0, i), { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, scale: a.scale }]
 }
 
 // Walks out along the path to the door and fades in; on done, fades in at the door, walks back to the lead, then to its parking spot.
-function Walker({ agent, squad, path, park }: { agent: Agent; squad: Squad | null; path: Spot[]; park: Spot }) {
+function Walker({ agent, squad, path, park, onArrive }: { agent: Agent; squad: Squad | null; path: Spot[]; park: Spot; onArrive: (id: string) => void }) {
   const x = useMotionValue(path[0].x), y = useMotionValue(path[0].y), s = useMotionValue(path[0].scale), o = useMotionValue(0)
   const done = agent.doneAt > 0
 
@@ -102,9 +116,13 @@ function Walker({ agent, squad, path, park }: { agent: Agent; squad: Squad | nul
         await fade(1)
         if (alive) await walk(path)
         if (alive) await fade(0)
+        if (alive) onArrive(agent.id)
         return
       }
-      if (o.get() > 0.5) return walk([here(), park])
+      if (o.get() > 0.5) {
+        const { i } = nearest(path, here())
+        return walk([...toward([here(), ...path.slice(0, i).reverse()], park), park])
+      }
       const back = toward([...path].reverse(), park)
       put(back[0])
       await fade(1)
@@ -159,6 +177,8 @@ export default function MapView({ scene, arena, squad, onOpen }: { scene: Scene;
   const agents = Object.values(arena.agents).filter((a) => a.type !== "lead").sort((a, b) => a.order - b.order)
   const lead = Object.values(arena.agents).find((a) => a.type === "lead")
   const done = agents.filter((a) => a.doneAt).sort((a, b) => a.doneAt - b.doneAt)
+  const [arrived, setArrived] = useState<string[]>([])
+  const onArrive = useCallback((id: string) => setArrived((ids) => (ids.includes(id) ? ids : [...ids, id])), [])
   const pathFor = (a: Agent) => {
     const i = buildingFor(scene, a.type)
     return scene.paths?.[i] ?? [scene.lead, buildings[i]?.door ?? scene.lead]
@@ -179,12 +199,12 @@ export default function MapView({ scene, arena, squad, onOpen }: { scene: Scene;
         </button>
       ))}
       {buildings.map((b, i) => (
-        <Badge key={b.id} b={b} squad={squad} inside={agents.filter((a) => !a.doneAt && buildingFor(scene, a.type) === i)} />
+        <Badge key={b.id} b={b} squad={squad} inside={agents.filter((a) => !a.doneAt && arrived.includes(a.id) && buildingFor(scene, a.type) === i)} />
       ))}
       <StaticActor spot={scene.lead} who={who("lead", squad)} agent={lead} seed="lead" />
       {agents.map((a) => {
         const k = done.indexOf(a)
-        return <Walker key={a.id} agent={a} squad={squad} path={pathFor(a)} park={parkSpot(scene, Math.max(0, k))} />
+        return <Walker key={a.id} agent={a} squad={squad} path={pathFor(a)} park={parkSpot(scene, Math.max(0, k))} onArrive={onArrive} />
       })}
     </div>
   )
