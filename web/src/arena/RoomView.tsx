@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react"
-import { animate, motion, useMotionValue } from "framer-motion"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { AnimatePresence, animate, motion, useIsPresent, useMotionValue } from "framer-motion"
 import type { Scene, Spot, Squad } from "@agentsquad/shared"
 import Backdrop from "./Backdrop"
 import { sceneScale } from "./MapView"
-import { Actor, H, SEAT_LIFT, TALL, W, useFacing, useManifest, useNatural, useUi, type Size } from "./Sprite"
+import { Actor, H, TALL, W, useFacing, useManifest, useNatural, useUi, type Size } from "./Sprite"
 import { who, type Agent, type Arena } from "./store"
 
 const SPEED = 0.12
@@ -18,26 +18,63 @@ export function useDesk(sceneId: string) {
   return { src: nat ? src : undefined, size: nat || DESK }
 }
 
+// Desks are sized to the agents, not by the art's own scale: a standing agent is about 7.5% taller than the desk is wide.
+export function deskScale(s: number, size: Size) {
+  return (TALL * s) / (1.075 * size.w)
+}
+
+// How far above the station a seated agent's feet go, so its hands rest on the desk top (about 90% of the desk's height).
+export function seatLift(s: number, size: Size) {
+  return Math.max(0, size.h * deskScale(s, size) * 0.9 - 46 * s)
+}
+
 export function deskSpots(scene: Scene) {
   return [...(scene.lead.kind === "desk" ? [scene.lead] : []), ...scene.stations.filter((s) => s.kind === "desk")]
 }
 
-// Always drawn, empty or not. Bottom center on the station, y-sorted with the agents.
-function Desk({ spot, s, src, size }: { spot: Spot; s: number; src?: string; size: Size }) {
-  const w = size.w * s, h = size.h * s
+const DUST = [[-0.55, -0.1], [-0.35, -0.45], [-0.1, -0.6], [0.15, -0.55], [0.4, -0.4], [0.58, -0.08], [-0.2, 0.05], [0.25, 0.05]]
+
+// Pixel dust burst around the desk.
+function Poof({ w, h, k }: { w: number; h: number; k: number }) {
   return (
-    <div className="pointer-events-none absolute" style={{ left: spot.x * W - w / 2, top: spot.y * H - h, width: w, height: h, zIndex: Math.round(spot.y * H) }}>
-      {src ? <img src={src} alt="" draggable={false} className="pixelated block h-full w-full select-none" /> : (
-        <div className="h-full w-full bg-[#6b4a2e]" style={{ borderWidth: 2 * s, borderColor: "#2a1710", borderTopWidth: 14 * s, borderTopColor: "#8a6440" }} />
-      )}
+    <div className="absolute bottom-0 left-1/2">
+      {DUST.map(([dx, dy], i) => (
+        <motion.div
+          key={i} className="absolute bg-[#f1ece2]"
+          style={{ width: (i % 3 ? 3 : 4) * k, height: (i % 3 ? 3 : 4) * k, boxShadow: `0 0 0 ${k}px rgba(120,110,95,.55)` }}
+          initial={{ x: 0, y: -h * 0.2, opacity: 0.95 }} animate={{ x: dx * w, y: -h * 0.2 + dy * h, opacity: 0 }}
+          transition={{ duration: 0.45, ease: "easeOut" }}
+        />
+      ))}
     </div>
+  )
+}
+
+// Only exists while someone works at it: poofs in when its agent sits, poofs out after they get up.
+function Desk({ spot, ds, src, size, k }: { spot: Spot; ds: number; src?: string; size: Size; k: number }) {
+  const w = size.w * ds, h = size.h * ds
+  const present = useIsPresent()
+  return (
+    <motion.div
+      className="pointer-events-none absolute"
+      style={{ left: spot.x * W - w / 2, top: spot.y * H - h, width: w, height: h, zIndex: Math.round(spot.y * H), originY: 1 }}
+      initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.25, ease: "easeOut" }}
+      exit={{ opacity: 0, scale: 0.6, transition: { delay: 0.25, duration: 0.25 } }}
+    >
+      {src ? <img src={src} alt="" draggable={false} className="pixelated block h-full w-full select-none" /> : (
+        <div className="h-full w-full bg-[#6b4a2e]" style={{ borderWidth: 2 * ds, borderColor: "#2a1710", borderTopWidth: 14 * ds, borderTopColor: "#8a6440" }} />
+      )}
+      <Poof key={present ? "in" : "out"} w={w} h={h} k={k} />
+    </motion.div>
   )
 }
 
 type Target = { to: Spot; sit: boolean; leave?: boolean }
 
 // Walks in a straight line at a steady pace (standing sprite with step bob), then sits if the target is a desk seat.
-function Worker({ type, agent, squad, s, from, target, raise }: { type: string; agent?: Agent; squad: Squad | null; s: number; from: Spot; target: Target; raise?: number }) {
+function Worker({ id, type, agent, squad, s, from, target, raise, onSit }: {
+  id: string; type: string; agent?: Agent; squad: Squad | null; s: number; from: Spot; target: Target; raise?: number; onSit: (id: string) => void
+}) {
   const x = useMotionValue(from.x), y = useMotionValue(from.y), o = useMotionValue(1)
   const [seated, setSeated] = useState(false)
   const { to, sit, leave } = target
@@ -54,6 +91,9 @@ function Worker({ type, agent, squad, s, from, target, raise }: { type: string; 
       cs.forEach((c) => c.stop())
     }
   }, [to.x, to.y, sit, leave])
+  useEffect(() => {
+    if (seated) onSit(id)
+  }, [seated])
   const face = useFacing(x, y)
   return <Actor who={who(type, squad)} agent={agent} seed={type} s={s} x={x} y={y} o={o} face={face} seated={seated} raise={raise} />
 }
@@ -70,8 +110,11 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
   const desks = scene.stations.filter((st) => st.kind === "desk")
   const working = members.filter((a) => !a.doneAt)
   const done = members.filter((a) => a.doneAt).sort((a, b) => a.doneAt - b.doneAt)
-  const deskH = (size ?? DESK).h
-  const deskW = (size ?? DESK).w
+  const ds = deskScale(s, size ?? DESK)
+  const deskW = (size ?? DESK).w * ds
+  const lift = seatLift(s, size ?? DESK)
+  const [sat, setSat] = useState<string[]>([])
+  const onSit = useCallback((id: string) => setSat((ids) => (ids.includes(id) ? ids : [...ids, id])), [])
 
   // Each working agent keeps the first desk that was free when it arrived; finished agents free theirs.
   const map = taken.current
@@ -86,12 +129,12 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
 
   // More agents than desks: the extras stand in a row next to the bench, never on a desk station.
   const station = (i: number): Spot => desks[i] ?? { ...scene.bench, x: scene.bench.x + ((i - desks.length + 1) * 30 * s) / W }
-  const seat = (st: Spot): Spot => ({ ...st, y: st.y - (deskH * s * SEAT_LIFT) / H })
+  const seat = (st: Spot): Spot => ({ ...st, y: st.y - lift / H })
   // Stand up on the side of the desk facing the middle of the room.
-  const beside = (st: Spot): Spot => ({ ...st, x: st.x + ((st.x > 0.5 ? -1 : 1) * (deskW / 2 + 14) * s) / W, y: st.y - (4 * s) / H })
+  const beside = (st: Spot): Spot => ({ ...st, x: st.x + ((st.x > 0.5 ? -1 : 1) * (deskW / 2 + 14 * s)) / W, y: st.y - (4 * s) / H })
   const home = (i: number): Spot => {
     const side = i % 2 ? 1 : -1
-    const gap = (leadDesk ? deskW / 2 + 16 : 20) * s + (Math.floor(i / 2) + (leadDesk && side === (scene.lead.x > 0.5 ? -1 : 1) ? 1 : 0)) * 34 * s
+    const gap = (leadDesk ? deskW / 2 + 16 * s : 20 * s) + (Math.floor(i / 2) + (leadDesk && side === (scene.lead.x > 0.5 ? -1 : 1) ? 1 : 0)) * 34 * s
     return { ...scene.lead, x: scene.lead.x + (side * gap) / W, y: scene.lead.y + (6 * s) / H }
   }
   const targetFor = (a: Agent): Target => {
@@ -109,6 +152,7 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
   }
   const fresh = (a: Agent) => a.firstAt > opened.current - 300
   const head = (p: Spot) => ({ x: p.x * W, y: p.y * H - TALL * s * 0.75 })
+  const occupied = working.filter((a) => sat.includes(a.id) && desks[map.get(a.id) ?? -1])
 
   if (!size) return <div className="absolute inset-0"><Backdrop scene={scene} /></div>
   return (
@@ -129,13 +173,16 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
           })}
         </svg>
       )}
-      {main && <Worker type="lead" agent={lead} squad={squad} s={s} from={leadTarget().to} target={leadTarget()} />}
+      {main && <Worker id="lead" type="lead" agent={lead} squad={squad} s={s} from={leadTarget().to} target={leadTarget()} onSit={onSit} />}
       {members.map((a) => {
         if (!main && a.doneAt && a.doneAt < opened.current) return null
         const t = targetFor(a)
-        return <Worker key={a.id} type={a.type} agent={a} squad={squad} s={s} from={fresh(a) ? scene.bench : t.to} target={t} raise={((map.get(a.id) ?? 0) % 2) * 52} />
+        return <Worker key={a.id} id={a.id} type={a.type} agent={a} squad={squad} s={s} from={fresh(a) ? scene.bench : t.to} target={t} raise={((map.get(a.id) ?? 0) % 2) * 52} onSit={onSit} />
       })}
-      {deskSpots(scene).map((d, i) => <Desk key={i} spot={d} s={s} src={src} size={size} />)}
+      <AnimatePresence>
+        {main && leadDesk && sat.includes("lead") && !lead?.doneAt && <Desk key="lead" spot={scene.lead} ds={ds} src={src} size={size} k={s} />}
+        {occupied.map((a) => <Desk key={`desk-${map.get(a.id)}`} spot={desks[map.get(a.id)!]} ds={ds} src={src} size={size} k={s} />)}
+      </AnimatePresence>
       {!working.length && !main && (
         <div className="absolute inset-x-0 top-[45%] z-[4500] flex justify-center">
           <div className="card px-4 py-2.5 text-sm text-muted shadow-[0_8px_24px_rgba(0,0,0,.45)]" style={{ transform: `scale(${ui})` }}>Nobody is working in here right now.</div>

@@ -102,7 +102,6 @@ export function useImage(src?: string) {
 // The stage is the scene art at native size. Everything in it is placed in native pixels; one transform scales it to the screen.
 export const W = 2688
 export const H = 1520
-export const SEAT_LIFT = 0.05
 
 // fit = screen px per native px.
 export const Stage = createContext({ fit: 0.5 })

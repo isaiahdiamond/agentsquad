@@ -4,7 +4,7 @@
     "name": "UF Campus",
     "kind": "map",
     "background": "/art/scenes/uf-campus.png",
-    "scale": 1.1,
+    "scale": 1.4,
     "lead": { "x": 0.465, "y": 0.67, "scale": 1 },
     "stations": [],
     "bench": { "x": 0.422, "y": 0.626, "scale": 1 },
@@ -75,74 +75,74 @@
     "name": "Library Reading Room",
     "kind": "room",
     "background": "/art/scenes/interior-library.png",
-    "scale": 2.4,
-    "lead": { "x": 0.7, "y": 0.58, "scale": 2.4 },
+    "scale": 2.65,
+    "lead": { "x": 0.7, "y": 0.58, "scale": 2.65 },
     "stations": [
-      { "x": 0.2, "y": 0.8, "scale": 2.4, "kind": "desk" },
-      { "x": 0.3, "y": 0.88, "scale": 2.4, "kind": "desk" },
-      { "x": 0.72, "y": 0.8, "scale": 2.4, "kind": "desk" },
-      { "x": 0.64, "y": 0.92, "scale": 2.4, "kind": "desk" }
+      { "x": 0.2, "y": 0.8, "scale": 2.65, "kind": "desk" },
+      { "x": 0.31, "y": 0.89, "scale": 2.65, "kind": "desk" },
+      { "x": 0.72, "y": 0.8, "scale": 2.65, "kind": "desk" },
+      { "x": 0.64, "y": 0.92, "scale": 2.65, "kind": "desk" }
     ],
-    "bench": { "x": 0.13, "y": 0.74, "scale": 2.4 }
+    "bench": { "x": 0.13, "y": 0.74, "scale": 2.65 }
   },
   {
     "id": "interior-lab",
     "name": "Lab",
     "kind": "room",
     "background": "/art/scenes/interior-lab.png",
-    "scale": 2.6,
-    "lead": { "x": 0.86, "y": 0.76, "scale": 2.6 },
+    "scale": 2.8,
+    "lead": { "x": 0.86, "y": 0.76, "scale": 2.8 },
     "stations": [
-      { "x": 0.2, "y": 0.78, "scale": 2.6, "kind": "desk" },
-      { "x": 0.36, "y": 0.86, "scale": 2.6, "kind": "desk" },
-      { "x": 0.72, "y": 0.8, "scale": 2.6, "kind": "desk" },
-      { "x": 0.84, "y": 0.7, "scale": 2.6, "kind": "desk" }
+      { "x": 0.2, "y": 0.78, "scale": 2.8, "kind": "desk" },
+      { "x": 0.36, "y": 0.87, "scale": 2.8, "kind": "desk" },
+      { "x": 0.72, "y": 0.8, "scale": 2.8, "kind": "desk" },
+      { "x": 0.84, "y": 0.7, "scale": 2.8, "kind": "desk" }
     ],
-    "bench": { "x": 0.1, "y": 0.8, "scale": 2.6 }
+    "bench": { "x": 0.1, "y": 0.8, "scale": 2.8 }
   },
   {
     "id": "interior-union",
     "name": "Union",
     "kind": "room",
     "background": "/art/scenes/interior-union.png",
-    "scale": 2.8,
-    "lead": { "x": 0.58, "y": 0.52, "scale": 2.8 },
+    "scale": 3.0,
+    "lead": { "x": 0.58, "y": 0.52, "scale": 3.0 },
     "stations": [
-      { "x": 0.16, "y": 0.8, "scale": 2.8, "kind": "desk" },
-      { "x": 0.33, "y": 0.86, "scale": 2.8, "kind": "desk" },
-      { "x": 0.5, "y": 0.9, "scale": 2.8, "kind": "desk" },
-      { "x": 0.72, "y": 0.9, "scale": 2.8, "kind": "desk" }
+      { "x": 0.16, "y": 0.8, "scale": 3.0, "kind": "desk" },
+      { "x": 0.33, "y": 0.86, "scale": 3.0, "kind": "desk" },
+      { "x": 0.5, "y": 0.9, "scale": 3.0, "kind": "desk" },
+      { "x": 0.72, "y": 0.9, "scale": 3.0, "kind": "desk" }
     ],
-    "bench": { "x": 0.45, "y": 0.88, "scale": 2.8 }
+    "bench": { "x": 0.45, "y": 0.88, "scale": 3.0 }
   },
   {
     "id": "office",
     "name": "The Office",
     "kind": "room",
     "background": "/art/scenes/office.png",
-    "scale": 2.35,
-    "lead": { "x": 0.62, "y": 0.6, "scale": 2.35, "kind": "desk" },
+    "scale": 2.55,
+    "lead": { "x": 0.62, "y": 0.6, "scale": 2.55, "kind": "desk" },
     "stations": [
-      { "x": 0.3, "y": 0.86, "scale": 2.35, "kind": "desk" },
-      { "x": 0.44, "y": 0.8, "scale": 2.35, "kind": "desk" },
-      { "x": 0.8, "y": 0.86, "scale": 2.35, "kind": "desk" },
-      { "x": 0.92, "y": 0.8, "scale": 2.35, "kind": "desk" }
+      { "x": 0.3, "y": 0.86, "scale": 2.55, "kind": "desk" },
+      { "x": 0.44, "y": 0.8, "scale": 2.55, "kind": "desk" },
+      { "x": 0.8, "y": 0.86, "scale": 2.55, "kind": "desk" },
+      { "x": 0.92, "y": 0.8, "scale": 2.55, "kind": "desk" }
     ],
-    "bench": { "x": 0.16, "y": 0.8, "scale": 2.35 }
+    "bench": { "x": 0.16, "y": 0.8, "scale": 2.55 }
   },
   {
     "id": "beach",
     "name": "The Beach",
     "kind": "room",
     "background": "/art/scenes/beach.png",
-    "scale": 1.6,
-    "lead": { "x": 0.62, "y": 0.46, "scale": 1.6, "kind": "desk" },
+    "scale": 1.8,
+    "lead": { "x": 0.62, "y": 0.46, "scale": 1.8, "kind": "desk" },
     "stations": [
-      { "x": 0.465, "y": 0.4, "scale": 1.6, "kind": "desk" },
-      { "x": 0.56, "y": 0.435, "scale": 1.6, "kind": "desk" },
-      { "x": 0.78, "y": 0.8, "scale": 1.6, "kind": "desk" },
-      { "x": 0.86, "y": 0.6, "scale": 1.6, "kind": "desk" }
+      { "x": 0.465, "y": 0.4, "scale": 1.8, "kind": "desk" },
+      { "x": 0.56, "y": 0.435, "scale": 1.8, "kind": "desk" },
+      { "x": 0.78, "y": 0.8, "scale": 1.8, "kind": "desk" },
+      { "x": 0.86, "y": 0.6, "scale": 1.8, "kind": "desk" }
     ],
-    "bench": { "x": 0.25, "y": 0.5, "scale": 1.6 }
+    "bench": { "x": 0.25, "y": 0.5, "scale": 1.8 }
   }
 ]

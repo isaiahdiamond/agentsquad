@@ -1,7 +1,7 @@
 import type { Scene, Spot } from "@agentsquad/shared"
 import { sceneScale } from "./MapView"
-import { deskSpots, useDesk } from "./RoomView"
-import { H, SEAT_LIFT, TALL, W } from "./Sprite"
+import { deskScale, deskSpots, seatLift, useDesk } from "./RoomView"
+import { H, TALL, W } from "./Sprite"
 
 const F = 24
 const label = { fontFamily: "Inter, sans-serif", fontWeight: 600, stroke: "#0b0d12", strokeLinejoin: "round" as const, paintOrder: "stroke" }
@@ -23,6 +23,7 @@ export default function Debug({ scene }: { scene: Scene }) {
   const s = sceneScale(scene)
   const desk = useDesk(scene.id).size ?? { w: 62, h: 52 }
   const tall = TALL * s
+  const ds = deskScale(s, desk)
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="pointer-events-none absolute inset-0 z-[9000] h-full w-full">
       <rect width={W} height={H} fill="none" stroke="#5a8fe6" strokeWidth={6} />
@@ -51,8 +52,8 @@ export default function Debug({ scene }: { scene: Scene }) {
         </g>
       ))}
       {deskSpots(scene).map((d, i) => {
-        const x = d.x * W, y = d.y * H, w = desk.w * s, h = desk.h * s
-        const seatY = y - desk.h * s * SEAT_LIFT
+        const x = d.x * W, y = d.y * H, w = desk.w * ds, h = desk.h * ds
+        const seatY = y - seatLift(s, desk)
         return (
           <g key={i}>
             <rect x={x - w / 2} y={y - h} width={w} height={h} fill="#f97316" fillOpacity={0.12} stroke="#f97316" strokeWidth={3} strokeDasharray="10 6" />
@@ -70,7 +71,7 @@ export default function Debug({ scene }: { scene: Scene }) {
       <Dot s={scene.bench} text="bench" color="#94a3b8" />
       {scene.stations.map((st, i) => <Dot key={i} s={st} text={`station[${i}]${st.kind === "desk" ? " desk" : ""}`} color="#f97316" />)}
       <text x={20} y={H - 24} fontSize={28} fill="#fff" strokeWidth={7} {...label}>
-        DEBUG {scene.id} ({scene.kind}) scale={s} stage={W}x{H} seatLift={SEAT_LIFT}  press D to hide
+        DEBUG {scene.id} ({scene.kind}) scale={s} stage={W}x{H} desk={ds.toFixed(2)}x  press D to hide
       </text>
     </svg>
   )

@@ -47,7 +47,8 @@ Add stations to each room scene:
 ]
 ```
 
-- Desks are **always drawn** at every desk station, empty or not, so the room looks furnished.
+- Desks appear **only while occupied** (changed by the user, 2026-10-17). When an agent reaches its station and sits, the desk poofs in (pixel dust, scale/fade in, about 250ms); when the agent stands up to leave (done), the desk poofs out after they stand. Waiting and error keep the desk. A room with nobody working shows no desks.
+- Desks are sized to the agents, not by `scene.scale` alone: a standing agent is about 1.075x the desk's width.
 - Put stations on open floor, lined up with the room's existing tables, never on top of background furniture.
 - Library starting points: two on the sunlit floor at left (about 0.20, 0.80 and 0.30, 0.88), two along the right edge of the rug (about 0.72, 0.80 and 0.82, 0.72). Other rooms: same idea, tune by eye.
 - Campus has no desks. Agents walk into buildings and the interiors have the desks.
