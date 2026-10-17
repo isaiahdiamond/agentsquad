@@ -27,7 +27,7 @@ All chrome is small glass pills over the scene: background `rgba(14,14,16,0.6)`,
 ## 3. Labels in the world
 
 - **Building signs** on the campus map: small glass sign anchored above each door. Line 1 building name ("Lab"), line 2 who's inside as tiny portraits. Yellow border when someone inside needs you, small flame icon on error.
-- **Agent nameplates**: tiny label above each agent's head, role plus current verb: "Frontend · editing", "Test · running tests". 11px, one line, follows the agent.
+- **Agent nameplates**: tiny label above each agent's head, role plus current verb: "Frontend · editing", "Test · running tests". 11px, one line, follows the agent. Plates never overlap: working plates (lead first) keep their spot, a later plate that touches one moves up until it clears, and a plate that touches a building sign takes the shorter way off it. A finished agent's plate is compact: green check and role, no verb.
 - **Speech bubbles** only for key moments: task assigned (on spawn), needs you, done. Max one bubble per agent, 4s, and never overlapping: if two bubbles collide, push the later one up until it clears. No half-transparent stacked bubbles.
 - Narration text from the narrator goes to the nameplate verb and the Log, not to a bubble every time.
 

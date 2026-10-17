@@ -1,6 +1,6 @@
 # Session Flow: Standby, Missions and Portal Spawns
 
-> Status: **planned, not started** (queued after the Arena Art round and the Gemini activity log). Like every note in this vault, it's a working draft: edit it as the team learns. See "Architect notes" at the end for where it differs from what the code does today.
+> Status (2026-10-17, Arena): **built** except the VS Code check (manual). Standby/connected hints poll `GET /state` every 3s until a mission runs; "Got it." then the task bubble on `prompt`; portal spawns; resumed subagents (a second `spawn` with the same id) portal back in and count as working; a tab opened mid-session is seeded from `/state.live` (timer from `mission.startedAt`, briefing lists who was already delegated, agents already inside/at desks). Like every note in this vault, it's a working draft: edit it as the team learns. See "Architect notes" at the end for where it differs from what the code does today.
 
 How the arena behaves from deploy to done. The scene only reacts to Claude Code hook events. Nothing in Claude happens until the user types a prompt.
 
@@ -77,12 +77,12 @@ No extension needed. Cmd/Ctrl+Shift+P, "Simple Browser: Show", enter the arena U
 
 ## Done when
 
-- Fresh deploy shows the lead alone with the "Waiting for Claude Code" hint
-- Running `claude` flips the hint to connected
-- Typing a task triggers "Got it" and the task bubble
-- A delegation produces the full portal sequence and the agent ends up typing at a desk
-- Finishing returns everyone to the tray and shows Mission complete
-- Same flow works when the arena is opened in VS Code's Simple Browser
+- [x] Fresh deploy shows the lead alone with the "Waiting for Claude Code" hint
+- [x] Running `claude` flips the hint to connected
+- [x] Typing a task triggers "Got it" and the task bubble
+- [x] A delegation produces the full portal sequence and the agent ends up typing at a desk
+- [x] Finishing returns everyone to the tray and shows Mission complete
+- [ ] Same flow works when the arena is opened in VS Code's Simple Browser (manual)
 
 ## Architect notes (reconcile before building)
 

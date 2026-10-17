@@ -71,7 +71,7 @@ function toward(path: Spot[], target: Spot): Spot[] {
 function Walker({ agent, label, squad, path, park, s, portal, late, onArrive }: {
   agent: Agent; label: string; squad: Squad | null; path: Spot[]; park: Spot; s: number; portal?: Portal; late: boolean; onArrive: (id: string) => void
 }) {
-  const skip = useRef(late && !portal)
+  const start = useRef({ late: late && !portal, done: agent.doneAt > 0 })
   const x = useMotionValue(portal?.spot.x ?? path[0].x), y = useMotionValue(portal?.spot.y ?? path[0].y), o = useMotionValue(0)
   const dy = useMotionValue(0), squash = useMotionValue(1)
   const done = agent.doneAt > 0
@@ -99,8 +99,7 @@ function Walker({ agent, label, squad, path, park, s, portal, late, onArrive }: 
     }
     const here = () => ({ x: x.get(), y: y.get(), scale: 1 })
     const run = async () => {
-      const jump = skip.current
-      skip.current = false
+      const jump = start.current.late && done === start.current.done
       if (jump && !done) {
         o.set(0)
         onArrive(missionKey(agent))
