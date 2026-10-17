@@ -17,19 +17,6 @@
   --color-accent-strong: #7461f0;
   --color-accent-soft: rgb(139 124 246 / 0.16);
   --radius-card: 16px;
-
-  /* Legacy names from the retired pixel theme, mapped to the new palette so nothing breaks mid-migration.
-     Remove once arena/ and builder/ use the names above. */
-  --font-pixel: var(--font-sans);
-  --font-ui: var(--font-sans);
-  --color-navy-950: #0b0d12;
-  --color-navy-900: #14161d;
-  --color-navy-800: #1b1e27;
-  --color-navy-700: #262a35;
-  --color-navy-500: #3a3f4d;
-  --color-gold-300: #c4bbfb;
-  --color-gold-400: #8b7cf6;
-  --color-gold-600: #6a58e8;
 }
 
 body {
@@ -72,37 +59,6 @@ body {
 .btn-primary:active, .btn-secondary:active, .btn-white:active { transform: translateY(1px); }
 .btn-primary:disabled, .btn-secondary:disabled, .btn-white:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-primary:focus-visible, .btn-secondary:focus-visible, .btn-white:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-}
-}
-
-/* Legacy classes from the retired pixel theme. Remove with the legacy tokens above. */
-@layer components {
-.panel, .panel-quiet {
-  background: var(--color-panel);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-card);
-}
-.btn-gold {
-  background: var(--color-accent);
-  color: #fff;
-  border-radius: 10px;
-  padding: 0.7rem 1.2rem;
-  font-weight: 600;
-}
-.btn-gold:hover { background: var(--color-accent-strong); }
-.btn-gold:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn {
-  background: var(--color-panel-2);
-  color: var(--color-text);
-  border: 1px solid var(--color-line-strong);
-  border-radius: 10px;
-  padding: 0.7rem 1.2rem;
-  font-weight: 600;
-}
-.btn:hover { border-color: var(--color-accent); }
-.btn-gold:focus-visible, .btn:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
