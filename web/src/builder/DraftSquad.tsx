@@ -9,10 +9,10 @@ import { ArrowRight, BackButton, Progress } from "./parts"
 const MODELS = ["haiku", "sonnet", "opus"] as const
 
 export const readOnly = (c: Character) => !c.tools.includes("Edit") && !c.tools.includes("Write")
-export const shortName = (c: Pick<Character, "name">) => c.name.replace(" Agent", "")
+const shortName = (c: Pick<Character, "name">) => c.name.replace(" Agent", "")
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
-export function describe(c: Character) {
+function describe(c: Character) {
   const role = c.role.replace(/\.$/, "")
   const never = readOnly(c) && !/never edits/i.test(role) ? ". Never edits" : ""
   return `${c.name}: ${role.charAt(0).toLowerCase()}${role.slice(1)}${never}.`
