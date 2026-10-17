@@ -32,6 +32,7 @@ These fill gaps in [[Contracts]] without changing any type.
 - **Mock feed:** `npm run mock` connects to `/ws` as a client and the server relays its messages to every other client. Dev only.
 - **Map paths:** `paths[i]` is the walk route from `lead` to `buildings[i].door`, in the same order as `buildings`.
 - **Scene for the Arena:** `GET /state` scene if a squad was deployed, otherwise `uf-campus`.
+- **Character fields:** `name` is the display name ("Frontend Agent"); `role` is the one-line job description shown under it. `stats` are unused (send 50/50/50). The lead is sent with `id: "lead"`, `portrait: ""`, `tools: []`, `model: "inherit"`; the Bridge ignores the lead's tools and model and writes no agent file for it.
 - **Missing art:** every image the UI loads has a code-drawn fallback (colored box plus label) so the app runs before art lands. No agent generates image files. Art requests go to the Art stream (a human) through `vault/Art Requests.md`.
 
 ## Open (owner decides by the hour shown)
