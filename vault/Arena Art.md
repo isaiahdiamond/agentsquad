@@ -38,18 +38,20 @@ These come from the team's test: 44px sprites at 3x looked right on an 805px-tal
 
 ### Measured scales (2026-10-17, current, for the 96px sprites)
 
-Baseline set by the user in the office: a standing agent is **255 native px** (16.8% of 1520), so office scale = 255 / 96 = 2.656. Every room is derived from that by measuring reference objects in native px on the background art. In the office, 255 px of agent matches a chair back of about 95 cm and a desk of about 74 cm, so the art there runs about 1.51 px/cm and the agent stands about 169 cm. Each room's px/cm comes from its own furniture, using typical real heights, and agent = 169 cm × px/cm. Measurements are approximate (±5 px), read off a 25 px grid.
+**Raised about 15% after a live look (user, 2026-10-17):** agents still read slightly small, so every scene's scale went up ~15% and was then judged from screenshots, not from the formula below (before/after sheet: `$TMPDIR/arena-hud/prop/proportions-before-after.png` from the Arena session). The furniture-derived numbers stay as the reasoning trail; the **scale** column is what ships.
 
-| Scene | Reference objects (native px → assumed real height) | px/cm | Agent px | scale |
-|---|---|---|---|---|
-| office (baseline) | office chair 152 → 95 cm; desk top 105 → 74 cm; fridge 275 | 1.51 | 255 | **2.656** |
-| interior-library | table chair 140 → 95 cm; reading table 100 → 74 cm | 1.41 | 240 | **2.5** |
-| interior-lab | stool 90 → 65 cm; lab bench 175 → 92 cm | 1.64 | 278 | **2.9** |
-| interior-union | café bar chair 165 → 105 cm; bar table 180 → 105 cm; arcade 212 → 175 cm | 1.57 (median) | 264 | **2.75** |
-| beach | volleyball players 128 → 170 cm; net post 250 → 240 cm | 0.90 | 154 | **1.6** |
-| uf-campus (map) | door openings: Library 132, Union 128, Lab 78 | n/a | 144 (≈1.1× Library/Union doors) | **1.5** |
+Original baseline set by the user in the office: a standing agent was **255 native px** (16.8% of 1520), so office scale = 255 / 96 = 2.656. Every room was derived from that by measuring reference objects in native px on the background art. In the office, 255 px of agent matches a chair back of about 95 cm and a desk of about 74 cm, so the art there runs about 1.51 px/cm and the agent stands about 169 cm. Each room's px/cm comes from its own furniture, using typical real heights. Measurements are approximate (±5 px), read off a 25 px grid.
 
-The art isn't drawn at one consistent scale inside a room: the union's arcade cabinets imply much smaller people than its bar tables do, and the lab bench implies bigger people than its stools. These scales take the median. Campus is a zoomed-out map, so it targets door height instead. The Lab door is much smaller than the others and is still an open question.
+| Scene | Reference objects (native px → assumed real height) | px/cm | Measured scale | **Current scale** | Agent px now |
+|---|---|---|---|---|---|
+| office (baseline) | office chair 152 → 95 cm; desk top 105 → 74 cm; fridge 275 | 1.51 | 2.656 | **3.05** | 293 (19% of height) |
+| interior-library | table chair 140 → 95 cm; reading table 100 → 74 cm | 1.41 | 2.5 | **2.9** | 278 |
+| interior-lab | stool 90 → 65 cm; lab bench 175 → 92 cm | 1.64 | 2.9 | **3.35** | 322 |
+| interior-union | café bar chair 165 → 105 cm; bar table 180 → 105 cm; arcade 212 → 175 cm | 1.57 (median) | 2.75 | **3.15** | 302 |
+| beach | volleyball players 128 → 170 cm; net post 250 → 240 cm | 0.90 | 1.6 | **1.85** | 178 |
+| uf-campus (map) | door openings: Library 132, Union 128, Lab 78 | n/a | 1.5 | **1.75** | 168 (≈1.3× Library/Union doors) |
+
+The art isn't drawn at one consistent scale inside a room: the union's arcade cabinets imply much smaller people than its bar tables do, and the lab bench implies bigger people than its stools. These scales take the median. Campus is a zoomed-out map, so it targets door height instead. The Lab door is much smaller than the others and is still an open question. Known nit: the union `bench` (0.45, 0.88) sits next to the desk at (0.5, 0.9), so a 5th agent standing there overlaps a seated one.
 
 Desks follow the agents: a standing agent is about 1.075× the desk's width, so changing a scene's scale resizes its desks too. Standing, walking, waiting and seated sprites all draw at the same `scene.scale`.
 
