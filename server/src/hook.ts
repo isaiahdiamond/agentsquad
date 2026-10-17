@@ -11,6 +11,8 @@ type Session = {
   counts: Map<string, number>
   spawnText: Map<string, string[]>
   turnDone: boolean
+  pending: Promise<void>
+  seenAt: number
 }
 
 const STATE: Record<string, AgentState> = {
@@ -21,6 +23,8 @@ const STATE: Record<string, AgentState> = {
 }
 const DELEGATE = new Set(["Agent", "Task"])
 const THINK_MS = 2000
+const IDLE_MS = 30 * 60_000
+const END_WAIT_MS = 5500
 
 const sessions = new Map<string, Session>()
 
@@ -54,15 +58,22 @@ function failed(response: any) {
   return typeof code === "number" && code !== 0
 }
 
-export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId: string) => Out[]) {
+export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId: string) => Promise<void>) {
   if (!raw || typeof raw !== "object" || typeof raw.session_id !== "string") return
   const sessionId: string = raw.session_id
+  const now = Date.now()
+  for (const [id, old] of sessions) {
+    if (now - old.seenAt < IDLE_MS) continue
+    for (const a of old.agents.values()) clearTimeout(a.timer)
+    sessions.delete(id)
+  }
   let s = sessions.get(sessionId)
   if (!s) {
-    s = { cwd: raw.cwd ?? process.cwd(), agents: new Map(), rawIds: new Map(), counts: new Map(), spawnText: new Map(), turnDone: false }
+    s = { cwd: raw.cwd ?? process.cwd(), agents: new Map(), rawIds: new Map(), counts: new Map(), spawnText: new Map(), turnDone: false, pending: Promise.resolve(), seenAt: now }
     sessions.set(sessionId, s)
   }
   const session = s
+  session.seenAt = now
 
   const send = (agent: Agent, e: Omit<Out, "sessionId" | "agentId" | "agentType">) => {
     if (e.state) agent.state = e.state
@@ -107,9 +118,8 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
     if (session.turnDone) return
     session.turnDone = true
     for (const a of session.agents.values()) clearTimeout(a.timer)
-    const l = lead()
-    send(l, { kind: "agent_done", state: "done" })
-    for (const r of reports(sessionId)) emit(r)
+    send(lead(), { kind: "agent_done", state: "done" })
+    session.pending = reports(sessionId)
   }
 
   const tool: string | undefined = raw.tool_name
@@ -176,9 +186,10 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
       break
     }
     case "SessionEnd": {
-      endTurn()
-      send(lead(), { kind: "session_end", state: "idle" })
       sessions.delete(sessionId)
+      endTurn()
+      const capped = new Promise<void>((r) => setTimeout(r, END_WAIT_MS).unref())
+      void Promise.race([session.pending, capped]).then(() => send(lead(), { kind: "session_end", state: "idle" }))
       break
     }
   }

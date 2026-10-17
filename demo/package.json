@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "mock": "tsx mock.ts",
+    "replay-hooks": "tsx replay-hooks.ts",
     "setup-target": "node setup-target.mjs",
     "typecheck": "tsc --noEmit -p ."
   },

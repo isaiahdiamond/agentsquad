@@ -25,9 +25,9 @@ Gets real Claude Code activity into the browser, writes the squad into the user'
 
 ### Narrator
 
-- [ ] Batch events per agent every 1.5s or 4 events. Ask the narrator model (see [[Decisions]]) for one plain sentence under 12 words, present tense, in the voice of the agent's role. Emit as `narration`.
-- [ ] Cache by input. On error or over 2s, emit a template line like "Editing App.tsx".
-- [ ] At `session_end`, compute per-agent stats from the log (files touched, tool calls, active seconds) and ask for a 2-line summary per agent. Emit one `narration` per agent with `text` prefixed `REPORT:`.
+- [x] Calm status lines via Gemini (`gemini-3.5-flash-lite`, key from `.env.local`): per-agent rolling window of the last 8 tool events, one batched call for all changed agents at most every ~4-5s, `narration` only when the meaning changes. Waiting/error/done go out right away.
+- [x] Cache by input. On error, timeout (2.5s; 6s when the agent already has a line) or no key, emit a template line like "Editing App.tsx".
+- [x] After each turn's Stop, per-agent stats from the log plus one batched Gemini call for the summaries. One `narration` per agent with `text` prefixed `REPORT:` (line 1 summary, line 2 stats).
 
 ### Demo
 
@@ -43,3 +43,5 @@ A real Claude Code session in `demo/target` produces correct events in the arena
 ## Log
 
 - 2026-10-17: emit.mjs, real hook capture (attribution works via `agent_id`; delegation tool is `Agent`; failures arrive as `PostToolUseFailure`), /hook normalizer with thinking timer, deploy/undeploy (byte-identical round trip on a scratch dir), /runs + /replay, template narrator + REPORT lines (model line via Messages API when ANTHROPIC_API_KEY is set, untested without a key), rich 60s mock, demo/target todo app. Bridge.
+- 2026-10-17: Gemini narrator. Server scripts load `../.env.local` with `--env-file-if-exists` (key never logged). Status model: rolling window of 8 acts per agent; a 1s tick batches every agent whose window changed, settled 1.5s and last spoke 5s+ ago into ONE Gemini JSON call (`{agentId: line | "SAME"}`); emits only if the gist differs from the agent's last line. Waiting is a fixed line; error/done trigger an immediate batch. Free tier is 15 req/min per key (shared with any other server using it): status batches stop at 10/min, urgent at 13, REPORTs at 15; 429 → 15s cooldown → templates. REPORTs: one batched call per turn, 4s timeout. `npm run replay-hooks -w demo` POSTs `hooks/samples/*.jsonl` to `/hook` with realistic pacing; `-- --scripted` converts the mock's dark-mode session into raw hooks. Mock moved its script to `demo/script.ts`. Bridge.
+- 2026-10-17: Narrator review fixes: per-batch ids (a1, a2...) so batches across sessions never swap lines; session_end waits for the turn's REPORTs (capped 5.5s); Finished lines land before REPORTs; SAME normalized and a missing id keeps the current line; stale Waiting cleared; finished agents pruned after REPORT, idle sessions dropped after 30 min; Finished-style done templates; no REPORT for a SessionEnd without a turn; Retry-After honored. Replay sends SessionEnd 50ms after Stop like `claude -p`. Bridge.
