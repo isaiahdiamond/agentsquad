@@ -13,7 +13,7 @@ export default function ArtImage({ src, label, color = "#334155", className = ""
   if (failed) {
     return (
       <div
-        className={`flex items-center justify-center border-2 border-black/60 text-center font-pixel text-[10px] leading-tight text-white ${className}`}
+        className={`flex items-center justify-center rounded-[10px] border border-line text-center text-xs font-medium text-white/80 ${className}`}
         style={{ background: color }}
         title={`missing art: ${src}`}
       >
