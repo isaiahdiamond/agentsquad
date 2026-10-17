@@ -23,6 +23,13 @@ type Props = { manifest: LookManifest; draft: Draft; update: (p: Partial<Draft>)
 
 export default function CreateLead({ manifest, draft, update, next }: Props) {
   const [tab, setTab] = useState<Tab>("hair")
+  const [winHeight, setWinHeight] = useState(window.innerHeight)
+
+  useEffect(() => {
+    const onResize = () => setWinHeight(window.innerHeight)
+    window.addEventListener("resize", onResize)
+    return () => window.removeEventListener("resize", onResize)
+  }, [])
   const look = draft.look!
   const opts = options(manifest, tab)
   const field = FIELD[tab]
@@ -42,7 +49,7 @@ export default function CreateLead({ manifest, draft, update, next }: Props) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return
+      if (e.target instanceof HTMLInputElement || e.altKey || e.metaKey || e.ctrlKey) return
       if (e.key === "ArrowLeft") cycle(-1)
       if (e.key === "ArrowRight") cycle(1)
     }
@@ -59,7 +66,7 @@ export default function CreateLead({ manifest, draft, update, next }: Props) {
         />
         <p className="absolute top-4 font-pixel text-xs text-gold-300">{draft.name || "Lead Agent"}</p>
         <div className="relative z-10 -mb-12 flex items-end">
-          <LeadPreview look={look} height={Math.min(480, window.innerHeight - 320)} manifest={manifest} />
+          <LeadPreview look={look} height={Math.max(160, Math.min(480, winHeight - 320))} manifest={manifest} />
         </div>
         <div className="relative h-16 w-72 rounded-[50%] border-4 border-gold-400 bg-navy-800 shadow-[0_0_40px_rgba(245,197,66,0.35),inset_0_-8px_0_var(--color-navy-950)]" />
         <div className="-mt-6 h-8 w-80 rounded-b-[50%] border-x-4 border-b-4 border-gold-600 bg-navy-900" />

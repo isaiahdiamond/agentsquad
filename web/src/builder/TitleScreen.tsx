@@ -4,7 +4,7 @@ import { roster } from "./roster"
 import LeadPreview from "./LeadPreview"
 import Portrait from "./Portrait"
 
-export default function TitleScreen({ draft, start }: { draft: Draft; start: () => void }) {
+export default function TitleScreen({ draft, start, reset }: { draft: Draft; start: () => void; reset: () => void }) {
   const resumed = draft.members.length > 0
   return (
     <div className="flex min-h-[calc(100vh-80px)] flex-col items-center justify-center gap-10">
@@ -40,6 +40,11 @@ export default function TitleScreen({ draft, start }: { draft: Draft; start: () 
         <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }} onClick={start} className="btn-gold w-72 text-sm">
           {resumed ? "CONTINUE SQUAD" : "NEW SQUAD"}
         </motion.button>
+        {resumed && (
+          <button onClick={reset} className="font-pixel text-[10px] text-slate-400 underline-offset-4 hover:text-gold-300 hover:underline">
+            START A NEW SQUAD
+          </button>
+        )}
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { loadDraft, saveDraft, STEPS, type Draft, type Step } from "./draft"
+import { emptyDraft, loadDraft, saveDraft, STEPS, type Draft, type Step } from "./draft"
 import { useLookManifest } from "./LeadPreview"
 import TitleScreen from "./TitleScreen"
 import CreateLead from "./CreateLead"
@@ -11,7 +11,7 @@ const STEP_LABELS = { lead: "Create Lead", squad: "Squad", scene: "Scene & Deplo
 
 export default function BuilderPage() {
   const [draft, setDraft] = useState<Draft>(loadDraft)
-  const manifest = useLookManifest()
+  const { manifest, error: manifestError } = useLookManifest()
 
   useEffect(() => saveDraft(draft), [draft])
 
@@ -49,7 +49,16 @@ export default function BuilderPage() {
             exit={{ opacity: 0, x: -40 }}
             transition={{ duration: 0.2 }}
           >
-            {draft.step === "title" && <TitleScreen draft={draft} start={() => go("lead")} />}
+            {draft.step === "title" && <TitleScreen draft={draft} start={() => go("lead")} reset={() => setDraft({ ...emptyDraft, step: "lead" })} />}
+            {draft.step === "lead" && manifestError && (
+              <div className="panel mx-auto max-w-xl p-6 text-center">
+                <p className="font-pixel text-sm text-red-300">CAN'T LOAD THE LEAD ART</p>
+                <p className="mt-3 font-ui text-sm text-slate-300">{manifestError}. Check web/public/art/looks.json, then reload.</p>
+                <button onClick={() => location.reload()} className="btn mt-4 text-xs">
+                  RELOAD
+                </button>
+              </div>
+            )}
             {draft.step === "lead" && manifest && draft.look && (
               <CreateLead manifest={manifest} draft={draft} update={update} next={() => go("squad")} />
             )}

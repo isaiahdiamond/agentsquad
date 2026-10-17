@@ -47,7 +47,10 @@ export default function SceneDeploy({ draft, update, back }: Props) {
   useEffect(() => {
     fetch("/art/scenes/scenes.json")
       .then((r) => r.json())
-      .then((all: Scene[]) => setScenes(all.filter((s) => s.kind === "map" || !s.id.startsWith("interior-"))))
+      .then((all: Scene[]) => {
+        const interiors = new Set(all.flatMap((s) => s.buildings?.map((b) => b.interior) ?? []))
+        setScenes(all.filter((s) => !interiors.has(s.id)))
+      })
       .catch(() => setError("Could not load scenes.json"))
   }, [])
 
@@ -61,14 +64,21 @@ export default function SceneDeploy({ draft, update, back }: Props) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(squad),
       })
-      const body = await res.json().catch(() => null)
-      if (!body && res.status >= 500) throw new Error("Failed to fetch")
-      if (!res.ok) throw new Error(body?.error ?? `server answered ${res.status}`)
+      if (res.status === 502 || res.status === 504) throw new TypeError("unreachable")
+      const text = await res.text()
+      let body: { files?: DeployedFile[]; error?: string } | null = null
+      try {
+        body = JSON.parse(text)
+      } catch {}
+      if (!res.ok) throw new Error(`server answered ${res.status}: ${body?.error ?? (text.slice(0, 200) || res.statusText)}`)
       saveSquad(squad)
       setFiles(Array.isArray(body?.files) ? body.files : [])
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      setError(msg === "Failed to fetch" ? "Can't reach the AgentSquad server. Start it with npm run dev and try again." : `Deploy failed: ${msg}`)
+      setError(
+        err instanceof TypeError
+          ? "Can't reach the AgentSquad server. Start it with npm run dev and try again."
+          : `Deploy failed: ${err instanceof Error ? err.message : String(err)}`,
+      )
     } finally {
       setDeploying(false)
     }

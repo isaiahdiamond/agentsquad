@@ -15,19 +15,25 @@ const SHADE_STEPS: Record<number, number[]> = {
 let manifestPromise: Promise<LookManifest> | null = null
 
 export function loadLookManifest() {
-  manifestPromise ??= fetch("/art/looks.json").then((r) => {
-    if (!r.ok) throw new Error(`looks.json: ${r.status}`)
-    return r.json()
-  })
+  manifestPromise ??= fetch("/art/looks.json")
+    .then((r) => {
+      if (!r.ok) throw new Error(`looks.json answered ${r.status}`)
+      return r.json()
+    })
+    .catch((err) => {
+      manifestPromise = null
+      throw err
+    })
   return manifestPromise
 }
 
 export function useLookManifest() {
   const [manifest, setManifest] = useState<LookManifest | null>(null)
+  const [error, setError] = useState("")
   useEffect(() => {
-    loadLookManifest().then(setManifest, (err) => console.error(err))
+    loadLookManifest().then(setManifest, (err) => setError(err instanceof Error ? err.message : String(err)))
   }, [])
-  return manifest
+  return { manifest, error }
 }
 
 const hexToRgb = (hex: string) => {
@@ -88,7 +94,7 @@ type Props = {
 
 // The lead's layered sprite: outfit render, hair (palette swapped), hat. A hat hides the hair.
 export default function LeadPreview({ look, height, manifest: given, className = "" }: Props) {
-  const loaded = useLookManifest()
+  const loaded = useLookManifest().manifest
   const manifest = given ?? loaded
   const ref = useRef<HTMLCanvasElement>(null)
   const [size, setSize] = useState<{ w: number; h: number } | null>(null)
