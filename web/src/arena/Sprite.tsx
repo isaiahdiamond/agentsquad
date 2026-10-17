@@ -4,7 +4,7 @@ import type { AgentState } from "@agentsquad/shared"
 import { useLeadSprite } from "../ui/lead"
 import { spriteSet, useSprites, type SpriteManifest, type SpriteSet, type SpriteView } from "../ui/sprites"
 import type { Agent, Who } from "./store"
-import { Scope, positions, verbOf } from "./world"
+import { Scope, plateShift, plates, positions, verbOf } from "./world"
 
 // Code-drawn chibi, only used when sprites.json has no sprite for a character or its file is broken.
 const BODY = [
@@ -340,7 +340,8 @@ function Puff() {
 
 const stepped = (t: number) => (t < 0.5 ? 0 : 1)
 
-// The nameplate above each head: role · verb, one line, 11px on screen. Waiting turns it yellow, error red, done green.
+// The nameplate above each head: role · verb, one line, 11px on screen. Waiting turns it yellow, error red;
+// done is a compact green check and the role, so finished agents standing together take less room.
 export function Nameplate({ label, agent, color }: { label: string; agent?: Agent; color: string }) {
   const state = agent?.state ?? "idle"
   const verb = useSettled(agent ? verbOf(agent) : "on call", !!agent && (!!agent.doneAt || state === "waiting" || state === "error"))
@@ -360,7 +361,7 @@ export function Nameplate({ label, agent, color }: { label: string; agent?: Agen
         <span className="h-1.5 w-1.5 rounded-full" style={{ background: error ? "#ef4444" : color }} />
       )}
       <span className="font-semibold">{label}</span>
-      <span className={waiting ? "text-[#050505]/70" : error ? "text-red-300" : "text-white/60"}>· {verb}</span>
+      {!agent?.doneAt && <span className={waiting ? "text-[#050505]/70" : error ? "text-red-300" : "text-white/60"}>· {verb}</span>}
     </div>
   )
 }
@@ -395,6 +396,22 @@ export function Actor({ who, agent, label, seed, s, x, y, o, dy, squash, face = 
   const view: SpriteView = waiting ? "hand" : face.back ? "back" : "front"
   const box = { width: BOX * s, height: TALL * s }
   const id = agent?.id ?? seed
+  const plateEl = useRef<HTMLDivElement | null>(null)
+  const done = !!agent?.doneAt
+  useEffect(() => {
+    const el = plateEl.current
+    if (!el) return
+    const key = `${scope}:${id}`
+    const p = { el, done, lead: who.lead, dy: 0 }
+    plates.set(key, p)
+    return () => {
+      if (plates.get(key) === p) {
+        plates.delete(key)
+        plateShift.delete(key)
+      }
+      el.style.translate = ""
+    }
+  }, [scope, id, done, who.lead, plate, label])
   useEffect(() => {
     const key = `${scope}:${id}`
     const p = { x, y, o, dy, s }
@@ -433,7 +450,7 @@ export function Actor({ who, agent, label, seed, s, x, y, o, dy, squash, face = 
         <div className="relative" style={box}>
           {plate && label && (
             <div className="absolute bottom-full left-1/2" style={{ marginBottom: 3 * s, transform: "translateX(-50%) scale(var(--ui))", transformOrigin: "50% 100%" }}>
-              <Nameplate label={label} agent={agent} color={who.color} />
+              <div ref={plateEl}><Nameplate label={label} agent={agent} color={who.color} /></div>
             </div>
           )}
           {error && <div className="absolute inset-x-0 top-0" style={{ height: seated ? "55%" : "100%" }}><Fire /></div>}

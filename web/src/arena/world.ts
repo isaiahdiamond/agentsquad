@@ -8,6 +8,13 @@ import { who, type Agent, type Arena } from "./store"
 export type Pos = { x: MotionValue<number>; y: MotionValue<number>; o?: MotionValue<number>; dy?: MotionValue<number>; s: number }
 export const positions = new Map<string, Pos>()
 
+// Nameplates and building signs on screen, keyed `${scope}:${id}`, so plates can stay clear of each other and of the signs
+// (see Plates.tsx). plateShift is how far each plate was moved, in native stage px (negative = up), so bubbles sit above it.
+export type Plate = { el: HTMLElement; done: boolean; lead: boolean; dy: number }
+export const plates = new Map<string, Plate>()
+export const signs = new Map<string, HTMLElement>()
+export const plateShift = new Map<string, number>()
+
 // The scene a character is drawn in (the map, a room, or an open interior).
 export const Scope = createContext("")
 

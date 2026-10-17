@@ -24,8 +24,9 @@ function slotSpot(lead: Spot, i: number, s: number): Spot {
   return { ...lead, x: Math.round(lead.x * W + Math.cos(a) * r) / W, y: Math.round(lead.y * H + Math.sin(a) * r * 0.55) / H, kind: undefined }
 }
 
-// The key of one delegation: agent ids restart every session (frontend-dev-1 again), the first event time doesn't.
-export const missionKey = (a: Agent) => `${a.id}:${a.firstAt}`
+// The key of one delegation: agent ids restart every session (frontend-dev-1 again), the spawn time doesn't.
+// A resumed agent spawns again, so it gets a new key and portals back in.
+export const missionKey = (a: Agent) => `${a.id}:${a.spawnAt}`
 
 // One portal per agent delegated after the view opened: a slot in the half circle around the lead, and a start time
 // at least 300ms after the previous portal so a burst of delegations reads as a squad assembling. Returned by agent id
@@ -33,13 +34,13 @@ export const missionKey = (a: Agent) => `${a.id}:${a.firstAt}`
 export function usePortals(agents: Agent[], lead: Spot, s: number, opened: number) {
   const map = useRef(new Map<string, Portal>())
   const last = useRef(0)
-  const fresh = agents.filter((a) => a.type !== "lead" && a.task && a.firstAt > opened - 300).sort((a, b) => a.firstAt - b.firstAt)
+  const fresh = agents.filter((a) => a.type !== "lead" && a.task && a.spawnAt > opened - 300).sort((a, b) => a.spawnAt - b.spawnAt)
   const out = new Map<string, Portal>()
   for (const a of fresh) {
     const key = missionKey(a)
     let p = map.current.get(key)
     if (!p) {
-      const start = Math.max(a.firstAt, last.current + STAGGER)
+      const start = Math.max(a.spawnAt, last.current + STAGGER)
       last.current = start
       const busy = [...map.current.values()].filter((q) => q.start > start - 6000).length
       p = { start, spot: slotSpot(lead, busy, s) }

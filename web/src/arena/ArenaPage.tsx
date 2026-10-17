@@ -4,12 +4,12 @@ import { AnimatePresence, motion } from "framer-motion"
 import type { Building, Scene, Squad } from "@agentsquad/shared"
 import Debug from "./Debug"
 import { homeOf, useCamera, type Point } from "./camera"
-import { MissionPill, ModeCaption, NavPill, Pill, TeamChips, Toaster, modeOf } from "./Hud"
+import { MissionPill, ModeCaption, NavPill, Pill, StandbyHint, TeamChips, Toaster, modeOf, type Standby } from "./Hud"
 import MapView from "./MapView"
 import { Briefing, Complete, LogDrawer, NeedsYou, delegated } from "./Panels"
 import RoomView from "./RoomView"
 import { H, Stage, TALL, W } from "./Sprite"
-import { buildingFor, emptyArena, finishedAt, reduce, saveReport, type Received, type Toast } from "./store"
+import { buildingFor, emptyArena, finishedAt, reduce, saveReport, type Received, type ServerState, type Toast } from "./store"
 import { positions } from "./world"
 
 const BRIEF_W = 356
@@ -23,6 +23,7 @@ export default function ArenaPage() {
   const [connected, setConnected] = useState(false)
   const [scenes, setScenes] = useState<Scene[]>([])
   const [squad, setSquad] = useState<Squad | null>(null)
+  const [srv, setSrv] = useState<ServerState | null>(null)
   const [sceneId, setSceneId] = useState(params.get("scene") ?? "")
   const [view, setView] = useState<string | null>(params.get("view"))
   const [zoom, setZoom] = useState<Building | null>(null)
@@ -40,11 +41,14 @@ export default function ArenaPage() {
 
   useEffect(() => {
     fetch("/art/scenes/scenes.json").then((r) => r.json()).then(setScenes).catch(() => setScenes([]))
+    // A tab opened mid-session starts from the live snapshot: mission title and start time, agents already delegated.
     fetch("/api/state")
       .then((r) => r.json())
-      .then((s: { squad: Squad | null; scene: string | null }) => {
+      .then((s: ServerState) => {
         setSquad(s.squad)
+        setSrv(s)
         if (s.scene) setSceneId((cur) => cur || s.scene || "")
+        if (s.live) dispatch({ kind: "seed", live: s.live, at: Date.now() })
       })
       .catch(() => {})
   }, [])
@@ -127,23 +131,46 @@ export default function ArenaPage() {
     }
   }
 
+  // Standby: until a mission runs, poll /state every 3s so the hint can say whether Claude Code is connected yet.
+  const running = (arena.promptAt > 0 || arena.toolCount > 0) && !finished
+  useEffect(() => {
+    if (running) return
+    const t = setInterval(() => {
+      fetch("/api/state")
+        .then((r) => r.json())
+        .then((s: ServerState) => {
+          setSrv(s)
+          setSquad((cur) => (JSON.stringify(cur) === JSON.stringify(s.squad) ? cur : s.squad))
+        })
+        .catch(() => {})
+    }, 3000)
+    return () => clearInterval(t)
+  }, [running])
+  const live = !!srv?.connected || (!!arena.sessionId && !arena.endAt && !!arena.agents.lead)
+  const standby: Standby | null = running || !srv ? null : live ? "connected" : srv.squad ? "waiting" : "nosquad"
+
   // The briefing opens on each prompt and closes 6s after the last delegation (12s if nobody is delegated).
+  // A tab that joins mid-mission shows it for 8s, listing who was already delegated.
   const [briefAt, setBriefAt] = useState(0)
   const [briefOpen, setBriefOpen] = useState(false)
   const [briefPinned, setBriefPinned] = useState(false)
-  const lastSpawn = Math.max(0, ...delegated(arena).map((a) => a.firstAt))
+  const [briefFrom, setBriefFrom] = useState(0)
+  const lastSpawn = Math.max(0, ...delegated(arena).map((a) => a.spawnAt))
   useEffect(() => {
-    if (!arena.promptAt || arena.promptAt < openedAt - 2000) return
+    if (!arena.promptAt) return
+    const late = arena.promptAt < openedAt - 2000
+    if (late && finishedAt(arena)) return
     setBriefAt(arena.promptAt)
+    setBriefFrom(late ? Date.now() : 0)
     setBriefPinned(false)
     setBriefOpen(true)
   }, [arena.promptAt])
   useEffect(() => {
     if (!briefOpen || briefPinned || briefAt !== arena.promptAt) return
-    const due = lastSpawn ? lastSpawn + 6000 : arena.promptAt + 12000
+    const due = Math.max(lastSpawn ? lastSpawn + 6000 : arena.promptAt + 12000, briefFrom + 8000)
     const t = setTimeout(() => setBriefOpen(false), Math.max(0, due - Date.now()))
     return () => clearTimeout(t)
-  }, [briefOpen, briefPinned, briefAt, lastSpawn])
+  }, [briefOpen, briefPinned, briefAt, lastSpawn, briefFrom])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -371,7 +398,8 @@ export default function ArenaPage() {
         </div>
         <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2">
           <AnimatePresence>{waiter && <NeedsYou key={waiter.id} agent={waiter} arena={arena} squad={squad} />}</AnimatePresence>
-          <Toaster items={[...arena.toasts.filter((t) => !(waiter && t.tone === "wait")), ...local]} arena={arena} squad={squad} since={openedAt} />
+          <AnimatePresence mode="wait">{standby && !showComplete && <StandbyHint key={standby} kind={standby} />}</AnimatePresence>
+          <Toaster items={[...arena.toasts.filter((t) => t.tone !== "wait"), ...local]} arena={arena} squad={squad} since={openedAt} />
         </div>
         <div className="pointer-events-auto absolute bottom-4 right-4 flex items-center gap-2">
           <Pill on={logOpen} onClick={() => setLogOpen((o) => !o)}>
@@ -397,7 +425,7 @@ export default function ArenaPage() {
             </motion.div>
           )}
         </AnimatePresence>
-          <ModeCaption text={modeOf(arena, finished, connected)} />
+          <ModeCaption text={modeOf(arena, finished, connected, standby)} />
         </div>
         {notice && (
           <div className="pointer-events-auto absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-4 rounded-[14px] border border-white/[0.08] bg-[rgba(14,14,16,0.6)] px-4 py-3 text-[13px] text-text backdrop-blur-[12px]">

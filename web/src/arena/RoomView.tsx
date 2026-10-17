@@ -3,6 +3,7 @@ import { AnimatePresence, animate, motion, useIsPresent, useMotionValue } from "
 import type { Scene, Spot, Squad } from "@agentsquad/shared"
 import Backdrop from "./Backdrop"
 import Bubbles from "./Bubbles"
+import PlateLayout from "./Plates"
 import { PortalFx, fall, missionKey, usePortals, type Portal } from "./Portal"
 import { sceneScale } from "./MapView"
 import { Actor, H, TALL, W, useFacing, useManifest, useNatural, type Size } from "./Sprite"
@@ -143,7 +144,7 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
   const deskW = (size ?? DESK).w * ds
   const lift = seatLift(s, size ?? DESK)
   // Agents already at work when the view opens start seated, with their desks already there.
-  const [sat, setSat] = useState<string[]>(() => [...(lead && busy(lead) ? ["lead"] : []), ...members.filter((a) => !a.doneAt && a.firstAt <= opened.current - 300).map((a) => a.id)])
+  const [sat, setSat] = useState<string[]>(() => [...(lead && busy(lead) ? ["lead"] : []), ...members.filter((a) => !a.doneAt && a.spawnAt <= opened.current - 300).map((a) => a.id)])
   const onSit = useCallback((id: string) => setSat((ids) => (ids.includes(id) ? ids : [...ids, id])), [])
   // A new mission reuses agent ids, so nobody counts as seated until they sit again.
   const mission = useRef(arena.promptAt)
@@ -191,16 +192,25 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
     return isDesk ? { to: seat(st), sit: true } : { to: st, sit: false }
   }
   const leadTarget = (): Target => {
-    if (!leadDesk || !lead || !busy(lead)) return { to: scene.lead, sit: false }
+    if (!leadDesk || !lead || !busy(lead) || gotIt) return { to: scene.lead, sit: false }
     if (lead && (lead.state === "waiting" || lead.doneAt)) return { to: beside(scene.lead), sit: false }
     return { to: seat(scene.lead), sit: true }
   }
+  // During "Got it." and the task bubble the lead stands at its spot facing the camera; then it takes its desk.
+  const sayEnd = lead?.sayLines ? lead.sayAt + lead.sayLines.reduce((t, [, ms]) => t + ms, 0) : 0
+  const [gotIt, setGotIt] = useState(false)
+  useEffect(() => {
+    if (!sayEnd || sayEnd <= Date.now()) return setGotIt(false)
+    setGotIt(true)
+    const t = setTimeout(() => setGotIt(false), sayEnd - Date.now())
+    return () => clearTimeout(t)
+  }, [sayEnd])
   const mountedAt = useRef(0)
   useEffect(() => {
     mountedAt.current = Date.now()
   }, [])
   const quiet = () => !mountedAt.current || Date.now() - mountedAt.current < 100
-  const fresh = (a: Agent) => a.firstAt > opened.current - 300
+  const fresh = (a: Agent) => a.spawnAt > opened.current - 300
   const allPortals = usePortals(members, scene.lead, s, opened.current)
   const portals = main ? allPortals : new Map<string, Portal>()
   const head = (p: Spot) => ({ x: p.x * W, y: p.y * H - TALL * s * 0.75 })
@@ -227,6 +237,7 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
         return p && <PortalFx key={`portal-${missionKey(a)}`} p={p} color={who(a.type, squad).color} s={s} from={scene.lead} />
       })}
       <Bubbles agents={main && lead ? [lead, ...members] : members} scope={scene.id} squad={squad} portals={portals} />
+      <PlateLayout scope={scene.id} />
       {!working.length && !main && (
         <div className="absolute inset-x-0 top-[45%] z-[4500] flex justify-center">
           <div className="card px-4 py-2.5 text-sm text-muted shadow-[0_8px_24px_rgba(0,0,0,.45)]" style={{ transform: "scale(var(--ui))" }}>Nobody is working in here right now.</div>

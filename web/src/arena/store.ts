@@ -3,6 +3,21 @@ import { roster } from "../builder/roster"
 
 export type Received = AgentEvent & { at: number }
 
+// The live part of GET /state (see vault/Contracts.md).
+export type LiveAgent = {
+  agentId: string; agentType: string; parentId?: string; state: AgentState; done: boolean; since: number; task?: string; status?: string; report?: string
+}
+export type Live = {
+  sessionId: string; startedAt: number; lastEventAt: number; phase: "connected" | "mission" | "done"
+  mission: { prompt: string; startedAt: number; endedAt: number | null } | null
+  agents: LiveAgent[]
+}
+export type ServerState = { squad: Squad | null; scene: string | null; connected?: boolean; hooksSinceDeploy?: boolean; live?: Live | null }
+
+// An arena opened mid-session is seeded from the /state snapshot, merged with whatever /ws already delivered.
+export type Seed = { kind: "seed"; live: Live; at: number }
+export type Action = Received | Seed
+
 export type Agent = {
   id: string
   type: string
@@ -14,6 +29,8 @@ export type Agent = {
   narrationAt: number
   say?: string
   sayAt: number
+  // A bubble that changes text in place: each line shows for its ms, starting at sayAt. Replaces say while it runs.
+  sayLines?: [string, number][]
   report?: string
   doneText?: string
   waitText?: string
@@ -21,6 +38,8 @@ export type Agent = {
   changed: string[]
   tools: number
   firstAt: number
+  // The latest spawn: the first one, or the time a finished subagent was resumed (SendMessage) and came back.
+  spawnAt: number
   lastAt: number
   pulseAt: number
   fixedAt: number
@@ -62,7 +81,53 @@ export const emptyArena = (): Arena => ({
 const FILE_TOOLS = ["Read", "Edit", "Write", "NotebookEdit", "MultiEdit"]
 const CHANGE_TOOLS = ["Edit", "Write", "NotebookEdit", "MultiEdit"]
 
-export function reduce(prev: Arena, e: Received): Arena {
+const freshAgent = (id: string, type: string, at: number, order: number): Agent => ({
+  id, type, state: "idle", narrationAt: 0, sayAt: 0, files: [], changed: [], tools: 0, firstAt: at, spawnAt: at, lastAt: at, pulseAt: 0, fixedAt: 0, doneAt: 0, order,
+})
+
+// "Fix the header toggle and…": at most n characters, cut on a word.
+export function trimText(text: string, n = 80) {
+  const t = text.replace(/\s+/g, " ").trim()
+  if (t.length <= n) return t
+  return t.slice(0, n - 1).replace(/\s+\S*$/, "").replace(/[…\s]+$/, "") + "…"
+}
+
+function seed(prev: Arena, { live, at }: Seed): Arena {
+  if (prev.sessionId && prev.sessionId !== live.sessionId && Object.keys(prev.agents).length) return prev
+  const m = live.mission
+  const s: Arena = { ...prev, sessionId: live.sessionId, agents: { ...prev.agents }, startAt: prev.startAt || live.startedAt, lastAt: Math.max(prev.lastAt, live.lastEventAt) }
+  if (m && (!s.promptAt || s.promptAt > m.startedAt)) {
+    s.promptAt = m.startedAt
+    if (m.prompt) s.prompt = s.prompt || m.prompt
+  }
+  for (const g of live.agents) {
+    const old = s.agents[g.agentId]
+    const a: Agent = old ? { ...old } : freshAgent(g.agentId, g.agentType, g.since, Object.keys(s.agents).length)
+    if (!old) {
+      a.state = g.done ? "done" : g.state
+      a.lastAt = live.lastEventAt
+      if (g.done) a.doneAt = Math.max(g.since, m?.endedAt ?? live.lastEventAt)
+      if (g.agentType !== "lead") s.spawns++
+    }
+    // Agents first seen on /ws after the tab opened keep their state, but get the spawn time and task from before.
+    if (g.since < a.spawnAt - 1000) {
+      a.firstAt = Math.min(a.firstAt, g.since)
+      a.spawnAt = g.since
+    }
+    a.task = a.task || g.task
+    if (g.status && !a.narration) {
+      a.narration = g.status
+      a.narrationAt = at
+    }
+    if (g.report && !a.report) a.report = g.report
+    s.agents[g.agentId] = a
+  }
+  return s
+}
+
+export function reduce(prev: Arena, act: Action): Arena {
+  if (act.kind === "seed") return seed(prev, act)
+  const e = act
   if (prev.seen.includes(e.id)) return prev
   // Another session can only take over once this one is finished or has gone quiet for a minute.
   if (prev.sessionId && e.sessionId !== prev.sessionId) {
@@ -96,10 +161,7 @@ export function reduce(prev: Arena, e: Received): Arena {
   if (!s.sessionId) s.sessionId = e.sessionId
 
   const old = s.agents[e.agentId]
-  const a: Agent = old ? { ...old } : {
-    id: e.agentId, type: e.agentType, state: "idle", narrationAt: 0, sayAt: 0, files: [], changed: [], tools: 0,
-    firstAt: e.at, lastAt: e.at, pulseAt: 0, fixedAt: 0, doneAt: 0, order: Object.keys(s.agents).length,
-  }
+  const a: Agent = old ? { ...old } : freshAgent(e.agentId, e.agentType, e.at, Object.keys(s.agents).length)
   s.agents[e.agentId] = a
   a.lastAt = e.at
   const toast = (text: string, tone: Toast["tone"], named = false) => {
@@ -113,14 +175,40 @@ export function reduce(prev: Arena, e: Received): Arena {
     s.feed = [{ id: `${e.id}:${s.feedN++}`, agentId: a.id, agentType: a.type, text, at: e.at }, ...s.feed].slice(0, 60)
   }
 
+  // A prompt replayed to a tab that joined mid-mission keeps its own time, so the timer and briefing line up.
+  const late = e.ts > 0 && e.ts < e.at && e.at - e.ts < 6 * 3600_000 ? e.at - e.ts : 0
+  if (e.kind === "session_start") {
+    a.say = "!"
+    a.sayAt = e.at
+    a.sayLines = [["!", 1200]]
+  }
   if (e.kind === "prompt") {
     s.prompt = e.text
-    s.promptAt = e.at
+    s.promptAt = e.at - late
+    if (a.state === "waiting") {
+      a.state = "thinking"
+      a.waitText = undefined
+      a.narration = undefined
+    }
     focus()
+    // The lead faces the camera: "Got it.", then the task, then it starts thinking.
+    if (late < 4000 && e.text) {
+      a.say = "Got it."
+      a.sayAt = e.at
+      a.sayLines = [["Got it.", 1200], [trimText(e.text), 3000]]
+    }
   }
   if (e.kind === "spawn") {
     s.spawns = (s.spawns ?? 0) + 1
+    // A finished subagent resumed with SendMessage spawns again under the same id: it comes back as a new delegation.
+    if (old?.doneAt) {
+      a.spawnAt = e.at
+      a.report = undefined
+      a.narration = undefined
+      a.waitText = undefined
+    }
     a.doneAt = 0
+    a.sayLines = undefined
     a.doneText = undefined
     a.task = e.text
     a.say = e.text
@@ -173,6 +261,7 @@ export function reduce(prev: Arena, e: Received): Arena {
     a.doneText = e.text
     a.say = e.text || "Done."
     a.sayAt = e.at
+    a.sayLines = undefined
     if (a.type !== "lead") {
       toast("finished", "done", true)
       focus()
@@ -193,9 +282,16 @@ export function reduce(prev: Arena, e: Received): Arena {
       feed("Waiting for you.")
       a.say = "Needs your OK."
       a.sayAt = e.at
+      a.sayLines = undefined
       a.waitText = e.kind !== "narration" && e.text ? e.text : undefined
       toast("Waiting for you: approve in your terminal", "wait")
       focus()
+    }
+    // Leaving "waiting" (approved, timed out, or a new prompt): drop the needs-you text with it.
+    if (a.state === "waiting" && e.state !== "waiting") {
+      a.waitText = undefined
+      a.narration = undefined
+      if (a.sayLines === undefined && a.say === "Needs your OK.") a.say = undefined
     }
     a.state = e.state
   }
@@ -249,7 +345,7 @@ export function activeMs(a: Agent, arena: Arena) {
 }
 
 export function clock(ms: number) {
-  const t = Math.floor(ms / 1000)
+  const t = Math.floor(Math.max(0, ms) / 1000)
   return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`
 }
 

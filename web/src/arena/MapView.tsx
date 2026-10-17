@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useContext, useEffect, useRef, useState } from "react"
 import { animate, motion, useAnimationControls, useMotionValue } from "framer-motion"
 import type { Building, Scene, Spot, Squad } from "@agentsquad/shared"
 import Backdrop from "./Backdrop"
 import Bubbles from "./Bubbles"
+import PlateLayout from "./Plates"
 import { PortalFx, fall, missionKey, usePortals, type Portal } from "./Portal"
 import { Actor, FlameBadge, H, Portrait, W, useFacing } from "./Sprite"
 import { buildingFor, who, type Agent, type Arena } from "./store"
-import { Scope, labelOf } from "./world"
+import { Scope, labelOf, signs } from "./world"
 
 const SPEED = 0.1
 
@@ -66,9 +67,11 @@ function toward(path: Spot[], target: Spot): Spot[] {
 
 // Portals in beside the lead (or fades in at the lead when it was already delegated before the view opened), walks the path
 // to the door and fades out; on done, fades in at the door, walks back to the lead, then to its parking spot.
-function Walker({ agent, label, squad, path, park, s, portal, onArrive }: {
-  agent: Agent; label: string; squad: Squad | null; path: Spot[]; park: Spot; s: number; portal?: Portal; onArrive: (id: string) => void
+// An agent already delegated before the view opened (late) starts where it should be: inside, or parked when done.
+function Walker({ agent, label, squad, path, park, s, portal, late, onArrive }: {
+  agent: Agent; label: string; squad: Squad | null; path: Spot[]; park: Spot; s: number; portal?: Portal; late: boolean; onArrive: (id: string) => void
 }) {
+  const skip = useRef(late && !portal)
   const x = useMotionValue(portal?.spot.x ?? path[0].x), y = useMotionValue(portal?.spot.y ?? path[0].y), o = useMotionValue(0)
   const dy = useMotionValue(0), squash = useMotionValue(1)
   const done = agent.doneAt > 0
@@ -96,6 +99,18 @@ function Walker({ agent, label, squad, path, park, s, portal, onArrive }: {
     }
     const here = () => ({ x: x.get(), y: y.get(), scale: 1 })
     const run = async () => {
+      const jump = skip.current
+      skip.current = false
+      if (jump && !done) {
+        o.set(0)
+        onArrive(missionKey(agent))
+        return
+      }
+      if (jump) {
+        put(park)
+        o.set(1)
+        return
+      }
       if (!done && portal) {
         put(portal.spot)
         await fall(portal, s, o, dy, squash, () => alive)
@@ -142,6 +157,8 @@ function useSafeArea() {
   useEffect(() => {
     let raf = 0
     let dx = 0, dy = 0
+    // Start from no nudge: a nudge left by an earlier mount (measured before the camera settled) would never be undone.
+    if (el.current) el.current.style.translate = ""
     const tick = () => {
       const n = el.current
       if (n) {
@@ -173,6 +190,15 @@ function Sign({ b, inside, squad }: { b: Building; inside: Agent[]; squad: Squad
   const waiting = inside.some((a) => a.state === "waiting")
   const error = inside.some((a) => a.state === "error")
   const safe = useSafeArea()
+  const scope = useContext(Scope)
+  useEffect(() => {
+    const el = safe.current
+    const key = `${scope}:${b.id}`
+    if (el) signs.set(key, el)
+    return () => {
+      if (signs.get(key) === el) signs.delete(key)
+    }
+  }, [scope, b.id])
   return (
     <div className="pointer-events-none absolute z-[4900]" style={{ left: Math.round(b.door.x * W), top: Math.round(b.door.y * H - 150), transform: "translate(-50%, -100%) scale(var(--ui))", transformOrigin: "50% 100%" }}>
       <motion.div ref={safe}
@@ -232,13 +258,14 @@ export default function MapView({ scene, arena, squad, onOpen }: { scene: Scene;
       <StaticActor spot={scene.lead} who={who("lead", squad)} agent={lead} label="Lead" seed="lead" s={s} />
       {agents.map((a) => {
         const k = done.indexOf(a)
-        return <Walker key={missionKey(a)} agent={a} label={labelOf(a, arena, squad)} squad={squad} path={pathFor(a)} park={parkSpot(scene, Math.max(0, k))} s={s} portal={portals.get(a.id)} onArrive={onArrive} />
+        return <Walker key={missionKey(a)} agent={a} label={labelOf(a, arena, squad)} squad={squad} path={pathFor(a)} park={parkSpot(scene, Math.max(0, k))} s={s} portal={portals.get(a.id)} late={a.spawnAt <= opened - 300} onArrive={onArrive} />
       })}
       {agents.map((a) => {
         const p = portals.get(a.id)
         return p && <PortalFx key={`portal-${missionKey(a)}`} p={p} color={who(a.type, squad).color} s={s} from={scene.lead} />
       })}
       <Bubbles agents={Object.values(arena.agents)} scope={scene.id} squad={squad} portals={portals} />
+      <PlateLayout scope={scene.id} />
     </div>
     </Scope.Provider>
   )

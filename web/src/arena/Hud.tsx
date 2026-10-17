@@ -48,7 +48,7 @@ export function titleOf(prompt?: string, max = 46) {
 
 export function MissionPill({ arena, finished, connected }: { arena: Arena; finished: number; connected: boolean }) {
   const now = useNow()
-  const start = arena.promptAt || arena.startAt
+  const start = arena.promptAt
   const title = titleOf(arena.prompt)
   return (
     <div className={`flex h-9 items-center gap-2.5 rounded-full px-3.5 text-[13px] ${GLASS}`}>
@@ -60,15 +60,81 @@ export function MissionPill({ arena, finished, connected }: { arena: Arena; fini
 }
 
 // What the squad is doing, in one line.
-export function modeOf(arena: Arena, finished: number, connected: boolean) {
+export function modeOf(arena: Arena, finished: number, connected: boolean, standby?: Standby | null) {
   if (!connected) return "Reconnecting to the server"
   if (finished) return "Mission complete"
+  if (standby === "waiting") return "Waiting for Claude Code"
+  if (standby === "connected") return "Connected"
   const agents = Object.values(arena.agents)
   if (agents.some((a) => !a.doneAt && a.state === "waiting")) return "Waiting for you"
   const working = agents.filter((a) => !a.doneAt && a.state !== "idle").length
   if (working > 1) return `${working} agents working`
   if (arena.prompt) return `Mission: ${titleOf(arena.prompt, 40).replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase())}`
   return "Standing by"
+}
+
+export type Standby = "waiting" | "connected" | "nosquad"
+
+function CopyCommand({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch {
+      const t = document.createElement("textarea")
+      t.value = text
+      document.body.appendChild(t)
+      t.select()
+      document.execCommand("copy")
+      t.remove()
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md border border-white/[0.12] bg-black/40 py-0.5 pl-2 pr-0.5 align-middle">
+      <code className="font-mono text-[13px] text-text">{text}</code>
+      <button
+        className="rounded px-1.5 py-0.5 text-[11px] font-medium text-muted transition-colors hover:bg-white/[0.08] hover:text-text"
+        onClick={copy} aria-label={`Copy ${text}`} title={`Copy ${text}`}
+      >
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </span>
+  )
+}
+
+// Before a mission: no squad yet, deployed but Claude Code not running, or connected and waiting for a task.
+export function StandbyHint({ kind }: { kind: Standby }) {
+  return (
+    <motion.div
+      className={`pointer-events-auto flex max-w-[min(560px,90vw)] flex-col items-center gap-1 rounded-[14px] px-4 py-2.5 text-center text-[13px] text-text ${GLASS}`}
+      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.25 }}
+    >
+      {kind === "waiting" && (
+        <>
+          <span className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-amber-400" />
+            Waiting for Claude Code. Run <CopyCommand text="claude" /> in this project.
+          </span>
+          <span className="text-[12px] text-muted">Deploy before starting Claude, or restart it</span>
+        </>
+      )}
+      {kind === "connected" && (
+        <span className="flex items-center gap-2">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
+          Connected. Give your lead a task in Claude Code.
+        </span>
+      )}
+      {kind === "nosquad" && (
+        <span className="flex items-center gap-2">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-faint" />
+          No squad deployed yet.
+          <NavLink to="/builder" className="font-semibold text-text underline decoration-white/30 underline-offset-2 hover:decoration-white">Build your squad</NavLink>
+        </span>
+      )}
+    </motion.div>
+  )
 }
 
 export function ModeCaption({ text }: { text: string }) {
