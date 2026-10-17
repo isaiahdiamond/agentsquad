@@ -71,7 +71,10 @@ def is_skin(p, st):
     c = hsv(p)
     if sum(((c[i] - st[0][i]) / st[1][i]) ** 2 for i in range(3)) < 6.25:
         return True
-    return abs(c[0] - st[0][0]) < 3.5 * st[1][0] and 0.2 < c[1] < 0.75 and c[2] > st[0][2]
+    if abs(c[0] - st[0][0]) > 3.5 * st[1][0]:
+        return False
+    shadow = abs(c[0] - st[0][0]) < 2.5 * st[1][0] and 0.45 < c[1] < 0.8 and 0.5 < c[2] <= st[0][2]
+    return shadow or (0.2 < c[1] < 0.75 and c[2] > st[0][2])
 
 
 def skin_mask(im, st):
@@ -151,8 +154,8 @@ def head_template(m):
     return [(x - hx, y - hy) for y in range(hy, hy + round(H * 0.12)) for x in range(m.width) if m.getpixel((x, y))]
 
 
-def fit_head(m, tpl):
-    hx, hy = head(m)
+def fit_head(m, tpl, guess):
+    hx, hy = guess
 
     def score(p):
         s = 0
@@ -160,7 +163,7 @@ def fit_head(m, tpl):
             x, y = p[0] + dx, p[1] + dy
             s += 1 if 0 <= x < m.width and 0 <= y < m.height and m.getpixel((x, y)) else -1
         return s
-    shifts = [(dx, dy) for dx in range(-4, 5) for dy in range(-4, 5)]
+    shifts = [(dx, dy) for dx in range(-5, 6) for dy in range(-5, 6)]
     dx, dy = max(shifts, key=lambda d: (score((hx + d[0], hy + d[1])), -abs(d[0]) - abs(d[1])))
     return [hx + dx, hy + dy]
 
@@ -240,16 +243,20 @@ for body, b in src["bodies"].items():
     scale = H / (bb[3] - bb[1])
     base, base_m = shrink(base_raw, bb, scale, pal, st, ramp)
     tpl = head_template(base_m)
+    bh = head(base_m)
+    raw_head = (bb[0] + bh[0] / scale, bb[1] + bh[1] / scale)
     base.save(out / f"{body}-base.png")
     entry = {"skin": [hexc(c) for c in ramp], "base": f"/art/lead/{body}-base.png", "outfits": {}, "hair": {"bald": None}}
     for o in b["outfits"]:
         entry["outfits"][o] = {}
         for v in VIEWS:
             r = images[f"{body}-{o}-{v}"]
-            im, m = shrink(r, box(r), scale, pal, st, ramp)
+            rb = box(r)
+            im, m = shrink(r, rb, scale, pal, st, ramp)
+            guess = (round((raw_head[0] - rb[0]) * scale), round((raw_head[1] - rb[1]) * scale))
             name = f"{body}-{o}-{v}.png"
             im.save(out / name)
-            entry["outfits"][o][v] = {"src": f"/art/lead/{name}", "head": fit_head(m, tpl)}
+            entry["outfits"][o][v] = {"src": f"/art/lead/{name}", "head": fit_head(m, tpl, guess)}
     for s in b["hair"]:
         hr = images[f"{body}-hair-{s}"]
         mask = hair_mask(base_raw, hr, st)

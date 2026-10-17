@@ -93,7 +93,7 @@
             "src": "/art/lead/a-drip-sit.png",
             "head": [
               17,
-              1
+              2
             ]
           }
         },
@@ -125,13 +125,13 @@
             "src": "/art/lead/a-hoodie-front.png",
             "head": [
               16,
-              1
+              2
             ]
           },
           "hand": {
             "src": "/art/lead/a-hoodie-hand.png",
             "head": [
-              14,
+              15,
               8
             ]
           },
@@ -154,7 +154,7 @@
           "hand": {
             "src": "/art/lead/a-gameday-hand.png",
             "head": [
-              21,
+              20,
               9
             ]
           },
@@ -252,7 +252,7 @@
             "src": "/art/lead/b-sundress-hand.png",
             "head": [
               14,
-              13
+              15
             ]
           },
           "sit": {
@@ -281,7 +281,7 @@
           "sit": {
             "src": "/art/lead/b-blazer-sit.png",
             "head": [
-              13,
+              14,
               1
             ]
           }
@@ -320,14 +320,14 @@
           "hand": {
             "src": "/art/lead/b-gameday-hand.png",
             "head": [
-              15,
-              5
+              18,
+              9
             ]
           },
           "sit": {
             "src": "/art/lead/b-gameday-sit.png",
             "head": [
-              15,
+              14,
               1
             ]
           }
@@ -344,7 +344,7 @@
             "src": "/art/lead/b-drip-hand.png",
             "head": [
               20,
-              14
+              13
             ]
           },
           "sit": {
@@ -368,14 +368,14 @@
         "straight": {
           "src": "/art/lead/b-hair-straight.png",
           "offset": [
-            -16,
+            -17,
             0
           ]
         },
         "puff": {
           "src": "/art/lead/b-hair-puff.png",
           "offset": [
-            -17,
+            -18,
             -14
           ]
         },
