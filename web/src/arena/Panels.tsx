@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import type { Squad } from "@agentsquad/shared"
+import { useBuilt, WhatWasBuilt } from "./Built"
 import { GLASS, titleOf, useNow } from "./Hud"
 import { Portrait } from "./Sprite"
 import { ago, clock, who, type Agent, type Arena } from "./store"
@@ -94,9 +95,10 @@ export function Complete({ arena, squad, finished, onClose, onReport, onReplay }
 }) {
   const agents = Object.values(arena.agents).sort((a, b) => a.order - b.order)
   const changed = new Set(arena.files.filter((f) => f.changed).map((f) => f.path)).size
+  const built = useBuilt(arena.sessionId, arena.reportAt)
   return (
     <motion.div
-      className={`w-[min(460px,90vw)] p-5 ${CARD}`}
+      className={`flex max-h-[calc(100vh-140px)] w-[min(480px,90vw)] flex-col p-5 ${CARD}`}
       initial={{ opacity: 0, scale: 0.96, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.3, ease: "easeOut" }}
     >
       <div className="flex items-center justify-between">
@@ -111,10 +113,13 @@ export function Complete({ arena, squad, finished, onClose, onReport, onReplay }
       {arena.prompt && <p className="mt-1 leading-snug text-muted">{titleOf(arena.prompt, 120)}</p>}
       <div className="mt-4 grid grid-cols-3 rounded-xl bg-white/[0.04] py-3">
         <Stat label="Time" value={clock(finished - (arena.promptAt || arena.startAt))} />
-        <Stat label="Files changed" value={changed} />
+        <Stat label="Files changed" value={changed || built.full?.files.length || built.quick?.files || 0} />
         <Stat label="Tool calls" value={arena.toolCount} />
       </div>
-      <div className="mt-4 flex max-h-[38vh] flex-col gap-2.5 overflow-y-auto">
+      <div className="mt-4 border-t border-white/[0.06] pt-3">
+        <WhatWasBuilt built={built} arena={arena} squad={squad} />
+      </div>
+      <div className="mt-4 flex min-h-[60px] flex-col gap-2.5 overflow-y-auto border-t border-white/[0.06] pt-3">
         {agents.map((a) => {
           const w = who(a.type, squad)
           const line = (a.report ?? "").split("\n")[0] || a.doneText || "Done."

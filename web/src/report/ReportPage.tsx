@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
+import { useBuilt, WhatWasBuilt } from "../arena/Built"
 import { Portrait } from "../arena/Sprite"
 import { activeMs, clearReport, clock, loadReport, who } from "../arena/store"
 
@@ -26,6 +27,7 @@ export default function ReportPage() {
   const navigate = useNavigate()
   const [report] = useState(loadReport)
   const [note, setNote] = useState("")
+  const built = useBuilt(report?.arena.sessionId)
 
   const newTask = () => {
     clearReport()
@@ -82,6 +84,12 @@ export default function ReportPage() {
             <Summary label="Agents" value={agents.length} />
           </div>
         </motion.header>
+
+        {(built.full || built.quick) && (
+          <motion.section initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="card p-5">
+            <WhatWasBuilt built={built} arena={arena} squad={squad} page />
+          </motion.section>
+        )}
 
         <section className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-4">
           {agents.map((a, i) => {
