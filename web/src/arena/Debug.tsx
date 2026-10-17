@@ -18,7 +18,7 @@ function Dot({ s, label, color }: { s: Spot; label: string; color: string }) {
 export default function Debug({ scene }: { scene: Scene }) {
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="pointer-events-none absolute inset-0 z-[500] h-full w-full">
-      <rect width={W} height={H} fill="none" stroke="#8b7cf6" strokeWidth={4} />
+      <rect width={W} height={H} fill="none" stroke="#5a8fe6" strokeWidth={4} />
       {(scene.paths ?? []).map((p, i) => (
         <g key={i}>
           <polyline points={p.map((s) => `${s.x * W},${s.y * H}`).join(" ")} fill="none" stroke="#38bdf8" strokeWidth={3} />
@@ -35,8 +35,8 @@ export default function Debug({ scene }: { scene: Scene }) {
       ))}
       {(scene.buildings ?? []).map((b) => (
         <g key={b.id}>
-          <rect x={b.area.x * W} y={b.area.y * H} width={b.area.w * W} height={b.area.h * H} fill="#8b7cf6" fillOpacity={0.08} stroke="#8b7cf6" strokeWidth={2} strokeDasharray="10 6" rx={16} />
-          <text x={b.area.x * W + 8} y={b.area.y * H + 20} fontSize={14} fontFamily="Inter, sans-serif" fontWeight={600} fill="#c4bbfb" stroke="#0b0d12" strokeWidth={4} strokeLinejoin="round" paintOrder="stroke">
+          <rect x={b.area.x * W} y={b.area.y * H} width={b.area.w * W} height={b.area.h * H} fill="#5a8fe6" fillOpacity={0.08} stroke="#5a8fe6" strokeWidth={2} strokeDasharray="10 6" rx={16} />
+          <text x={b.area.x * W + 8} y={b.area.y * H + 20} fontSize={14} fontFamily="Inter, sans-serif" fontWeight={600} fill="#5a8fe6" stroke="#0b0d12" strokeWidth={4} strokeLinejoin="round" paintOrder="stroke">
             {b.id} → {b.interior} [{b.roles.join(", ")}]
           </text>
           <Dot s={b.door} label={`${b.id}.door`} color="#22c55e" />

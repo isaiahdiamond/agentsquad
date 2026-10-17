@@ -193,7 +193,7 @@ export default function MapView({ scene, arena, squad, onOpen }: { scene: Scene;
           className="group absolute z-[5] cursor-pointer rounded-2xl border-2 border-transparent transition-colors hover:border-accent/80 hover:bg-accent/10"
           style={{ left: `${b.area.x * 100}%`, top: `${b.area.y * 100}%`, width: `${b.area.w * 100}%`, height: `${b.area.h * 100}%` }}
         >
-          <span className="absolute bottom-3 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded-full bg-accent px-3 py-1 text-xs font-semibold text-white shadow-lg group-hover:block">
+          <span className="absolute bottom-3 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded-full bg-accent px-3 py-1 text-xs font-semibold text-on-accent shadow-lg group-hover:block">
             Look inside {b.name}
           </span>
         </button>
