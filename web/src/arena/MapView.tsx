@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react"
 import { animate, motion, useAnimationControls, useMotionValue } from "framer-motion"
 import type { Building, Scene, Spot, Squad } from "@agentsquad/shared"
 import Backdrop from "./Backdrop"
-import { Actor, FlameBadge, Portrait, useFacing } from "./Sprite"
+import Bubbles from "./Bubbles"
+import { Actor, FlameBadge, H, Portrait, W, useFacing } from "./Sprite"
 import { buildingFor, who, type Agent, type Arena } from "./store"
 import { Scope, labelOf } from "./world"
 
@@ -118,29 +119,33 @@ function Walker({ agent, label, squad, path, park, s, onArrive }: { agent: Agent
   return <Actor who={who(agent.type, squad)} agent={agent} label={label} seed={agent.type} s={s} x={x} y={y} o={o} face={face} />
 }
 
-function Badge({ b, inside, squad }: { b: Building; inside: Agent[]; squad: Squad | null }) {
+// A small glass sign above each door: the building's name, then who's inside. Yellow when someone inside needs you, a flame on error.
+function Sign({ b, inside, squad }: { b: Building; inside: Agent[]; squad: Squad | null }) {
   const controls = useAnimationControls()
   const pulse = Math.max(0, ...inside.map((a) => a.pulseAt))
   useEffect(() => {
-    if (pulse) controls.start({ scale: [1, 1.12, 1], transition: { duration: 0.35 } })
+    if (pulse) controls.start({ scale: [1, 1.06, 1], transition: { duration: 0.3 } })
   }, [pulse])
-  if (!inside.length) return null
   const waiting = inside.some((a) => a.state === "waiting")
   const error = inside.some((a) => a.state === "error")
   return (
-    <div className="pointer-events-none absolute z-[6000]" style={{ left: `${b.badge.x * 100}%`, top: `${Math.max(0.01, b.badge.y) * 100}%`, transform: "translateX(-50%) scale(var(--ui))", transformOrigin: "50% 0" }}>
+    <div className="pointer-events-none absolute z-[4900]" style={{ left: Math.round(b.door.x * W), top: Math.round(b.door.y * H - 150), transform: "translate(-50%, -100%) scale(var(--ui))", transformOrigin: "50% 100%" }}>
       <motion.div
         animate={controls}
-        className={`flex items-center gap-2 rounded-2xl border p-1.5 pr-3 ${waiting ? "border-amber-300/80 bg-amber-400 text-[#0b0d12] shadow-[0_0_24px_6px_rgba(251,191,36,.55)]" : "border-line-strong bg-panel text-text shadow-[0_8px_24px_rgba(0,0,0,.45)]"}`}
+        className={`flex flex-col items-center gap-1 rounded-[12px] border px-2.5 py-1.5 backdrop-blur-[12px] ${waiting ? "border-amber-300 bg-[rgba(60,45,5,0.75)]" : "border-white/[0.08] bg-[rgba(11,13,18,0.6)]"}`}
       >
-        <div className="flex -space-x-1.5">
-          {inside.map((a) => (
-            <Portrait key={a.id} who={who(a.type, squad)} seed={a.type} size={32} className={`rounded-lg ring-2 ${waiting ? "ring-amber-400" : "ring-panel"}`} />
-          ))}
-        </div>
-        <span className="text-[13px] font-semibold">{b.name}</span>
-        {waiting && <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#0b0d12] text-[12px] font-extrabold text-amber-300">!</span>}
-        {error && <FlameBadge size={14} />}
+        <span className="flex items-center gap-1 text-[12px] font-semibold leading-none text-text">
+          {b.name}
+          {waiting && <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[9px] font-extrabold text-[#0b0d12]">!</span>}
+          {error && <FlameBadge size={9} />}
+        </span>
+        {inside.length > 0 && (
+          <span className="flex -space-x-1">
+            {inside.map((a) => (
+              <Portrait key={a.id} who={who(a.type, squad)} seed={a.type} size={20} className={`rounded-full ring-1 ${a.state === "waiting" ? "ring-amber-400" : a.state === "error" ? "ring-red-500" : "ring-black/60"}`} />
+            ))}
+          </span>
+        )}
       </motion.div>
     </div>
   )
@@ -175,13 +180,14 @@ export default function MapView({ scene, arena, squad, onOpen }: { scene: Scene;
         </button>
       ))}
       {buildings.map((b, i) => (
-        <Badge key={b.id} b={b} squad={squad} inside={agents.filter((a) => !a.doneAt && arrived.includes(a.id) && buildingFor(scene, a.type) === i)} />
+        <Sign key={b.id} b={b} squad={squad} inside={agents.filter((a) => !a.doneAt && arrived.includes(a.id) && buildingFor(scene, a.type) === i)} />
       ))}
       <StaticActor spot={scene.lead} who={who("lead", squad)} agent={lead} label="Lead" seed="lead" s={s} />
       {agents.map((a) => {
         const k = done.indexOf(a)
         return <Walker key={a.id} agent={a} label={labelOf(a, arena, squad)} squad={squad} path={pathFor(a)} park={parkSpot(scene, Math.max(0, k))} s={s} onArrive={onArrive} />
       })}
+      <Bubbles agents={Object.values(arena.agents)} scope={scene.id} squad={squad} />
     </div>
     </Scope.Provider>
   )

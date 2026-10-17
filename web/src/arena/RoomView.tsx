@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { AnimatePresence, animate, motion, useIsPresent, useMotionValue } from "framer-motion"
 import type { Scene, Spot, Squad } from "@agentsquad/shared"
 import Backdrop from "./Backdrop"
+import Bubbles from "./Bubbles"
 import { sceneScale } from "./MapView"
 import { Actor, H, TALL, W, useFacing, useManifest, useNatural, type Size } from "./Sprite"
 import { who, type Agent, type Arena } from "./store"
@@ -207,6 +208,7 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
         {leadAtDesk && <Desk key="lead" spot={scene.lead} ds={ds} src={src} size={size} k={s} quiet={quiet()} />}
         {occupied.map((a) => <Desk key={`desk-${map.get(a.id)}`} spot={desks[map.get(a.id)!]} ds={ds} src={src} size={size} k={s} quiet={quiet()} />)}
       </AnimatePresence>
+      <Bubbles agents={main && lead ? [lead, ...members] : members} scope={scene.id} squad={squad} />
       {!working.length && !main && (
         <div className="absolute inset-x-0 top-[45%] z-[4500] flex justify-center">
           <div className="card px-4 py-2.5 text-sm text-muted shadow-[0_8px_24px_rgba(0,0,0,.45)]" style={{ transform: "scale(var(--ui))" }}>Nobody is working in here right now.</div>

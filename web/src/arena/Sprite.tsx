@@ -253,7 +253,7 @@ function Body({ who, seed, s, view, flip, seated, typing }: { who: Who; seed: st
 export function Portrait({ who, seed, size, className = "" }: { who: Who; seed: string; size: number; className?: string }) {
   const { set, ready, generic } = useSpriteSet(who)
   const nat = useNatural(set?.front)
-  const k = Math.max(1, Math.round(size / 36))
+  const k = size < 26 ? size / 34 : Math.max(1, Math.round(size / 36))
   return (
     <div className={`relative shrink-0 overflow-hidden ${className}`} style={{ width: size, height: size, background: shade(who.color, 0.3) }}>
       {ready && set && nat ? (
