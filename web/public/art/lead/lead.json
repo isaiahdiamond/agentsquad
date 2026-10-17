@@ -1,0 +1,434 @@
+{
+  "height": 96,
+  "skinTones": {
+    "s1": [
+      "#F6D9C4",
+      "#EBC3A8",
+      "#D9A88A",
+      "#C28E70"
+    ],
+    "s2": [
+      "#F1C8A5",
+      "#E2AE87",
+      "#CC946D",
+      "#B07A56"
+    ],
+    "s3": [
+      "#E5B48A",
+      "#D29C70",
+      "#B9825A",
+      "#9C6A45"
+    ],
+    "s4": [
+      "#D6A06F",
+      "#BF8758",
+      "#A36E43",
+      "#865733"
+    ],
+    "s5": [
+      "#BF8A5E",
+      "#A6714A",
+      "#8A5A38",
+      "#6E452A"
+    ],
+    "s6": [
+      "#A06E48",
+      "#875A39",
+      "#6C462C",
+      "#523420"
+    ],
+    "s7": [
+      "#7E5436",
+      "#67432A",
+      "#503320",
+      "#3B2517"
+    ],
+    "s8": [
+      "#5C3B26",
+      "#4A2F1E",
+      "#382316",
+      "#27180F"
+    ]
+  },
+  "hairColors": {
+    "black": "#1C1A1E",
+    "darkbrown": "#3B2A20",
+    "brown": "#6B4A32",
+    "auburn": "#8A3B24",
+    "ginger": "#C8642C",
+    "blonde": "#E3C27A",
+    "platinum": "#EDE6D6",
+    "grey": "#9C9A98",
+    "pink": "#E89AB8",
+    "blue": "#5A86D6"
+  },
+  "bodies": {
+    "a": {
+      "skin": [
+        "#844929",
+        "#975631",
+        "#A46138",
+        "#B06A3E",
+        "#BC7747",
+        "#C98550"
+      ],
+      "base": "/art/lead/a-base.png",
+      "outfits": {
+        "drip": {
+          "front": {
+            "src": "/art/lead/a-drip-front.png",
+            "head": [
+              17,
+              1
+            ]
+          },
+          "hand": {
+            "src": "/art/lead/a-drip-hand.png",
+            "head": [
+              21,
+              10
+            ]
+          },
+          "sit": {
+            "src": "/art/lead/a-drip-sit.png",
+            "head": [
+              17,
+              1
+            ]
+          }
+        },
+        "blazer": {
+          "front": {
+            "src": "/art/lead/a-blazer-front.png",
+            "head": [
+              16,
+              1
+            ]
+          },
+          "hand": {
+            "src": "/art/lead/a-blazer-hand.png",
+            "head": [
+              19,
+              9
+            ]
+          },
+          "sit": {
+            "src": "/art/lead/a-blazer-sit.png",
+            "head": [
+              16,
+              1
+            ]
+          }
+        },
+        "hoodie": {
+          "front": {
+            "src": "/art/lead/a-hoodie-front.png",
+            "head": [
+              16,
+              1
+            ]
+          },
+          "hand": {
+            "src": "/art/lead/a-hoodie-hand.png",
+            "head": [
+              14,
+              8
+            ]
+          },
+          "sit": {
+            "src": "/art/lead/a-hoodie-sit.png",
+            "head": [
+              15,
+              1
+            ]
+          }
+        },
+        "gameday": {
+          "front": {
+            "src": "/art/lead/a-gameday-front.png",
+            "head": [
+              16,
+              1
+            ]
+          },
+          "hand": {
+            "src": "/art/lead/a-gameday-hand.png",
+            "head": [
+              21,
+              9
+            ]
+          },
+          "sit": {
+            "src": "/art/lead/a-gameday-sit.png",
+            "head": [
+              16,
+              2
+            ]
+          }
+        },
+        "debugger": {
+          "front": {
+            "src": "/art/lead/a-debugger-front.png",
+            "head": [
+              22,
+              1
+            ]
+          },
+          "hand": {
+            "src": "/art/lead/a-debugger-hand.png",
+            "head": [
+              21,
+              11
+            ]
+          },
+          "sit": {
+            "src": "/art/lead/a-debugger-sit.png",
+            "head": [
+              22,
+              2
+            ]
+          }
+        }
+      },
+      "hair": {
+        "bald": null,
+        "locs": {
+          "src": "/art/lead/a-hair-locs.png",
+          "offset": [
+            -20,
+            -1
+          ]
+        },
+        "waves": {
+          "src": "/art/lead/a-hair-waves.png",
+          "offset": [
+            -15,
+            0
+          ]
+        },
+        "afro": {
+          "src": "/art/lead/a-hair-afro.png",
+          "offset": [
+            -19,
+            -6
+          ]
+        },
+        "sidepart": {
+          "src": "/art/lead/a-hair-sidepart.png",
+          "offset": [
+            -15,
+            -2
+          ]
+        },
+        "fringe": {
+          "src": "/art/lead/a-hair-fringe.png",
+          "offset": [
+            -16,
+            -3
+          ]
+        }
+      }
+    },
+    "b": {
+      "skin": [
+        "#844928",
+        "#995933",
+        "#A9663D",
+        "#B77346",
+        "#C58352",
+        "#D28F5B"
+      ],
+      "base": "/art/lead/b-base.png",
+      "outfits": {
+        "sundress": {
+          "front": {
+            "src": "/art/lead/b-sundress-front.png",
+            "head": [
+              14,
+              1
+            ]
+          },
+          "hand": {
+            "src": "/art/lead/b-sundress-hand.png",
+            "head": [
+              14,
+              13
+            ]
+          },
+          "sit": {
+            "src": "/art/lead/b-sundress-sit.png",
+            "head": [
+              14,
+              1
+            ]
+          }
+        },
+        "blazer": {
+          "front": {
+            "src": "/art/lead/b-blazer-front.png",
+            "head": [
+              15,
+              1
+            ]
+          },
+          "hand": {
+            "src": "/art/lead/b-blazer-hand.png",
+            "head": [
+              14,
+              9
+            ]
+          },
+          "sit": {
+            "src": "/art/lead/b-blazer-sit.png",
+            "head": [
+              13,
+              1
+            ]
+          }
+        },
+        "hoodie": {
+          "front": {
+            "src": "/art/lead/b-hoodie-front.png",
+            "head": [
+              14,
+              1
+            ]
+          },
+          "hand": {
+            "src": "/art/lead/b-hoodie-hand.png",
+            "head": [
+              13,
+              9
+            ]
+          },
+          "sit": {
+            "src": "/art/lead/b-hoodie-sit.png",
+            "head": [
+              14,
+              1
+            ]
+          }
+        },
+        "gameday": {
+          "front": {
+            "src": "/art/lead/b-gameday-front.png",
+            "head": [
+              15,
+              1
+            ]
+          },
+          "hand": {
+            "src": "/art/lead/b-gameday-hand.png",
+            "head": [
+              15,
+              5
+            ]
+          },
+          "sit": {
+            "src": "/art/lead/b-gameday-sit.png",
+            "head": [
+              15,
+              1
+            ]
+          }
+        },
+        "drip": {
+          "front": {
+            "src": "/art/lead/b-drip-front.png",
+            "head": [
+              16,
+              1
+            ]
+          },
+          "hand": {
+            "src": "/art/lead/b-drip-hand.png",
+            "head": [
+              20,
+              14
+            ]
+          },
+          "sit": {
+            "src": "/art/lead/b-drip-sit.png",
+            "head": [
+              16,
+              1
+            ]
+          }
+        }
+      },
+      "hair": {
+        "bald": null,
+        "braids": {
+          "src": "/art/lead/b-hair-braids.png",
+          "offset": [
+            -16,
+            0
+          ]
+        },
+        "straight": {
+          "src": "/art/lead/b-hair-straight.png",
+          "offset": [
+            -16,
+            0
+          ]
+        },
+        "puff": {
+          "src": "/art/lead/b-hair-puff.png",
+          "offset": [
+            -17,
+            -14
+          ]
+        },
+        "bob": {
+          "src": "/art/lead/b-hair-bob.png",
+          "offset": [
+            -16,
+            -1
+          ]
+        },
+        "buns": {
+          "src": "/art/lead/b-hair-buns.png",
+          "offset": [
+            -17,
+            -5
+          ]
+        }
+      }
+    }
+  },
+  "characters": {
+    "robot": {
+      "front": {
+        "src": "/art/lead/robot-front.png"
+      },
+      "hand": {
+        "src": "/art/lead/robot-hand.png"
+      },
+      "sit": {
+        "src": "/art/lead/robot-sit.png"
+      }
+    },
+    "dog": {
+      "front": {
+        "src": "/art/lead/dog-front.png"
+      },
+      "hand": {
+        "src": "/art/lead/dog-hand.png"
+      },
+      "sit": {
+        "src": "/art/lead/dog-sit.png"
+      }
+    },
+    "gator": {
+      "front": {
+        "src": "/art/lead/gator-front.png"
+      },
+      "hand": {
+        "src": "/art/lead/gator-hand.png"
+      },
+      "sit": {
+        "src": "/art/lead/gator-sit.png"
+      }
+    }
+  }
+}
