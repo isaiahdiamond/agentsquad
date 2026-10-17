@@ -62,12 +62,13 @@ export default function SceneDeploy({ draft, update, back }: Props) {
         body: JSON.stringify(squad),
       })
       const body = await res.json().catch(() => null)
-      if (!res.ok) throw new Error(body?.error ?? `Server answered ${res.status}`)
+      if (!body && res.status >= 500) throw new Error("Failed to fetch")
+      if (!res.ok) throw new Error(body?.error ?? `server answered ${res.status}`)
       saveSquad(squad)
       setFiles(Array.isArray(body?.files) ? body.files : [])
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      setError(msg === "Failed to fetch" ? "Can't reach the AgentSquad server. Is it running?" : `Deploy failed: ${msg}`)
+      setError(msg === "Failed to fetch" ? "Can't reach the AgentSquad server. Start it with npm run dev and try again." : `Deploy failed: ${msg}`)
     } finally {
       setDeploying(false)
     }

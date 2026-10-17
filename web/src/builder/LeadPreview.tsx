@@ -130,18 +130,6 @@ export default function LeadPreview({ look, height, manifest: given, className =
     }
   }, [manifest, outfitSrc, hairSrc, hatSrc, look.hairColor])
 
-  if (missing) {
-    return (
-      <div
-        className={`flex items-center justify-center border-2 border-black/60 bg-gold-600 font-pixel text-[10px] text-navy-950 ${className}`}
-        style={{ height, width: height / 2 }}
-        title={`missing art: ${outfitSrc ?? `${look.body} ${look.outfit}`}`}
-      >
-        LEAD
-      </div>
-    )
-  }
-
   let w = 0
   let h = 0
   if (size) {
@@ -151,10 +139,21 @@ export default function LeadPreview({ look, height, manifest: given, className =
     h = up >= 1 ? size.h * up : Math.floor(size.h / down)
   }
   return (
-    <canvas
-      ref={ref}
-      className={`pixelated ${className}`}
-      style={{ width: w, height: h, imageRendering: "pixelated", visibility: size ? "visible" : "hidden" }}
-    />
+    <>
+      {missing && (
+        <div
+          className={`flex items-center justify-center border-2 border-black/60 bg-gold-600 font-pixel text-[10px] text-navy-950 ${className}`}
+          style={{ height, width: height / 2 }}
+          title={`missing art: ${outfitSrc ?? `${look.body} ${look.outfit}`}`}
+        >
+          LEAD
+        </div>
+      )}
+      <canvas
+        ref={ref}
+        className={`pixelated ${className}`}
+        style={{ width: w, height: h, imageRendering: "pixelated", display: missing ? "none" : undefined, visibility: size ? "visible" : "hidden" }}
+      />
+    </>
   )
 }
