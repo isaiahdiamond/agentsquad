@@ -8,7 +8,7 @@ A tech product with pixel art inside it. Pixel art is only the characters and sc
 
 - Background `#0B0D12`, panels `#14161D` with a faint 1px border, corners 14-16px
 - Inter for all text. No pixel fonts (logo excepted if wanted)
-- One accent: soft violet. On the welcome screen try a white button with black text too
+- One accent: a restrained technical blue `#5A8FE6` (violet dropped 2026-10-17). The welcome screen uses a white button with black text
 - Sprites drawn with `image-rendering: pixelated` at integer scale
 
 ## Flow
