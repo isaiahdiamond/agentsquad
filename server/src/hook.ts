@@ -9,7 +9,7 @@ type Session = {
   agents: Map<string, Agent>
   rawIds: Map<string, string>
   counts: Map<string, number>
-  spawnText: Map<string, string[]>
+  spawnText: Map<string, { text: string; at: number }[]>
   turnDone: boolean
   stopped: boolean
   endTimer?: NodeJS.Timeout
@@ -28,8 +28,9 @@ const THINK_MS = 2000
 const IDLE_MS = 30 * 60_000
 const END_WAIT_MS = 5500
 const TEAM_END_MS = 8000
-const STALL_MS = 3 * 60_000
-const TOOL_STALL_MS: Record<string, number> = { Bash: 90_000 }
+const STALL_MS = 5 * 60_000
+const TOOL_STALL_MS: Record<string, number> = { Bash: 5 * 60_000 }
+const SPAWN_WAIT_MS = 15_000
 const NOT_A_PROMPT = /^\s*<(task-notification|agent-message)[\s>]/
 
 const sessions = new Map<string, Session>()
@@ -109,7 +110,7 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
     const agent: Agent = { id: `${type}-${n}`, type }
     session.rawIds.set(rawId, agent.id)
     session.agents.set(agent.id, agent)
-    const text = session.spawnText.get(type)?.shift()
+    const text = session.spawnText.get(type)?.shift()?.text
     send(agent, { kind: "spawn", tool: "Agent", parentId: "lead", text })
     think(agent)
     return agent
@@ -124,19 +125,24 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
 
   const busy = () =>
     [...session.agents.values()].some((a) => a.id !== "lead" && a.state !== "done") ||
-    [...session.spawnText.values()].some((q) => q.length > 0)
+    [...session.spawnText.values()].some((q) => q.some((p) => Date.now() - p.at < SPAWN_WAIT_MS))
 
   const endTurn = () => {
     if (session.turnDone) return
     session.turnDone = true
     session.stopped = false
-    for (const a of session.agents.values()) clearTimeout(a.timer)
+    for (const a of session.agents.values()) {
+      clearTimeout(a.timer)
+      a.toolAt = undefined
+    }
     send(lead(), { kind: "agent_done", state: "done" })
     session.pending = reports(sessionId)
   }
 
   const tool: string | undefined = raw.tool_name
   const target = targetOf(raw.tool_input, session.cwd)
+  const LATE = ["PreToolUse", "PostToolUse", "PostToolUseFailure", "SubagentStart", "Notification", "Stop"]
+  if (session.turnDone && LATE.includes(raw.hook_event_name)) return
 
   switch (raw.hook_event_name) {
     case "SessionStart": {
@@ -144,14 +150,17 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
       break
     }
     case "UserPromptSubmit": {
-      session.turnDone = false
-      session.stopped = false
       const l = lead()
       if (typeof raw.prompt === "string" && NOT_A_PROMPT.test(raw.prompt)) {
+        if (session.turnDone) break
+        session.stopped = false
         send(l, { kind: "tool_start", state: "thinking" })
         break
       }
-      send(l, { kind: "prompt", text: typeof raw.prompt === "string" ? cut(raw.prompt, 80) : undefined })
+      session.turnDone = false
+      session.stopped = false
+      session.spawnText.clear()
+      send(l, { kind: "prompt", text: cut(typeof raw.prompt === "string" ? raw.prompt : "", 80) })
       send(l, { kind: "tool_start", state: "thinking" })
       break
     }
@@ -162,7 +171,7 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
       if (DELEGATE.has(tool)) {
         const type = raw.tool_input?.subagent_type ?? "general-purpose"
         const text = firstLine(raw.tool_input?.description) ?? firstLine(raw.tool_input?.prompt) ?? ""
-        session.spawnText.set(type, [...(session.spawnText.get(type) ?? []), text])
+        session.spawnText.set(type, [...(session.spawnText.get(type) ?? []), { text, at: now }])
         break
       }
       send(agent, { kind: "tool_start", state: STATE[tool] ?? "thinking", tool, target })
@@ -174,6 +183,7 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
     case "PostToolUseFailure": {
       if (!tool) break
       const agent = actor()
+      const stalled = !agent.toolAt
       agent.toolAt = undefined
       think(agent)
       if (DELEGATE.has(tool)) {
@@ -183,7 +193,7 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
       }
       const bad = raw.hook_event_name === "PostToolUseFailure" ? raw.is_interrupt !== true : failed(raw.tool_response)
       if (bad) send(agent, { kind: "tool_end", tool, target, state: "error", text: firstLine(raw.error) })
-      else if (agent.state === "waiting") send(agent, { kind: "tool_end", tool, target, state: "thinking" })
+      else if (agent.state === "waiting" || stalled) send(agent, { kind: "tool_end", tool, target, state: "thinking" })
       else send(agent, { kind: "tool_end", tool, target })
       break
     }
@@ -196,13 +206,14 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
       const agent = id ? session.agents.get(id) : undefined
       if (!agent || agent.state === "done") break
       clearTimeout(agent.timer)
+      agent.toolAt = undefined
       send(agent, { kind: "agent_done", state: "done", text: firstLine(raw.last_assistant_message) })
       if (!session.stopped) think(lead())
       break
     }
     case "Notification": {
-      if (session.turnDone || raw.notification_type === "idle_prompt" || raw.notification_type === "auth_success") break
-      const asking = [...session.agents.values()].filter((a) => a.toolAt).sort((a, b) => b.toolAt! - a.toolAt!)[0]
+      if (raw.notification_type === "idle_prompt" || raw.notification_type === "auth_success") break
+      const asking = [...session.agents.values()].filter((a) => a.toolAt && a.state !== "done").sort((a, b) => b.toolAt! - a.toolAt!)[0]
       const agent = asking ?? actor()
       clearTimeout(agent.timer)
       send(agent, { kind: "tool_start", state: "waiting", text: firstLine(raw.message) })
@@ -221,5 +232,9 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
       return
     }
   }
-  if (session.stopped && !session.turnDone) session.endTimer = setTimeout(endTurn, busy() ? STALL_MS : TEAM_END_MS)
+  const settle = () => {
+    if (busy() && Date.now() - session.seenAt < STALL_MS) session.endTimer = setTimeout(settle, TEAM_END_MS)
+    else endTurn()
+  }
+  if (session.stopped && !session.turnDone) session.endTimer = setTimeout(settle, TEAM_END_MS)
 }

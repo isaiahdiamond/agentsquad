@@ -1,7 +1,7 @@
 {
   "session_id": "bd52cec3-2e7a-4fe9-bcd1-63f06392d4d8",
-  "transcript_path": "/Users/isaiahdiamond/.claude/projects/-Users-isaiahdiamond-agentsquad--claude-worktrees-agent-a553a4862d2e54407/bd52cec3-2e7a-4fe9-bcd1-63f06392d4d8.jsonl",
-  "cwd": "/Users/isaiahdiamond/agentsquad/.claude/worktrees/agent-a553a4862d2e54407",
+  "transcript_path": "/Users/me/.claude/projects/-Users-me-agentsquad--claude-worktrees-agent-a553a4862d2e54407/bd52cec3-2e7a-4fe9-bcd1-63f06392d4d8.jsonl",
+  "cwd": "/Users/me/agentsquad/.claude/worktrees/agent-a553a4862d2e54407",
   "prompt_id": "e9626e2d-cf09-4704-ab3a-196bf7d607c7",
   "permission_mode": "acceptEdits",
   "effort": {
@@ -10,7 +10,7 @@
   "hook_event_name": "PreToolUse",
   "tool_name": "Read",
   "tool_input": {
-    "file_path": "/Users/isaiahdiamond/agentsquad/.claude/worktrees/agent-a553a4862d2e54407/vault/00 Start Here.md"
+    "file_path": "/Users/me/agentsquad/.claude/worktrees/agent-a553a4862d2e54407/vault/00 Start Here.md"
   },
   "tool_use_id": "toolu_01JJGm2t2pQbsgjeVZy3Pneh"
 }

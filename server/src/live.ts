@@ -18,9 +18,11 @@ type Live = {
   lastEventAt: number
   phase: "connected" | "mission" | "done"
   mission: { prompt: string; startedAt: number; endedAt: number | null } | null
+  promptEvent?: AgentEvent
   agents: Map<string, LiveAgent>
 }
 
+const MISSION_IDLE_MS = 5 * 60_000
 const IDLE_MS = 30 * 60_000
 const sessions = new Map<string, Live>()
 let lastHookAt: number | null = null
@@ -35,8 +37,10 @@ export function track(e: AgentEvent) {
     return
   }
   let s = sessions.get(e.sessionId)
+  if (!s && e.kind === "narration") return
   if (!s) {
-    s = { sessionId: e.sessionId, startedAt: e.ts, lastEventAt: e.ts, phase: "connected", mission: null, agents: new Map() }
+    const joined = e.kind !== "session_start" && e.kind !== "prompt"
+    s = { sessionId: e.sessionId, startedAt: e.ts, lastEventAt: e.ts, phase: joined ? "mission" : "connected", mission: joined ? { prompt: "", startedAt: e.ts, endedAt: null } : null, agents: new Map() }
     sessions.set(e.sessionId, s)
   }
   s.lastEventAt = e.ts
@@ -55,6 +59,7 @@ export function track(e: AgentEvent) {
   if (e.kind === "prompt" && e.agentId === "lead") {
     s.phase = "mission"
     s.mission = { prompt: e.text ?? "", startedAt: e.ts, endedAt: null }
+    s.promptEvent = e
     for (const [id, other] of s.agents) if (other.done && id !== "lead") s.agents.delete(id)
     Object.assign(a, { done: false, task: e.text, status: undefined, report: undefined, since: e.ts })
   }
@@ -68,9 +73,20 @@ export function track(e: AgentEvent) {
   }
 }
 
+function latestSession() {
+  for (const [id, s] of sessions) {
+    if (Date.now() - s.lastEventAt > (s.phase === "mission" ? MISSION_IDLE_MS : IDLE_MS)) sessions.delete(id)
+  }
+  return [...sessions.values()].sort((a, b) => b.lastEventAt - a.lastEventAt)[0]
+}
+
+export function missionPrompt() {
+  const s = latestSession()
+  return s?.phase === "mission" ? s.promptEvent : undefined
+}
+
 export function snapshot() {
-  for (const [id, s] of sessions) if (Date.now() - s.lastEventAt > IDLE_MS) sessions.delete(id)
-  const latest = [...sessions.values()].sort((a, b) => b.lastEventAt - a.lastEventAt)[0]
+  const latest = latestSession()
   return {
     connected: !!latest,
     lastHookAt,

@@ -5,7 +5,7 @@ import { WebSocketServer, WebSocket } from "ws"
 import type { AgentEvent } from "@agentsquad/shared"
 import { handleHook, type Out } from "./hook"
 import { createNarrator, narratorMode } from "./narrator"
-import { sawHook, snapshot, track } from "./live"
+import { missionPrompt, sawHook, snapshot, track } from "./live"
 import { ROOT, deploy, loadState, undeploy } from "./deploy"
 
 const PORT = Number(process.env.PORT ?? 4317)
@@ -118,7 +118,10 @@ const server = http.createServer(async (req, res) => {
 const wss = new WebSocketServer({ server, path: "/ws" })
 
 // Anything a client sends (for now, only `npm run mock`) is relayed to every other client.
+// A client that joins mid-mission gets that mission's prompt event first, so it can show the title.
 wss.on("connection", (socket) => {
+  const prompt = missionPrompt()
+  if (prompt) socket.send(JSON.stringify(prompt))
   socket.on("message", (data) => broadcast(data.toString(), socket))
 })
 

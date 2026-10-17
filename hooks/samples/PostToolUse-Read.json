@@ -1,7 +1,7 @@
 {
   "session_id": "bd52cec3-2e7a-4fe9-bcd1-63f06392d4d8",
-  "transcript_path": "/Users/isaiahdiamond/.claude/projects/-Users-isaiahdiamond-agentsquad--claude-worktrees-agent-a553a4862d2e54407/bd52cec3-2e7a-4fe9-bcd1-63f06392d4d8.jsonl",
-  "cwd": "/Users/isaiahdiamond/agentsquad/.claude/worktrees/agent-a553a4862d2e54407",
+  "transcript_path": "/Users/me/.claude/projects/-Users-me-agentsquad--claude-worktrees-agent-a553a4862d2e54407/bd52cec3-2e7a-4fe9-bcd1-63f06392d4d8.jsonl",
+  "cwd": "/Users/me/agentsquad/.claude/worktrees/agent-a553a4862d2e54407",
   "prompt_id": "e9626e2d-cf09-4704-ab3a-196bf7d607c7",
   "permission_mode": "acceptEdits",
   "effort": {
@@ -10,12 +10,12 @@
   "hook_event_name": "PostToolUse",
   "tool_name": "Read",
   "tool_input": {
-    "file_path": "/Users/isaiahdiamond/agentsquad/.claude/worktrees/agent-a553a4862d2e54407/vault/00 Start Here.md"
+    "file_path": "/Users/me/agentsquad/.claude/worktrees/agent-a553a4862d2e54407/vault/00 Start Here.md"
   },
   "tool_response": {
     "type": "text",
     "file": {
-      "filePath": "/Users/isaiahdiamond/agentsquad/.claude/worktrees/agent-a553a4862d2e54407/vault/00 Start Here.md",
+      "filePath": "/Users/me/agentsquad/.claude/worktrees/agent-a553a4862d2e54407/vault/00 Start Here.md",
       "content": "# Start Here\n\nAgentSquad: build a squad of AI coding agents like a 2K MyPlayer, deploy them into Claude Code, and watch them work in a live scene.\n\nThis vault is the source of truth. Humans edit it in Obsidian. Coding agents read it before writing code.\n\n## Read in this order\n\n1. [[How It Works]] — the full technical flow, start to finish\n2. [[Contracts]] — the shared data shapes every stream builds against\n3. [[Decisions]] — what's decided and what's still open\n4. Your stream brief in `streams/`\n5. [[Status]] — what everyone else is doing right now\n6. [[References]] — mockups of every screen and the art style\n\n## Streams\n\n| Stream | Brief | Owns |\n|---|---|---|\n| Bridge | [[Bridge]] | `/server`, `/hooks`, `/demo` |\n| Arena | [[Arena]] | `/web/src/arena`, `/web/src/report` |\n| Builder | [[Builder]] | `/web/src/builder` |\n| Art | [[Art]] | `/assets`, `/web/public/art` |\n\nPhase 0 comes first and is done by one session only. See [[Phase 0 Kickoff]].\n\n## Rules for every agent\n\n- Read your brief and [[Contracts]] before coding.\n- Only edit folders your stream owns. `/shared` is read-only after Phase 0.\n- Need a contract change? Write it in [[Decisions]] under \"Requests\" and stop. A human approves it.\n- Build against mock data (`npm run mock`) until integration checkpoint 1.\n- Simple flat code. No abstractions for things that happen once. No comments that restate the code.\n- When you finish a task, run the app, look at it, then tick the box in your brief and add a line to [[Status]].\n",
       "numLines": 35,
       "startLine": 1,

@@ -173,6 +173,8 @@ type StateResponse = {
 }
 ```
 
+Staleness: a live session is dropped (→ `connected: false`) after SessionEnd, after 5 min with no events while `phase` is `"mission"`, or after 30 min otherwise (Claude idle at the prompt fires no hooks). If the server restarts mid-session, the first hook it sees opens the session as `phase: "mission"` with `mission.prompt: ""` (joined mid-mission; prompt unknown). A `/ws` client that connects while `phase` is `"mission"` first receives that mission's `prompt` event (original `id` and `ts`), so a reloaded Arena still has the title.
+
 Arena states: `squad && !connected` = deployed, waiting for Claude (show "Run `claude` in this project. Restart it if it was already running"); `connected && phase === "connected"` = connected; `"mission"` = mission running; `"done"` = mission complete.
 
 Port 4317. Web dev server proxies `/api` and `/ws` to it.

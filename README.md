@@ -54,7 +54,7 @@ Full steps and the demo prompt: `demo/PROMPT.md`. Short version:
 
 To remove everything AgentSquad wrote into the project, run `curl -X POST localhost:4317/undeploy -H 'content-type: application/json' -d '{}'`.
 
-Every session is recorded in `demo/runs/`, and the match report's **Replay** button plays it back. For debugging, start the server with `AGENTSQUAD_RAW=/tmp/raw.jsonl` to save every raw hook, then `npm run replay-hooks -w demo -- /tmp/raw.jsonl` to feed it back with the original timing.
+Every session is recorded in `demo/runs/`, and the match report's **Replay** button plays it back. For debugging, start the server with `AGENTSQUAD_RAW=/tmp/raw.jsonl` to save every raw hook, then `npm run replay-hooks -w demo -- /tmp/raw.jsonl` to feed it back with the original timing. The raw file holds everything Claude Code sends to hooks: your prompts, file contents, commands, command output and absolute paths. Keep it local, and scrub it before committing it as a sample.
 
 ## Art
 
