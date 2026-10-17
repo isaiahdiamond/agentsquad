@@ -77,7 +77,7 @@ const server = http.createServer(async (req, res) => {
     if (route === "POST /hook") {
       const raw = await readJson(req)
       sawHook()
-      if (process.env.AGENTSQUAD_RAW) fs.appendFile(process.env.AGENTSQUAD_RAW, JSON.stringify(raw) + "\n", () => {})
+      if (process.env.AGENTSQUAD_RAW) fs.appendFile(process.env.AGENTSQUAD_RAW, JSON.stringify({ tapAt: Date.now(), ...(raw as object) }) + "\n", () => {})
       handleHook(raw, emit, narrator.reports)
       return send(res, 200, { ok: true })
     }

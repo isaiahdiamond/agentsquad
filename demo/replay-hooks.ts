@@ -1,6 +1,7 @@
 // POSTs raw Claude Code hook payloads to /hook so the real normalizer and narrator run end to end.
 // npm run replay-hooks                 recorded samples in hooks/samples/*.jsonl, paced like a real session
 // npm run replay-hooks -- --scripted   the mock's dark mode session, converted to raw hooks
+// npm run replay-hooks -- <file.jsonl>  one raw hook file (e.g. from AGENTSQUAD_RAW), using its tapAt times when present
 // --speed 2 plays twice as fast
 import fs from "node:fs"
 import path from "node:path"
@@ -63,9 +64,11 @@ function scripted(sessionId: string): [number, any][] {
 
 function recorded(file: string, sessionId: string): [number, any][] {
   let at = 0
+  let first: number | undefined
   return fs.readFileSync(file, "utf8").split("\n").filter(Boolean).map((line) => {
-    const raw = JSON.parse(line)
-    at += GAP[raw.hook_event_name] ?? 1000
+    const { tapAt, ...raw } = JSON.parse(line)
+    if (typeof tapAt === "number") at = tapAt - (first ??= tapAt)
+    else at += GAP[raw.hook_event_name] ?? 1000
     return [at, { ...raw, session_id: sessionId }]
   })
 }
@@ -80,7 +83,10 @@ async function play(name: string, steps: [number, any][]) {
 }
 
 const stamp = Date.now().toString(36)
-if (args.includes("--scripted")) {
+const file = args.find((a) => a.endsWith(".jsonl"))
+if (file) {
+  await play(file, recorded(path.resolve(file), `replay-${path.basename(file, ".jsonl")}-${stamp}`))
+} else if (args.includes("--scripted")) {
   await play("scripted dark mode session", scripted(`replay-scripted-${stamp}`))
 } else {
   for (const file of fs.readdirSync(SAMPLES).filter((f) => f.endsWith(".jsonl")).sort()) {

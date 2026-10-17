@@ -32,7 +32,7 @@ type Agent = {
   status?: string
   emittedAt: number
   dirtyAt?: number
-  urgent?: "error" | "done"
+  urgent?: "error"
   sig?: string
   closed: boolean
   seq: number
@@ -67,16 +67,6 @@ export function template(events: AgentEvent[]) {
   }
 }
 
-function doneTemplate(acts: Act[]) {
-  const edited = [...new Set(acts.filter((a) => EDIT_TOOLS.has(a.tool) && a.target).map((a) => name(a.target!)))]
-  const read = new Set(acts.filter((a) => a.tool === "Read" && a.target).map((a) => a.target))
-  if (edited.length === 1) return `Finished editing ${edited[0]}`
-  if (edited.length) return `Finished editing ${count(edited.length, "file")}`
-  if (read.size) return `Finished reading ${read.size === 1 ? "a file" : count(read.size, "file")}`
-  if (acts.some((a) => a.tool === "Agent")) return "Finished handing out the work"
-  return "Finished its task"
-}
-
 function templateFromActs(acts: Act[]) {
   const last = acts[acts.length - 1]
   const recent = last.result === "failed" ? acts : acts.filter((a) => a.result !== "failed")
@@ -108,7 +98,7 @@ const STATUS_PROMPT = [
   "Rules: present progressive (start with a verb ending in -ing), at most 7 words, no file paths or file extensions unless the file is the whole point, no quotes, no emojis, no ending punctuation.",
   "Good: Working on the header toggle. Writing tests for dark mode. Fixing a failing test. Reviewing the theme changes. Looking for where the header lives.",
   "If an agent's current status still describes its activity well, use exactly SAME for it.",
-  "An agent marked JUST FAILED gets a line about the failure, like Hit a failing test. An agent marked JUST FINISHED gets a line starting with Finished.",
+  "An agent marked JUST FAILED gets a line about the failure, like Hit a failing test.",
   "Reply with a JSON object mapping each agent id to its line.",
 ].join(" ")
 
@@ -245,7 +235,7 @@ export function createNarrator(emit: (e: Out) => void) {
   }
 
   const brief = (a: Agent, id: string) => [
-    `Agent ${id}${a.urgent === "error" ? " (JUST FAILED)" : a.urgent === "done" ? " (JUST FINISHED)" : ""}`,
+    `Agent ${id}${a.urgent === "error" ? " (JUST FAILED)" : ""}`,
     `Role: ${a.role}`,
     a.task ? `Task: ${a.task}` : "",
     `Current status: ${a.status ?? "(none yet)"}`,
@@ -266,10 +256,10 @@ export function createNarrator(emit: (e: Out) => void) {
     for (const b of batch) b.a.sig = b.sig
     const lines = await geminiJson(STATUS_PROMPT, batch.map((b) => b.brief).join("\n\n"), 24 * batch.length + 16, fast ? TIMEOUT_MS : SLOW_TIMEOUT_MS)
     for (const { a, seq, kind, id } of batch) {
-      if (a.seq !== seq || (a.closed && kind !== "done")) continue
+      if (a.seq !== seq || a.closed) continue
       const raw = lines?.[id]
       if (lines && !kind && a.status && (raw === undefined || isSame(raw))) continue
-      const fallback = kind === "done" ? doneTemplate(a.acts) : a.acts.length ? templateFromActs(a.acts) : "Getting started"
+      const fallback = a.acts.length ? templateFromActs(a.acts) : "Getting started"
       say(a, clean(raw, 7) ?? fallback)
     }
   }
@@ -305,7 +295,7 @@ export function createNarrator(emit: (e: Out) => void) {
   }
   setInterval(() => void tick(), TICK_MS).unref()
 
-  const flag = (a: Agent, kind: "error" | "done") => {
+  const flag = (a: Agent, kind: "error") => {
     a.urgent = kind
     a.seq++
     void runUrgent()
@@ -342,7 +332,9 @@ export function createNarrator(emit: (e: Out) => void) {
     }
     if (e.kind === "agent_done") {
       a.closed = true
-      flag(a, "done")
+      a.urgent = undefined
+      a.dirtyAt = undefined
+      a.seq++
       return
     }
     if (a.closed && e.kind !== "tool_start") return
