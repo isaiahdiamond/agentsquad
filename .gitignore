@@ -5,3 +5,5 @@ dist/
 .claude/worktrees/
 tools/.venv/
 assets/raw/
+.env
+.env.local
