@@ -12,6 +12,8 @@ import { H, Stage, TALL, W } from "./Sprite"
 import { buildingFor, emptyArena, finishedAt, reduce, saveReport, type Received, type Toast } from "./store"
 import { positions } from "./world"
 
+const BRIEF_W = 356
+
 export default function ArenaPage() {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
@@ -175,33 +177,44 @@ export default function ArenaPage() {
   }
   // Stand-up moment: on a prompt the camera eases to the lead (600ms) while the squad portals in around it; once the
   // delegations stop for a moment, "Lead assembled the team", and the camera eases back out as they walk off.
+  // The lead sits left of center so the half circle and its bubbles stay clear of the briefing card on the right.
   const [standing, setStanding] = useState(false)
   const mission = delegated(arena)
+  const followRef = useRef(follow)
+  followRef.current = follow
+  const shownRef = useRef(shown)
+  shownRef.current = shown
   useEffect(() => {
     if (!arena.promptAt || arena.promptAt < openedAt - 2000 || !shown) return
     setStanding(true)
     const p = locateRef.current("lead")
-    if (follow && p) {
+    if (followRef.current && p) {
       lastMove.current = Date.now()
-      cam.moveTo(p, 1.3, 600)
+      cam.moveTo({ x: p.x + BRIEF_W / 2 / (cam.cover * 1.3), y: p.y }, 1.3, 600)
     }
   }, [arena.promptAt])
   useEffect(() => {
     if (!standing) return
     const n = mission.length
-    const due = n ? lastSpawn + 300 * n + 1500 : arena.promptAt + 12000
+    const prompt = arena.promptAt
+    const due = n ? lastSpawn + 300 * n + 1500 : prompt + 12000
+    let out: ReturnType<typeof setTimeout>
     const t = setTimeout(() => {
-      if (n) setLocal((l) => [...l.slice(-4), { id: `assembled-${arena.promptAt}`, agentId: "lead", agentType: "lead", text: "Lead assembled the team", tone: "info", named: false, at: Date.now() }])
-      setTimeout(() => {
+      if (n) setLocal((l) => [...l.slice(-4), { id: `assembled-${prompt}`, agentId: "lead", agentType: "lead", text: "Lead assembled the team", tone: "info", named: false, at: Date.now() }])
+      out = setTimeout(() => {
         setStanding(false)
-        if (follow && shown) {
+        const s = shownRef.current
+        if (followRef.current && s) {
           lastMove.current = Date.now()
-          cam.moveTo(homeOf(shown), 1)
+          cam.moveTo(homeOf(s), 1)
         }
       }, n ? 1700 : 0)
     }, Math.max(0, due - Date.now()))
-    return () => clearTimeout(t)
-  }, [standing, lastSpawn, mission.length])
+    return () => {
+      clearTimeout(t)
+      clearTimeout(out)
+    }
+  }, [standing, lastSpawn, mission.length, arena.promptAt])
 
   useEffect(() => {
     if (!follow || !shown || !arena.focusId || finished || standing) return
@@ -223,6 +236,7 @@ export default function ArenaPage() {
   const onChrome = (t: EventTarget) => !!(t as HTMLElement).closest?.("[data-chrome], .pointer-events-auto")
   const pointer = {
     onPointerDown: (e: React.PointerEvent) => {
+      dragged.current = false
       if (e.button !== 0 || onChrome(e.target)) return
       drag.current = { x: e.clientX, y: e.clientY, moved: false }
     },
@@ -355,7 +369,7 @@ export default function ArenaPage() {
         </div>
         <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2">
           <AnimatePresence>{waiter && <NeedsYou key={waiter.id} agent={waiter} arena={arena} squad={squad} />}</AnimatePresence>
-          <Toaster items={[...arena.toasts, ...local]} squad={squad} since={openedAt} />
+          <Toaster items={[...arena.toasts.filter((t) => !(waiter && t.tone === "wait")), ...local]} arena={arena} squad={squad} since={openedAt} />
         </div>
         <div className="pointer-events-auto absolute bottom-4 right-4 flex items-center gap-2">
           <Pill on={logOpen} onClick={() => setLogOpen((o) => !o)}>

@@ -69,9 +69,29 @@ export function reduce(prev: Arena, e: Received): Arena {
     if (!finishedAt(prev) && e.at - prev.lastAt < 60000) return prev
     prev = emptyArena()
   }
+  const seen = [...prev.seen.slice(-299), e.id]
+  // Claude Code delivers background-agent completions as a prompt. That is not a new mission: nothing resets, but the
+  // lead picks the turn back up (it keeps working until the next Stop).
+  if (e.kind === "prompt" && e.text?.trimStart().startsWith("<task-notification>")) {
+    const lead = prev.agents.lead
+    if (!lead?.doneAt) return { ...prev, seen, lastAt: e.at }
+    return { ...prev, seen, lastAt: e.at, endAt: 0, agents: { ...prev.agents, lead: { ...lead, doneAt: 0, doneText: undefined, state: "thinking", lastAt: e.at } } }
+  }
+  // A late narration for an agent that is done or was never seen would bring back a ghost that never finishes.
+  // REPORT lines for finished agents are still recorded.
+  const known = prev.agents[e.agentId]
+  if (e.kind === "narration" && (!known || (known.doneAt && !e.text?.startsWith("REPORT:")))) return { ...prev, seen }
   if (e.kind === "session_start") prev = { ...emptyArena(), sessionId: e.sessionId, startAt: e.at }
-  if (e.kind === "prompt" && (prev.endAt || prev.agents.lead?.doneAt)) prev = { ...emptyArena(), sessionId: e.sessionId, startAt: e.at }
-  const s: Arena = { ...prev, agents: { ...prev.agents }, lastAt: e.at, seen: [...prev.seen.slice(-299), e.id] }
+  // A new prompt starts a fresh mission once the last one is over; specialists still working are kept, never wiped.
+  const working = Object.values(prev.agents).some((g) => g.type !== "lead" && !g.doneAt)
+  if (e.kind === "prompt" && (prev.endAt || prev.agents.lead?.doneAt)) {
+    if (!working) prev = { ...emptyArena(), sessionId: e.sessionId, startAt: e.at }
+    else {
+      const lead = prev.agents.lead
+      prev = { ...prev, endAt: 0, agents: lead ? { ...prev.agents, lead: { ...lead, doneAt: 0, doneText: undefined, state: "thinking" } } : prev.agents }
+    }
+  }
+  const s: Arena = { ...prev, agents: { ...prev.agents }, lastAt: e.at, seen }
   if (!s.startAt) s.startAt = e.at
   if (!s.sessionId) s.sessionId = e.sessionId
 

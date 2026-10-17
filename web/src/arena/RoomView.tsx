@@ -3,7 +3,7 @@ import { AnimatePresence, animate, motion, useIsPresent, useMotionValue } from "
 import type { Scene, Spot, Squad } from "@agentsquad/shared"
 import Backdrop from "./Backdrop"
 import Bubbles from "./Bubbles"
-import { PortalFx, fall, usePortals, type Portal } from "./Portal"
+import { PortalFx, fall, missionKey, usePortals, type Portal } from "./Portal"
 import { sceneScale } from "./MapView"
 import { Actor, H, TALL, W, useFacing, useManifest, useNatural, type Size } from "./Sprite"
 import { who, type Agent, type Arena } from "./store"
@@ -143,6 +143,13 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
   // Agents already at work when the view opens start seated, with their desks already there.
   const [sat, setSat] = useState<string[]>(() => [...(lead && busy(lead) ? ["lead"] : []), ...members.filter((a) => !a.doneAt && a.firstAt <= opened.current - 300).map((a) => a.id)])
   const onSit = useCallback((id: string) => setSat((ids) => (ids.includes(id) ? ids : [...ids, id])), [])
+  // A new mission reuses agent ids, so nobody counts as seated until they sit again.
+  const mission = useRef(arena.promptAt)
+  useEffect(() => {
+    if (arena.promptAt === mission.current) return
+    mission.current = arena.promptAt
+    setSat([])
+  }, [arena.promptAt])
 
   // Each working agent keeps the first desk that was free when it arrived; finished agents free theirs.
   const map = taken.current
@@ -207,7 +214,7 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
       {members.map((a) => {
         if (!main && a.doneAt && a.doneAt < opened.current) return null
         const t = targetFor(a)
-        return <Worker key={a.id} id={a.id} type={a.type} agent={a} label={labelOf(a, arena, squad)} squad={squad} s={s} from={fresh(a) ? scene.bench : t.to} target={t} portal={portals.get(a.id)} onSit={onSit} />
+        return <Worker key={missionKey(a)} id={a.id} type={a.type} agent={a} label={labelOf(a, arena, squad)} squad={squad} s={s} from={fresh(a) ? scene.bench : t.to} target={t} portal={portals.get(a.id)} onSit={onSit} />
       })}
       <AnimatePresence initial={false}>
         {leadAtDesk && <Desk key="lead" spot={scene.lead} ds={ds} src={src} size={size} k={s} quiet={quiet()} />}
@@ -215,7 +222,7 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
       </AnimatePresence>
       {members.map((a) => {
         const p = portals.get(a.id)
-        return p && <PortalFx key={`portal-${a.id}`} p={p} color={who(a.type, squad).color} s={s} from={scene.lead} />
+        return p && <PortalFx key={`portal-${missionKey(a)}`} p={p} color={who(a.type, squad).color} s={s} from={scene.lead} />
       })}
       <Bubbles agents={main && lead ? [lead, ...members] : members} scope={scene.id} squad={squad} portals={portals} />
       {!working.length && !main && (

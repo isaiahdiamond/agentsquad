@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react"
 import { motion, motionValue, useTransform, type MotionValue } from "framer-motion"
 import type { AgentState } from "@agentsquad/shared"
-import { spriteSet, useSprites, type SpriteManifest, type SpriteView } from "../ui/sprites"
+import { useLeadSprite } from "../ui/lead"
+import { spriteSet, useSprites, type SpriteManifest, type SpriteSet, type SpriteView } from "../ui/sprites"
 import type { Agent, Who } from "./store"
 import { Scope, positions, verbOf } from "./world"
 
@@ -171,8 +172,17 @@ export function useManifest() {
 }
 
 // Unknown agent types (e.g. general-purpose) borrow the default lead sprite in greyscale, so they stay the right size.
+// The lead is drawn from its composited look (body, outfit, skin, hair, or a character like the robot); it has no back view,
+// so walking away shows the front. The old per-look sprites are only the fallback when the layered art fails.
 function useSpriteSet(who: Who) {
   const { m, ready } = useManifest()
+  const look = who.lead ? who.look ?? null : null
+  const front = useLeadSprite(look, "front"), hand = useLeadSprite(look, "hand"), sit = useLeadSprite(look, "sit")
+  if (who.lead && front.sprite) {
+    const set: SpriteSet = { front: front.sprite.url, back: front.sprite.url, hand: (hand.sprite ?? front.sprite).url, sit: sit.sprite ? [sit.sprite.url] : undefined }
+    return { set, ready: true, generic: false }
+  }
+  if (who.lead && !front.failed) return { set: null, ready: false, generic: false }
   const own = !m ? null : who.lead ? spriteSet(m, "lead", who.look ?? null) ?? spriteSet(m, "lead") : spriteSet(m, who.type)
   const generic = !!m && !own && !who.lead
   return { set: own ?? (generic ? spriteSet(m, "lead") : null), ready, generic }

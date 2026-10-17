@@ -10,6 +10,7 @@ import { LAND_AT, type Portal } from "./Portal"
 const LIFE = 4000
 const GAP = 6
 const PLATE = 26
+const PLATE_W = 150
 
 type Rect = { l: number; r: number; t: number; b: number }
 
@@ -30,8 +31,18 @@ export default function Bubbles({ agents, scope, squad, portals }: { agents: Age
   useEffect(() => {
     if (!live.length) return
     let raf = 0
+    const sizes = new Map<string, { w: number; h: number }>()
+    // Where a nameplate sits, in native px: the plate's width is estimated, its height is fixed.
+    const plateOf = (id: string, k: number): (Rect & { id: string }) | null => {
+      const p = positions.get(`${scope}:${id}`)
+      if (!p || (p.o?.get() ?? 1) <= 0.3) return null
+      const x = p.x.get() * W
+      const b = p.y.get() * H + (p.dy?.get() ?? 0) - TALL * p.s - 3 * p.s
+      return { id, l: x - PLATE_W * k / 2, r: x + PLATE_W * k / 2, t: b - PLATE * k, b }
+    }
     const place = () => {
       const k = ui.get()
+      const plates = agents.map((a) => plateOf(a.id, k)).filter((r) => !!r)
       const placed: Rect[] = []
       for (const a of live) {
         const el = els.current.get(a.id)
@@ -40,12 +51,19 @@ export default function Bubbles({ agents, scope, squad, portals }: { agents: Age
         const visible = !!p && (p.o?.get() ?? 1) > 0.3
         el.style.visibility = visible ? "visible" : "hidden"
         if (!p || !visible) continue
-        const w = el.offsetWidth * k, h = el.offsetHeight * k
+        const sk = `${a.id}:${a.sayAt}`
+        let size = sizes.get(sk)
+        if (!size) {
+          size = { w: el.offsetWidth, h: el.offsetHeight }
+          sizes.set(sk, size)
+        }
+        const w = size.w * k, h = size.h * k
         const x = p.x.get() * W
         let b = p.y.get() * H + (p.dy?.get() ?? 0) - TALL * p.s - 3 * p.s - PLATE * k
         let rect = { l: x - w / 2, r: x + w / 2, t: b - h, b }
+        const others = [...placed, ...plates.filter((q) => q.id !== a.id)]
         for (let i = 0; i < 24; i++) {
-          const hit = placed.find((q) => rect.l < q.r + GAP * k && rect.r > q.l - GAP * k && rect.t < q.b + GAP * k && rect.b > q.t - GAP * k)
+          const hit = others.find((q) => rect.l < q.r + GAP * k && rect.r > q.l - GAP * k && rect.t < q.b + GAP * k && rect.b > q.t - GAP * k)
           if (!hit) break
           b = hit.t - GAP * k
           rect = { ...rect, t: b - h, b }
@@ -57,7 +75,7 @@ export default function Bubbles({ agents, scope, squad, portals }: { agents: Age
     }
     place()
     return () => cancelAnimationFrame(raf)
-  }, [key, scope])
+  }, [key, scope, agents.map((a) => a.id).join()])
 
   return (
     <div className="pointer-events-none absolute inset-0 z-[6000]">

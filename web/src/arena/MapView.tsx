@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { animate, motion, useAnimationControls, useMotionValue } from "framer-motion"
 import type { Building, Scene, Spot, Squad } from "@agentsquad/shared"
 import Backdrop from "./Backdrop"
 import Bubbles from "./Bubbles"
-import { PortalFx, fall, usePortals, type Portal } from "./Portal"
+import { PortalFx, fall, missionKey, usePortals, type Portal } from "./Portal"
 import { Actor, FlameBadge, H, Portrait, W, useFacing } from "./Sprite"
 import { buildingFor, who, type Agent, type Arena } from "./store"
 import { Scope, labelOf } from "./world"
@@ -102,7 +102,7 @@ function Walker({ agent, label, squad, path, park, s, portal, onArrive }: {
         o.set(1)
         if (alive) await walk([portal.spot, ...path.slice(1)])
         if (alive) await fade(0)
-        if (alive) onArrive(agent.id)
+        if (alive) onArrive(missionKey(agent))
         return
       }
       if (!done) {
@@ -110,7 +110,7 @@ function Walker({ agent, label, squad, path, park, s, portal, onArrive }: {
         await fade(1)
         if (alive) await walk(path)
         if (alive) await fade(0)
-        if (alive) onArrive(agent.id)
+        if (alive) onArrive(missionKey(agent))
         return
       }
       if (o.get() > 0.5) {
@@ -133,6 +133,36 @@ function Walker({ agent, label, squad, path, park, s, portal, onArrive }: {
   return <Actor who={who(agent.type, squad)} agent={agent} label={label} seed={agent.type} s={s} x={x} y={y} o={o} dy={dy} squash={squash} face={face} />
 }
 
+// Keeps an in-world label inside the screen's safe area (clear of the chrome along the top and bottom edges) by nudging it,
+// in screen px, which inside a --ui scaled box are the label's own px.
+const SAFE = { top: 64, bottom: 64, side: 16 }
+
+function useSafeArea() {
+  const el = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    let raf = 0
+    let dx = 0, dy = 0
+    const tick = () => {
+      const n = el.current
+      if (n) {
+        const r = n.getBoundingClientRect()
+        const l = r.left - dx, t = r.top - dy
+        const nx = Math.max(SAFE.side - l, Math.min(0, innerWidth - SAFE.side - (l + r.width)))
+        const ny = Math.max(SAFE.top - t, Math.min(0, innerHeight - SAFE.bottom - (t + r.height)))
+        if (nx !== dx || ny !== dy) {
+          dx = nx
+          dy = ny
+          n.style.translate = `${Math.round(dx)}px ${Math.round(dy)}px`
+        }
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    tick()
+    return () => cancelAnimationFrame(raf)
+  }, [])
+  return el
+}
+
 // A small glass sign above each door: the building's name, then who's inside. Yellow when someone inside needs you, a flame on error.
 function Sign({ b, inside, squad }: { b: Building; inside: Agent[]; squad: Squad | null }) {
   const controls = useAnimationControls()
@@ -142,9 +172,10 @@ function Sign({ b, inside, squad }: { b: Building; inside: Agent[]; squad: Squad
   }, [pulse])
   const waiting = inside.some((a) => a.state === "waiting")
   const error = inside.some((a) => a.state === "error")
+  const safe = useSafeArea()
   return (
     <div className="pointer-events-none absolute z-[4900]" style={{ left: Math.round(b.door.x * W), top: Math.round(b.door.y * H - 150), transform: "translate(-50%, -100%) scale(var(--ui))", transformOrigin: "50% 100%" }}>
-      <motion.div
+      <motion.div ref={safe}
         animate={controls}
         className={`flex flex-col items-center gap-1 rounded-[12px] border px-2.5 py-1.5 backdrop-blur-[12px] ${waiting ? "border-amber-300 bg-[rgba(60,45,5,0.75)]" : "border-white/[0.08] bg-[rgba(11,13,18,0.6)]"}`}
       >
@@ -196,16 +227,16 @@ export default function MapView({ scene, arena, squad, onOpen }: { scene: Scene;
         </button>
       ))}
       {buildings.map((b, i) => (
-        <Sign key={b.id} b={b} squad={squad} inside={agents.filter((a) => !a.doneAt && arrived.includes(a.id) && buildingFor(scene, a.type) === i)} />
+        <Sign key={b.id} b={b} squad={squad} inside={agents.filter((a) => !a.doneAt && arrived.includes(missionKey(a)) && buildingFor(scene, a.type) === i)} />
       ))}
       <StaticActor spot={scene.lead} who={who("lead", squad)} agent={lead} label="Lead" seed="lead" s={s} />
       {agents.map((a) => {
         const k = done.indexOf(a)
-        return <Walker key={a.id} agent={a} label={labelOf(a, arena, squad)} squad={squad} path={pathFor(a)} park={parkSpot(scene, Math.max(0, k))} s={s} portal={portals.get(a.id)} onArrive={onArrive} />
+        return <Walker key={missionKey(a)} agent={a} label={labelOf(a, arena, squad)} squad={squad} path={pathFor(a)} park={parkSpot(scene, Math.max(0, k))} s={s} portal={portals.get(a.id)} onArrive={onArrive} />
       })}
       {agents.map((a) => {
         const p = portals.get(a.id)
-        return p && <PortalFx key={`portal-${a.id}`} p={p} color={who(a.type, squad).color} s={s} from={scene.lead} />
+        return p && <PortalFx key={`portal-${missionKey(a)}`} p={p} color={who(a.type, squad).color} s={s} from={scene.lead} />
       })}
       <Bubbles agents={Object.values(arena.agents)} scope={scene.id} squad={squad} portals={portals} />
     </div>

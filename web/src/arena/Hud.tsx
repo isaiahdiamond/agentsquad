@@ -143,7 +143,7 @@ export function TeamChips({ arena, squad, onPick }: { arena: Arena; squad: Squad
 const TONE: Record<Toast["tone"], string> = { info: "bg-accent", wait: "bg-amber-400", error: "bg-red-500", done: "bg-emerald-400" }
 
 // One narration line at a time, 3.5s each. A backlog never grows past two waiting lines: older ones are dropped.
-export function Toaster({ items, squad, since }: { items: Toast[]; squad: Squad | null; since: number }) {
+export function Toaster({ items, arena, squad, since }: { items: Toast[]; arena: Arena; squad: Squad | null; since: number }) {
   const [cur, setCur] = useState<Toast | null>(null)
   const seen = useRef(new Set<string>())
   useEffect(() => {
@@ -160,7 +160,8 @@ export function Toaster({ items, squad, since }: { items: Toast[]; squad: Squad 
     seen.current.add(next.id)
     setCur(next)
   }, [cur, items])
-  const text = cur ? (cur.named ? `${who(cur.agentType, squad).name} ${cur.text}` : cur.text) : ""
+  const named = cur && arena.agents[cur.agentId]
+  const text = cur ? (cur.named ? `${named ? nameOf(named, arena, squad) : who(cur.agentType, squad).name} ${cur.text}` : cur.text) : ""
   return (
     <AnimatePresence>
       {cur && (
