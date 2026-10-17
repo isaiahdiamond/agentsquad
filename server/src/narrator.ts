@@ -70,6 +70,15 @@ async function modelLine(agentType: string, fallback: string, events: AgentEvent
 export function createNarrator(emit: (e: Out) => void) {
   const batches = new Map<string, Batch>()
   const logs = new Map<string, AgentEvent[]>()
+  const closed = new Set<string>()
+
+  const drop = (prefix: string) => {
+    for (const [key, batch] of batches) {
+      if (!key.startsWith(prefix)) continue
+      clearTimeout(batch.timer)
+      batches.delete(key)
+    }
+  }
 
   const flush = (key: string) => {
     const batch = batches.get(key)
@@ -78,17 +87,32 @@ export function createNarrator(emit: (e: Out) => void) {
     batches.delete(key)
     const { sessionId, agentId, agentType } = batch.events[0]
     const line = template(batch.events)
-    modelLine(agentType, line, batch.events).then((text) => emit({ sessionId, agentId, agentType, kind: "narration", text }))
+    modelLine(agentType, line, batch.events).then((text) => {
+      if (!closed.has(key)) emit({ sessionId, agentId, agentType, kind: "narration", text })
+    })
   }
 
   const feed = (e: AgentEvent) => {
     if (e.kind === "narration") return
+    const key = `${e.sessionId}|${e.agentId}`
+    if (e.kind === "session_end") {
+      logs.delete(e.sessionId)
+      drop(e.sessionId + "|")
+      for (const k of closed) if (k.startsWith(e.sessionId + "|")) closed.delete(k)
+      return
+    }
+    if (e.kind === "agent_done") {
+      clearTimeout(batches.get(key)?.timer)
+      batches.delete(key)
+      closed.add(key)
+    } else {
+      closed.delete(key)
+    }
     const log = logs.get(e.sessionId) ?? []
     log.push(e)
     logs.set(e.sessionId, log)
     const narrate = (e.kind === "tool_start" && e.tool) || (e.kind === "tool_end" && e.state === "error")
     if (!narrate) return
-    const key = `${e.sessionId}|${e.agentId}`
     let batch = batches.get(key)
     if (!batch) {
       batch = { events: [], timer: setTimeout(() => flush(key), BATCH_MS) }
@@ -99,11 +123,7 @@ export function createNarrator(emit: (e: Out) => void) {
   }
 
   const reports = (sessionId: string): Out[] => {
-    for (const [key, batch] of batches) {
-      if (!key.startsWith(sessionId + "|")) continue
-      clearTimeout(batch.timer)
-      batches.delete(key)
-    }
+    drop(sessionId + "|")
     const log = logs.get(sessionId) ?? []
     logs.delete(sessionId)
     const agents = new Map<string, AgentEvent[]>()

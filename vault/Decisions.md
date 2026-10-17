@@ -32,6 +32,7 @@ These fill gaps in [[Contracts]] without changing any type.
 - **Mock feed:** `npm run mock` connects to `/ws` as a client and the server relays its messages to every other client. Dev only.
 - **Map paths:** `paths[i]` is the walk route from `lead` to `buildings[i].door`, in the same order as `buildings`.
 - **Scene for the Arena:** `GET /state` scene if a squad was deployed, otherwise `uf-campus`.
+- **Turns:** REPORT narrations arrive after each turn's Stop; session_end only on SessionEnd.
 - **Missing art:** every image the UI loads has a code-drawn fallback (colored box plus label) so the app runs before art lands. No agent generates image files. Art requests go to the Art stream (a human) through `vault/Art Requests.md`.
 
 ## Open (owner decides by the hour shown)
@@ -59,3 +60,4 @@ Add one line per decision made: date, hour, what, who.
 - 2026-10-17: Applied Vault Update 01 (pixel art style, campus map with buildings, new roster, new Scene contract). Architect.
 - 2026-10-17: Event conventions above, settling the Phase 0 ambiguities. Architect.
 - 2026-10-17: Hooks attribute subagent tool calls via `agent_id`/`agent_type`; delegation tool is `Agent`; failed tools fire `PostToolUseFailure` (not PostToolUse), so deploy installs that hook plus `SubagentStart` and `SessionEnd`. Notification unverified in headless mode. Bridge.
+- 2026-10-17: Stop fires every turn, so REPORTs are per turn and session_end comes only from SessionEnd. Deploy writes hooks to `.claude/settings.local.json`. Server binds 127.0.0.1 and requires JSON content-type on /deploy and /undeploy. Bridge.

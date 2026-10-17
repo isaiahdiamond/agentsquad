@@ -10,7 +10,7 @@ type Session = {
   rawIds: Map<string, string>
   counts: Map<string, number>
   spawnText: Map<string, string[]>
-  ended: boolean
+  turnDone: boolean
 }
 
 const STATE: Record<string, AgentState> = {
@@ -59,7 +59,7 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
   const sessionId: string = raw.session_id
   let s = sessions.get(sessionId)
   if (!s) {
-    s = { cwd: raw.cwd ?? process.cwd(), agents: new Map(), rawIds: new Map(), counts: new Map(), spawnText: new Map(), ended: false }
+    s = { cwd: raw.cwd ?? process.cwd(), agents: new Map(), rawIds: new Map(), counts: new Map(), spawnText: new Map(), turnDone: false }
     sessions.set(sessionId, s)
   }
   const session = s
@@ -78,7 +78,7 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
   const think = (agent: Agent) => {
     clearTimeout(agent.timer)
     agent.timer = setTimeout(() => {
-      if (session.ended) return
+      if (session.turnDone) return
       if (agent.state === "waiting" || agent.state === "error" || agent.state === "done") return
       send(agent, { kind: "tool_start", state: "thinking" })
     }, THINK_MS)
@@ -103,15 +103,13 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
     return known ?? spawn(raw.agent_id, raw.agent_type ?? "subagent")
   }
 
-  const endSession = () => {
-    if (session.ended) return
-    const l = lead()
-    clearTimeout(l.timer)
-    if (l.state !== "done") send(l, { kind: "agent_done", state: "done" })
-    for (const r of reports(sessionId)) emit(r)
-    send(l, { kind: "session_end", state: "idle" })
-    session.ended = true
+  const endTurn = () => {
+    if (session.turnDone) return
+    session.turnDone = true
     for (const a of session.agents.values()) clearTimeout(a.timer)
+    const l = lead()
+    send(l, { kind: "agent_done", state: "done" })
+    for (const r of reports(sessionId)) emit(r)
   }
 
   const tool: string | undefined = raw.tool_name
@@ -119,15 +117,14 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
 
   switch (raw.hook_event_name) {
     case "SessionStart": {
-      session.ended = false
       send(lead(), { kind: "session_start", state: "idle" })
       break
     }
     case "UserPromptSubmit": {
-      session.ended = false
+      session.turnDone = false
       const l = lead()
       send(l, { kind: "prompt", text: typeof raw.prompt === "string" ? cut(raw.prompt, 300) : undefined })
-      think(l)
+      send(l, { kind: "tool_start", state: "thinking" })
       break
     }
     case "PreToolUse": {
@@ -150,7 +147,9 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
       think(agent)
       if (DELEGATE.has(tool)) break
       const bad = raw.hook_event_name === "PostToolUseFailure" ? raw.is_interrupt !== true : failed(raw.tool_response)
-      send(agent, { kind: "tool_end", tool, target, ...(bad ? { state: "error" as const, text: firstLine(raw.error) } : {}) })
+      if (bad) send(agent, { kind: "tool_end", tool, target, state: "error", text: firstLine(raw.error) })
+      else if (agent.state === "waiting") send(agent, { kind: "tool_end", tool, target, state: "thinking" })
+      else send(agent, { kind: "tool_end", tool, target })
       break
     }
     case "SubagentStart": {
@@ -166,15 +165,20 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
       break
     }
     case "Notification": {
-      if (session.ended) break
+      if (session.turnDone) break
       const agent = actor()
       clearTimeout(agent.timer)
       send(agent, { kind: "tool_start", state: "waiting", text: firstLine(raw.message) })
       break
     }
-    case "Stop":
+    case "Stop": {
+      endTurn()
+      break
+    }
     case "SessionEnd": {
-      endSession()
+      endTurn()
+      send(lead(), { kind: "session_end", state: "idle" })
+      sessions.delete(sessionId)
       break
     }
   }

@@ -27,8 +27,17 @@ Common: `session_id`, `transcript_path`, `cwd`, `hook_event_name`. Most also hav
 | Stop | `last_assistant_message`, `stop_hook_active` |
 | SessionEnd | `reason` |
 
+## Turns vs sessions
+
+`Stop` fires at the end of every turn (each time Claude finishes answering a prompt), not only when the session ends. `SessionEnd` fires once, when Claude Code exits. So the server does this:
+
+- `Stop`: lead `agent_done`, then one `REPORT:` narration per agent that worked this turn. No `session_end`.
+- `UserPromptSubmit` after a `Stop`: `prompt`, then the lead goes straight to `thinking`. Stats restart for the new turn.
+- `Notification` between `Stop` and the next prompt (e.g. `idle_prompt`) is ignored, so the hand doesn't go up while Claude is idle.
+- `SessionEnd`: `session_end`, and the session is dropped from memory.
+
 ## Consequences for deploy
 
-Install hooks for SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, **PostToolUseFailure**, **SubagentStart**, SubagentStop, Stop, Notification, **SessionEnd**. Without PostToolUseFailure we never see errors.
+Hooks go in `.claude/settings.local.json` (per machine, usually not committed; the command has an absolute local path). Install hooks for SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, **PostToolUseFailure**, **SubagentStart**, SubagentStop, Stop, Notification, **SessionEnd**. Without PostToolUseFailure we never see errors.
 
 How the runs were done: the sandbox blocked running `claude` from another directory, so the runs used cwd = repo worktree with `--settings <scratch>/.claude/settings.json --agents '{...helper...}' --add-dir <scratch>`. Hook behavior is the same either way.
