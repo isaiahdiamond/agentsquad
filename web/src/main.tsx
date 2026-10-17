@@ -7,13 +7,13 @@ import ArenaPage from "./arena/ArenaPage"
 import ReportPage from "./report/ReportPage"
 
 const link = ({ isActive }: { isActive: boolean }) =>
-  isActive ? "font-bold text-white" : "text-neutral-400 hover:text-white"
+  isActive ? "text-gold-400" : "text-slate-400 hover:text-gold-300"
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <nav className="flex gap-6 border-b border-neutral-800 px-6 py-3 text-sm">
-        <span className="font-black tracking-wide">AGENTSQUAD</span>
+      <nav className="flex gap-6 border-b-2 border-gold-600 bg-navy-950 px-6 py-2 font-pixel text-[10px]">
+        <span className="text-gold-400">AGENTSQUAD</span>
         <NavLink to="/builder" className={link}>Builder</NavLink>
         <NavLink to="/arena" className={link}>Arena</NavLink>
         <NavLink to="/report" className={link}>Report</NavLink>

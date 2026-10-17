@@ -11,6 +11,7 @@ This vault is the source of truth. Humans edit it in Obsidian. Coding agents rea
 3. [[Decisions]] — what's decided and what's still open
 4. Your stream brief in `streams/`
 5. [[Status]] — what everyone else is doing right now
+6. [[References]] — mockups of every screen and the art style
 
 ## Streams
 

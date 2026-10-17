@@ -1,1 +1,60 @@
+@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap");
 @import "tailwindcss";
+
+/* Shared pixel UI theme. Owned by the architect; streams use these tokens and classes, not their own copies. */
+@theme {
+  --font-pixel: "Press Start 2P", monospace;
+  --font-ui: "Silkscreen", monospace;
+  --color-navy-950: #070d1f;
+  --color-navy-900: #0d1730;
+  --color-navy-800: #142244;
+  --color-navy-700: #1d3060;
+  --color-navy-500: #3b5296;
+  --color-gold-300: #ffe28a;
+  --color-gold-400: #f5c542;
+  --color-gold-600: #b8860b;
+}
+
+body {
+  background: var(--color-navy-950);
+  color: #e2e8f0;
+  font-family: var(--font-ui);
+}
+
+.pixelated {
+  image-rendering: pixelated;
+}
+
+/* Dark navy panel with a gold pixel border. */
+.panel {
+  background: var(--color-navy-900);
+  border: 3px solid var(--color-gold-600);
+  box-shadow: inset 0 0 0 2px var(--color-navy-950), inset 0 0 0 3px var(--color-gold-400), 4px 4px 0 #000;
+}
+
+.panel-quiet {
+  background: var(--color-navy-900);
+  border: 2px solid var(--color-navy-500);
+}
+
+.btn-gold {
+  font-family: var(--font-pixel);
+  background: var(--color-gold-400);
+  color: var(--color-navy-950);
+  border: 3px solid var(--color-gold-600);
+  box-shadow: inset -3px -3px 0 var(--color-gold-600), inset 3px 3px 0 var(--color-gold-300), 3px 3px 0 #000;
+  padding: 0.75rem 1.25rem;
+}
+.btn-gold:hover { filter: brightness(1.08); }
+.btn-gold:active { transform: translate(2px, 2px); box-shadow: inset -3px -3px 0 var(--color-gold-600), 1px 1px 0 #000; }
+.btn-gold:disabled { filter: grayscale(0.8) brightness(0.7); cursor: not-allowed; }
+
+.btn {
+  font-family: var(--font-pixel);
+  background: var(--color-navy-800);
+  color: var(--color-gold-300);
+  border: 3px solid var(--color-navy-500);
+  box-shadow: 3px 3px 0 #000;
+  padding: 0.75rem 1.25rem;
+}
+.btn:hover { border-color: var(--color-gold-400); }

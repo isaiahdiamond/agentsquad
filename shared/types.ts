@@ -58,13 +58,24 @@ export type Squad = {
 
 export type Spot = { x: number; y: number; scale: number }  // x, y in 0-1 of the image
 
-export type Scene = {
-  id: string             // "uf-campus" | "bar" | "office"
+export type Building = {
+  id: string             // "library", "lab", "studio", "engineering", "court"
   name: string
-  background: string     // /art/scenes/uf-campus.png (16:9, 1920x1080)
-  lead: Spot
-  stations: Spot[]       // where working specialists stand, at least 4
-  bench: Spot            // where idle specialists wait, they line up from here
-  ambient?: string       // optional looping sound
+  area: { x: number; y: number; w: number; h: number }  // clickable box, 0-1 of image
+  door: Spot             // agents walk here, then fade out
+  badge: Spot            // where the "who's inside" portraits show
+  interior: string       // scene id to open on click
+  roles: string[]        // roster ids that work here
 }
 
+export type Scene = {
+  id: string             // "uf-campus" | "bar" | "beach" | "interior-library" | "interior-lab"
+  name: string
+  kind: "map" | "room"
+  background: string
+  lead: Spot
+  stations: Spot[]       // rooms: where agents stand to work
+  bench: Spot
+  buildings?: Building[] // maps only
+  paths?: Spot[][]       // maps only, walk routes between lead and doors
+}
