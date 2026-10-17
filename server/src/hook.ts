@@ -10,6 +10,7 @@ type Session = {
   rawIds: Map<string, string>
   counts: Map<string, number>
   spawnText: Map<string, { text: string; at: number }[]>
+  resumeText: Map<string, { text: string; at: number }>
   turnDone: boolean
   stopped: boolean
   endTimer?: NodeJS.Timeout
@@ -31,6 +32,8 @@ const TEAM_END_MS = 8000
 const STALL_MS = 5 * 60_000
 const TOOL_STALL_MS: Record<string, number> = { Bash: 5 * 60_000 }
 const SPAWN_WAIT_MS = 15_000
+const WAIT_MS = 60_000
+const RESUME_TEXT = "Picking up where it left off"
 const NOT_A_PROMPT = /^\s*<(task-notification|agent-message)[\s>]/
 
 const sessions = new Map<string, Session>()
@@ -76,7 +79,7 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
   }
   let s = sessions.get(sessionId)
   if (!s) {
-    s = { cwd: raw.cwd ?? process.cwd(), agents: new Map(), rawIds: new Map(), counts: new Map(), spawnText: new Map(), turnDone: false, stopped: false, pending: Promise.resolve(), seenAt: now }
+    s = { cwd: raw.cwd ?? process.cwd(), agents: new Map(), rawIds: new Map(), counts: new Map(), spawnText: new Map(), resumeText: new Map(), turnDone: false, stopped: false, pending: Promise.resolve(), seenAt: now }
     sessions.set(sessionId, s)
   }
   const session = s
@@ -116,6 +119,17 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
     return agent
   }
 
+  const resume = (agent: Agent, rawId: string) => {
+    const key = [...session.resumeText.keys()].find((k) => k && (k === agent.type || rawId.startsWith(k)))
+    const text = key ? session.resumeText.get(key)!.text : RESUME_TEXT
+    if (key) session.resumeText.delete(key)
+    clearTimeout(agent.timer)
+    agent.state = undefined
+    agent.toolAt = undefined
+    send(agent, { kind: "spawn", tool: "Agent", parentId: "lead", text })
+    think(agent)
+  }
+
   const actor = () => {
     if (typeof raw.agent_id !== "string") return lead()
     const id = session.rawIds.get(raw.agent_id)
@@ -125,7 +139,8 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
 
   const busy = () =>
     [...session.agents.values()].some((a) => a.id !== "lead" && a.state !== "done") ||
-    [...session.spawnText.values()].some((q) => q.some((p) => Date.now() - p.at < SPAWN_WAIT_MS))
+    [...session.spawnText.values()].some((q) => q.some((p) => Date.now() - p.at < SPAWN_WAIT_MS)) ||
+    [...session.resumeText.values()].some((p) => Date.now() - p.at < SPAWN_WAIT_MS)
 
   const endTurn = () => {
     if (session.turnDone) return
@@ -160,6 +175,13 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
       session.turnDone = false
       session.stopped = false
       session.spawnText.clear()
+      session.resumeText.clear()
+      for (const a of session.agents.values()) {
+        if (a.id === "lead" || a.state !== "waiting") continue
+        clearTimeout(a.timer)
+        a.toolAt = undefined
+        send(a, { kind: "tool_start", state: "thinking" })
+      }
       send(l, { kind: "prompt", text: cut(typeof raw.prompt === "string" ? raw.prompt : "", 80) })
       send(l, { kind: "tool_start", state: "thinking" })
       break
@@ -172,6 +194,12 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
         const type = raw.tool_input?.subagent_type ?? "general-purpose"
         const text = firstLine(raw.tool_input?.description) ?? firstLine(raw.tool_input?.prompt) ?? ""
         session.spawnText.set(type, [...(session.spawnText.get(type) ?? []), { text, at: now }])
+        break
+      }
+      if (tool === "SendMessage") {
+        const to = raw.tool_input?.to
+        const text = firstLine(raw.tool_input?.summary) ?? firstLine(raw.tool_input?.message) ?? RESUME_TEXT
+        if (typeof to === "string") session.resumeText.set(to, { text, at: now })
         break
       }
       send(agent, { kind: "tool_start", state: STATE[tool] ?? "thinking", tool, target })
@@ -191,6 +219,10 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
         if (raw.hook_event_name === "PostToolUseFailure") session.spawnText.get(type)?.pop()
         break
       }
+      if (tool === "SendMessage") {
+        if (!raw.tool_response?.resumedAgentId) session.resumeText.delete(raw.tool_input?.to)
+        break
+      }
       const bad = raw.hook_event_name === "PostToolUseFailure" ? raw.is_interrupt !== true : failed(raw.tool_response)
       if (bad) send(agent, { kind: "tool_end", tool, target, state: "error", text: firstLine(raw.error) })
       else if (agent.state === "waiting" || stalled) send(agent, { kind: "tool_end", tool, target, state: "thinking" })
@@ -198,7 +230,11 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
       break
     }
     case "SubagentStart": {
-      if (typeof raw.agent_id === "string" && !session.rawIds.has(raw.agent_id)) spawn(raw.agent_id, raw.agent_type || "subagent")
+      if (typeof raw.agent_id !== "string") break
+      const id = session.rawIds.get(raw.agent_id)
+      const known = id ? session.agents.get(id) : undefined
+      if (!known) spawn(raw.agent_id, raw.agent_type || "subagent")
+      else if (known.state === "done") resume(known, raw.agent_id)
       break
     }
     case "SubagentStop": {
@@ -217,6 +253,11 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
       const agent = asking ?? actor()
       clearTimeout(agent.timer)
       send(agent, { kind: "tool_start", state: "waiting", text: firstLine(raw.message) })
+      agent.timer = setTimeout(() => {
+        if (session.turnDone || agent.state !== "waiting") return
+        agent.toolAt = undefined
+        send(agent, { kind: "tool_start", state: agent.id === "lead" ? "idle" : "thinking" })
+      }, WAIT_MS)
       break
     }
     case "Stop": {

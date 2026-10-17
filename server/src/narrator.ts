@@ -18,7 +18,7 @@ const COOL_MS = 15_000
 const IDLE_MS = 30 * 60_000
 const FILE_TOOLS = new Set(["Read", "Edit", "Write", "NotebookEdit", "MultiEdit"])
 const EDIT_TOOLS = new Set(["Edit", "Write", "NotebookEdit", "MultiEdit"])
-const WAITING = "Waiting for your approval"
+export const WAITING = "Waiting for your approval"
 const STOP = new Set(["the", "a", "an", "of", "to", "for", "on", "in", "and", "with", "its", "some"])
 
 type Act = { tool: string; target?: string; result?: "ok" | "failed"; note?: string }
@@ -326,6 +326,7 @@ export function createNarrator(emit: (e: Out) => void) {
       a.status = undefined
     }
     if (e.kind === "spawn") {
+      if (a.closed) Object.assign(a, { closed: false, acts: [], sig: undefined, status: undefined })
       a.task = e.text
       if (e.parentId) push(agentFor({ ...e, agentId: e.parentId, agentType: "lead" }), { tool: "Agent", target: `${e.agentType}: ${e.text ?? ""}` })
       return
@@ -382,7 +383,7 @@ export function createNarrator(emit: (e: Out) => void) {
         : commands ? `Ran ${count(commands, "command")}.`
         : files.size ? `Read ${count(files.size, "file")}.`
         : "Kept the plan moving."
-      if (spawns.length) first = `Handed work to ${count(spawns.length, "specialist")}. ${first}`
+      if (spawns.length) first = `Handed work to ${count(new Set(spawns.map((s) => s.agentId)).size, "specialist")}. ${first}`
       if (failures) first += ` Hit ${count(failures, "error")} along the way.`
       const second = `${count(tools.length, "tool call")}, ${count(files.size, "file")} touched, ${seconds}s active.`
       const agentType = events[0].agentType

@@ -1,4 +1,5 @@
 import type { AgentEvent, AgentState } from "@agentsquad/shared"
+import { WAITING } from "./narrator"
 
 type LiveAgent = {
   agentId: string
@@ -55,6 +56,7 @@ export function track(e: AgentEvent) {
     else a.status = e.text
     return
   }
+  if (e.state && a.state === "waiting" && e.state !== "waiting" && a.status === WAITING) a.status = undefined
   if (e.state) a.state = e.state
   if (e.kind === "prompt" && e.agentId === "lead") {
     s.phase = "mission"
@@ -63,7 +65,7 @@ export function track(e: AgentEvent) {
     for (const [id, other] of s.agents) if (other.done && id !== "lead") s.agents.delete(id)
     Object.assign(a, { done: false, task: e.text, status: undefined, report: undefined, since: e.ts })
   }
-  if (e.kind === "spawn") Object.assign(a, { parentId: e.parentId, task: e.text, since: e.ts, done: false })
+  if (e.kind === "spawn") Object.assign(a, { parentId: e.parentId, task: e.text, since: e.ts, done: false, state: e.state ?? "idle", status: a.done ? undefined : a.status })
   if (e.kind === "agent_done") {
     a.done = true
     if (e.agentId === "lead") {
