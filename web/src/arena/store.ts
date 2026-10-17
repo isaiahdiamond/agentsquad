@@ -16,6 +16,7 @@ export type Agent = {
   sayAt: number
   report?: string
   doneText?: string
+  waitText?: string
   files: string[]
   changed: string[]
   tools: number
@@ -29,11 +30,16 @@ export type Agent = {
 
 export type FeedItem = { id: string; agentId: string; agentType: string; text: string; at: number }
 export type Span = { agentId: string; start: number; end: number }
+export type Toast = { id: string; agentId: string; agentType: string; text: string; tone: "info" | "wait" | "error" | "done"; named: boolean; at: number }
 export type FileTouch = { path: string; agentId: string; agentType: string; changed: boolean; at: number }
 
 export type Arena = {
   sessionId?: string
   prompt?: string
+  promptAt: number
+  focusId?: string
+  focusAt: number
+  toasts: Toast[]
   startAt: number
   endAt: number
   toolCount: number
@@ -50,7 +56,7 @@ export type Arena = {
 }
 
 export const emptyArena = (): Arena => ({
-  startAt: 0, endAt: 0, toolCount: 0, spawns: 0, agents: {}, feed: [], files: [], spans: [], open: {}, lastAt: 0, reportAt: 0, seen: [], feedN: 0,
+  startAt: 0, promptAt: 0, focusAt: 0, toasts: [], endAt: 0, toolCount: 0, spawns: 0, agents: {}, feed: [], files: [], spans: [], open: {}, lastAt: 0, reportAt: 0, seen: [], feedN: 0,
 })
 
 const FILE_TOOLS = ["Read", "Edit", "Write", "NotebookEdit", "MultiEdit"]
@@ -76,11 +82,22 @@ export function reduce(prev: Arena, e: Received): Arena {
   }
   s.agents[e.agentId] = a
   a.lastAt = e.at
+  const toast = (text: string, tone: Toast["tone"], named = false) => {
+    s.toasts = [...(s.toasts ?? []).slice(-19), { id: `${e.id}:t`, agentId: a.id, agentType: a.type, text, tone, named, at: e.at }]
+  }
+  const focus = () => {
+    s.focusId = a.id
+    s.focusAt = e.at
+  }
   const feed = (text: string) => {
     s.feed = [{ id: `${e.id}:${s.feedN++}`, agentId: a.id, agentType: a.type, text, at: e.at }, ...s.feed].slice(0, 60)
   }
 
-  if (e.kind === "prompt") s.prompt = e.text
+  if (e.kind === "prompt") {
+    s.prompt = e.text
+    s.promptAt = e.at
+    focus()
+  }
   if (e.kind === "spawn") {
     s.spawns = (s.spawns ?? 0) + 1
     a.doneAt = 0
@@ -89,6 +106,7 @@ export function reduce(prev: Arena, e: Received): Arena {
     a.say = e.text
     a.sayAt = e.at
     a.state = e.state ?? "thinking"
+    focus()
     if (e.text) feed(`New task: ${e.text}`)
   }
   if (e.kind === "tool_start") {
@@ -100,6 +118,7 @@ export function reduce(prev: Arena, e: Received): Arena {
       a.tool = e.tool
       a.target = e.target
       a.pulseAt = e.at
+      if (a.type !== "lead" || !s.focusAt || e.at - s.focusAt > 4000) focus()
       s.open = { ...s.open, [a.id]: e.at }
       if (e.target && FILE_TOOLS.includes(e.tool)) {
         const changed = CHANGE_TOOLS.includes(e.tool)
@@ -123,6 +142,7 @@ export function reduce(prev: Arena, e: Received): Arena {
     } else if (!a.doneAt) {
       a.narration = e.text
       a.narrationAt = e.at
+      if (a.type === "lead" && a.state !== "waiting") toast(e.text, "info")
       if (a.state === "waiting" && e.at - a.sayAt < 3000) a.say = e.text
       feed(e.text)
     }
@@ -133,16 +153,29 @@ export function reduce(prev: Arena, e: Received): Arena {
     a.doneText = e.text
     a.say = e.text || "Done."
     a.sayAt = e.at
+    if (a.type !== "lead") {
+      toast("finished", "done", true)
+      focus()
+    }
     feed(e.text ? `Done: ${e.text}` : "Done.")
   }
   if (e.kind === "session_end") s.endAt = e.at
 
   if (e.state && !a.doneAt) {
-    if (e.state === "error" && a.state !== "error") feed(e.kind !== "narration" && e.text ? `Error: ${e.text}` : `Hit an error${e.target ? ` on ${e.target}` : e.tool ? ` in ${e.tool}` : ""}.`)
+    if (e.state === "error" && a.state !== "error") {
+      const what = e.kind !== "narration" && e.text ? e.text : `Hit an error${e.target ? ` on ${e.target}` : e.tool ? ` in ${e.tool}` : ""}`
+      feed(e.kind !== "narration" && e.text ? `Error: ${e.text}` : `${what}.`)
+      a.waitText = what
+      toast(e.kind !== "narration" && e.text ? `hit an error: ${e.text}` : "hit an error", "error", true)
+      focus()
+    }
     if (e.state === "waiting" && a.state !== "waiting") {
       feed("Waiting for you.")
       a.say = "Needs your OK."
       a.sayAt = e.at
+      a.waitText = e.kind !== "narration" && e.text ? e.text : undefined
+      toast("Waiting for you: approve in your terminal", "wait")
+      focus()
     }
     a.state = e.state
   }
@@ -202,8 +235,7 @@ export function clock(ms: number) {
 
 export function ago(ms: number) {
   const t = Math.floor(ms / 1000)
-  if (t < 5) return "now"
-  if (t < 60) return `${t}s ago`
+  if (t < 60) return `${Math.max(1, t)}s ago`
   return `${Math.floor(t / 60)}m ago`
 }
 

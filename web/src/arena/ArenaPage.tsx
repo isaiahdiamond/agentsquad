@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react"
+import { useEffect, useReducer, useRef, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { AnimatePresence, motion } from "framer-motion"
 import type { Building, Scene, Squad } from "@agentsquad/shared"
 import Debug from "./Debug"
-import { Rail, TopBar } from "./Hud"
+import { homeOf, useCamera } from "./camera"
+import { NavPill } from "./Hud"
 import MapView from "./MapView"
 import RoomView from "./RoomView"
 import { H, Stage, W } from "./Sprite"
@@ -21,23 +22,11 @@ export default function ArenaPage() {
   const [zoom, setZoom] = useState<Building | null>(null)
   const [origin, setOrigin] = useState("50% 50%")
   const [debug, setDebug] = useState(params.has("debug"))
-  const [top, setTop] = useState(0)
   const [notice, setNotice] = useState("")
   const [stalled, setStalled] = useState(0)
-  const [fit, setFit] = useState(0.5)
-  const observer = useRef<ResizeObserver>(null)
+  const cam = useCamera()
   const latest = useRef(arena)
   latest.current = arena
-
-  useLayoutEffect(() => setTop(document.querySelector("nav")?.getBoundingClientRect().bottom ?? 0), [])
-
-  // One transform scales the native-size stage to fit the area, letterboxed.
-  const areaRef = useCallback((el: HTMLDivElement | null) => {
-    observer.current?.disconnect()
-    if (!el) return
-    observer.current = new ResizeObserver(() => setFit(Math.min(el.clientWidth / W, el.clientHeight / H) || 0.5))
-    observer.current.observe(el)
-  }, [])
 
   useEffect(() => {
     fetch("/art/scenes/scenes.json").then((r) => r.json()).then(setScenes).catch(() => setScenes([]))
@@ -120,11 +109,18 @@ export default function ArenaPage() {
   }, [])
 
   const scene = scenes.find((s) => s.id === (sceneId || "uf-campus")) ?? scenes.find((s) => s.id === "uf-campus") ?? scenes[0]
-  if (!scene) return <div className="p-10 text-sm text-muted">Loading scene...</div>
-
-  const buildings = scene.buildings ?? []
+  const buildings = scene?.buildings ?? []
   const building = buildings.find((b) => b.id === view || b.interior === view)
   const interior = building && scenes.find((s) => s.id === building.interior)
+  const shown = interior ?? scene
+
+  // Each scene opens on its whole view; the camera rests on the middle of its stations and doors.
+  useEffect(() => {
+    if (shown && cam.view.w) cam.moveTo(homeOf(shown), 1, 0)
+  }, [shown?.id, cam.view.w, cam.view.h])
+
+  if (!scene) return <div className="p-10 text-sm text-muted">Loading scene...</div>
+
   const specialists = Object.values(arena.agents).filter((a) => a.type !== "lead").sort((a, b) => a.order - b.order)
   const inside = building ? specialists.filter((a) => buildingFor(scene, a.type) === buildings.indexOf(building)) : []
   const open = (b: Building) => {
@@ -134,85 +130,71 @@ export default function ArenaPage() {
   const away = !!(interior || zoom)
 
   return (
-    <div className="fixed inset-x-0 bottom-0 flex bg-bg" style={{ top }}>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar arena={arena} squad={squad} connected={connected} title={building && interior ? `${scene.name} · ${building.name}` : scene.name} />
-        <div ref={areaRef} className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
-          <div className="relative overflow-hidden bg-bg" style={{ width: W * fit, height: H * fit }}>
-            <Stage.Provider value={{ fit }}>
-            <div className="absolute left-0 top-0 origin-top-left" style={{ width: W, height: H, transform: `scale(${fit})`, imageRendering: "pixelated" }} data-stage>
-            {scene.kind === "map" ? (
+    <div ref={cam.ref} className="fixed inset-0 overflow-hidden bg-bg">
+      <Stage.Provider value={{ fit: cam.cover, ui: cam.ui }}>
+        <motion.div
+          className="absolute left-0 top-0 origin-top-left" data-stage
+          style={{ width: W, height: H, transform: cam.transform, imageRendering: "pixelated", "--ui": cam.ui } as never}
+        >
+          {scene.kind === "map" ? (
+            <motion.div
+              className="absolute inset-0"
+              style={{ transformOrigin: origin, pointerEvents: away ? "none" : "auto" }}
+              initial={false}
+              animate={away ? { scale: 2.6, opacity: 0 } : { scale: 1, opacity: 1 }}
+              transition={{ duration: zoom ? 0.65 : 0.45, ease: "easeInOut" }}
+              onAnimationComplete={() => {
+                if (zoom) {
+                  setView(zoom.id)
+                  setZoom(null)
+                }
+              }}
+            >
+              <MapView scene={scene} arena={arena} squad={squad} onOpen={open} />
+            </motion.div>
+          ) : (
+            <RoomView scene={scene} arena={arena} squad={squad} members={specialists} main />
+          )}
+          <AnimatePresence>
+            {interior && (
               <motion.div
-                className="absolute inset-0"
-                style={{ transformOrigin: origin, pointerEvents: away ? "none" : "auto" }}
-                initial={false}
-                animate={away ? { scale: 2.6, opacity: 0 } : { scale: 1, opacity: 1 }}
-                transition={{ duration: zoom ? 0.65 : 0.45, ease: "easeInOut" }}
-                onAnimationComplete={() => {
-                  if (zoom) {
-                    setView(zoom.id)
-                    setZoom(null)
-                  }
-                }}
+                key={interior.id + building!.id} className="absolute inset-0 z-[300]"
+                initial={{ opacity: 0, scale: 1.12 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.08 }}
+                transition={{ duration: 0.45 }}
               >
-                <MapView scene={scene} arena={arena} squad={squad} onOpen={open} />
+                <RoomView scene={interior} arena={arena} squad={squad} members={inside} main={false} />
               </motion.div>
-            ) : (
-              <RoomView scene={scene} arena={arena} squad={squad} members={specialists} main />
             )}
-            <AnimatePresence>
-              {interior && (
-                <motion.div
-                  key={interior.id + building!.id} className="absolute inset-0 z-[300]"
-                  initial={{ opacity: 0, scale: 1.12 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.08 }}
-                  transition={{ duration: 0.45 }}
-                >
-                  <RoomView scene={interior} arena={arena} squad={squad} members={inside} main={false} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-            {debug && <Debug scene={interior ?? scene} />}
-            </div>
-            <AnimatePresence>
-              {interior && (
-                <motion.div key="back" className="absolute bottom-4 left-4 z-[700]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <button
-                    className="flex items-center gap-2 rounded-xl border border-line-strong bg-panel/90 px-3.5 py-2 text-sm font-semibold text-text shadow-[0_8px_24px_rgba(0,0,0,.45)] backdrop-blur-md transition-colors hover:border-accent"
-                    onClick={() => setView(null)}
-                  >
-                    <svg viewBox="0 0 16 16" className="h-4 w-4"><path d="M10 3L5 8l5 5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" /></svg>
-                    Back to map
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            {notice && (
-              <div className="card absolute left-1/2 top-4 z-[900] flex -translate-x-1/2 items-center gap-4 px-4 py-3 text-sm text-text shadow-[0_8px_24px_rgba(0,0,0,.45)]">
-                <span className="h-2 w-2 shrink-0 rounded-full bg-accent" />
-                {notice}
-                <button className="rounded-md px-1.5 text-muted hover:text-text" onClick={() => setNotice("")} aria-label="Dismiss">✕</button>
-              </div>
-            )}
-            <AnimatePresence>
-              {finished > 0 && (
-                <motion.div
-                  className="absolute inset-0 z-[800] flex items-center justify-center bg-bg/50 backdrop-blur-[2px]"
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                >
-                  <motion.div className="card flex items-center gap-3 px-7 py-5 shadow-[0_16px_48px_rgba(0,0,0,.5)]" initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500">
-                      <svg viewBox="0 0 10 10" className="w-4"><path d="M2 5.2 L4.2 7.4 L8 2.8" stroke="white" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" fill="none" /></svg>
-                    </span>
-                    <span className="text-xl font-semibold text-text">Task complete</span>
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            </Stage.Provider>
-          </div>
+          </AnimatePresence>
+          {debug && <Debug scene={interior ?? scene} />}
+        </motion.div>
+      </Stage.Provider>
+
+      <div className="pointer-events-none absolute inset-0 z-10">
+        <div className="pointer-events-auto absolute left-4 top-4">
+          <NavPill />
         </div>
+        <AnimatePresence>
+          {interior && (
+            <motion.div key="back" className="pointer-events-auto absolute bottom-4 left-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <button
+                className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-[rgba(11,13,18,0.6)] px-3.5 py-2 text-[13px] font-medium text-text backdrop-blur-[12px] transition-colors hover:border-accent"
+                onClick={() => setView(null)}
+              >
+                <svg viewBox="0 0 16 16" className="h-4 w-4"><path d="M10 3L5 8l5 5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" /></svg>
+                Back to map
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {notice && (
+          <div className="pointer-events-auto absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-4 rounded-[14px] border border-white/[0.08] bg-[rgba(11,13,18,0.6)] px-4 py-3 text-[13px] text-text backdrop-blur-[12px]">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-accent" />
+            {notice}
+            <button className="rounded-md px-1.5 text-muted hover:text-text" onClick={() => setNotice("")} aria-label="Dismiss">✕</button>
+          </div>
+        )}
       </div>
-      <Rail arena={arena} squad={squad} />
     </div>
   )
 }

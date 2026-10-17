@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from "react"
 import { animate, motion, useAnimationControls, useMotionValue } from "framer-motion"
 import type { Building, Scene, Spot, Squad } from "@agentsquad/shared"
 import Backdrop from "./Backdrop"
-import { Actor, FlameBadge, Portrait, useFacing, useUi } from "./Sprite"
+import { Actor, FlameBadge, Portrait, useFacing } from "./Sprite"
 import { buildingFor, who, type Agent, type Arena } from "./store"
+import { Scope, labelOf } from "./world"
 
 const SPEED = 0.1
 
@@ -62,7 +63,7 @@ function toward(path: Spot[], target: Spot): Spot[] {
 }
 
 // Walks out along the path to the door and fades in; on done, fades in at the door, walks back to the lead, then to its parking spot.
-function Walker({ agent, squad, path, park, s, onArrive }: { agent: Agent; squad: Squad | null; path: Spot[]; park: Spot; s: number; onArrive: (id: string) => void }) {
+function Walker({ agent, label, squad, path, park, s, onArrive }: { agent: Agent; label: string; squad: Squad | null; path: Spot[]; park: Spot; s: number; onArrive: (id: string) => void }) {
   const x = useMotionValue(path[0].x), y = useMotionValue(path[0].y), o = useMotionValue(0)
   const done = agent.doneAt > 0
 
@@ -114,12 +115,11 @@ function Walker({ agent, squad, path, park, s, onArrive }: { agent: Agent; squad
   }, [done, park.x, park.y])
 
   const face = useFacing(x, y)
-  return <Actor who={who(agent.type, squad)} agent={agent} seed={agent.type} icon={done} s={s} x={x} y={y} o={o} face={face} />
+  return <Actor who={who(agent.type, squad)} agent={agent} label={label} seed={agent.type} s={s} x={x} y={y} o={o} face={face} />
 }
 
 function Badge({ b, inside, squad }: { b: Building; inside: Agent[]; squad: Squad | null }) {
   const controls = useAnimationControls()
-  const ui = useUi()
   const pulse = Math.max(0, ...inside.map((a) => a.pulseAt))
   useEffect(() => {
     if (pulse) controls.start({ scale: [1, 1.12, 1], transition: { duration: 0.35 } })
@@ -128,7 +128,7 @@ function Badge({ b, inside, squad }: { b: Building; inside: Agent[]; squad: Squa
   const waiting = inside.some((a) => a.state === "waiting")
   const error = inside.some((a) => a.state === "error")
   return (
-    <div className="pointer-events-none absolute z-[6000]" style={{ left: `${b.badge.x * 100}%`, top: `${Math.max(0.01, b.badge.y) * 100}%`, transform: `translateX(-50%) scale(${ui})`, transformOrigin: "50% 0" }}>
+    <div className="pointer-events-none absolute z-[6000]" style={{ left: `${b.badge.x * 100}%`, top: `${Math.max(0.01, b.badge.y) * 100}%`, transform: "translateX(-50%) scale(var(--ui))", transformOrigin: "50% 0" }}>
       <motion.div
         animate={controls}
         className={`flex items-center gap-2 rounded-2xl border p-1.5 pr-3 ${waiting ? "border-amber-300/80 bg-amber-400 text-[#0b0d12] shadow-[0_0_24px_6px_rgba(251,191,36,.55)]" : "border-line-strong bg-panel text-text shadow-[0_8px_24px_rgba(0,0,0,.45)]"}`}
@@ -151,7 +151,6 @@ export default function MapView({ scene, arena, squad, onOpen }: { scene: Scene;
   const agents = Object.values(arena.agents).filter((a) => a.type !== "lead").sort((a, b) => a.order - b.order)
   const lead = Object.values(arena.agents).find((a) => a.type === "lead")
   const done = agents.filter((a) => a.doneAt).sort((a, b) => a.doneAt - b.doneAt)
-  const ui = useUi()
   const s = sceneScale(scene)
   const [arrived, setArrived] = useState<string[]>([])
   const onArrive = useCallback((id: string) => setArrived((ids) => (ids.includes(id) ? ids : [...ids, id])), [])
@@ -161,6 +160,7 @@ export default function MapView({ scene, arena, squad, onOpen }: { scene: Scene;
   }
 
   return (
+    <Scope.Provider value={scene.id}>
     <div className="absolute inset-0">
       <Backdrop scene={scene} />
       {buildings.map((b) => (
@@ -169,7 +169,7 @@ export default function MapView({ scene, arena, squad, onOpen }: { scene: Scene;
           className="group absolute z-[5] cursor-pointer rounded-[32px] border-[5px] border-transparent transition-colors hover:border-accent/80 hover:bg-accent/10"
           style={{ left: `${b.area.x * 100}%`, top: `${b.area.y * 100}%`, width: `${b.area.w * 100}%`, height: `${b.area.h * 100}%` }}
         >
-          <span className="absolute bottom-[24px] left-1/2 hidden whitespace-nowrap rounded-full bg-accent px-3 py-1 text-xs font-semibold text-on-accent shadow-lg group-hover:block" style={{ transform: `translateX(-50%) scale(${ui})`, transformOrigin: "50% 100%" }}>
+          <span className="absolute bottom-[24px] left-1/2 hidden whitespace-nowrap rounded-full bg-accent px-3 py-1 text-xs font-semibold text-on-accent shadow-lg group-hover:block" style={{ transform: "translateX(-50%) scale(var(--ui))", transformOrigin: "50% 100%" }}>
             Look inside {b.name}
           </span>
         </button>
@@ -177,11 +177,12 @@ export default function MapView({ scene, arena, squad, onOpen }: { scene: Scene;
       {buildings.map((b, i) => (
         <Badge key={b.id} b={b} squad={squad} inside={agents.filter((a) => !a.doneAt && arrived.includes(a.id) && buildingFor(scene, a.type) === i)} />
       ))}
-      <StaticActor spot={scene.lead} who={who("lead", squad)} agent={lead} seed="lead" s={s} />
+      <StaticActor spot={scene.lead} who={who("lead", squad)} agent={lead} label="Lead" seed="lead" s={s} />
       {agents.map((a) => {
         const k = done.indexOf(a)
-        return <Walker key={a.id} agent={a} squad={squad} path={pathFor(a)} park={parkSpot(scene, Math.max(0, k))} s={s} onArrive={onArrive} />
+        return <Walker key={a.id} agent={a} label={labelOf(a, arena, squad)} squad={squad} path={pathFor(a)} park={parkSpot(scene, Math.max(0, k))} s={s} onArrive={onArrive} />
       })}
     </div>
+    </Scope.Provider>
   )
 }

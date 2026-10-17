@@ -9,9 +9,10 @@ import ReportPage from "./report/ReportPage"
 const link = ({ isActive }: { isActive: boolean }) =>
   isActive ? "text-text" : "text-muted hover:text-text"
 
-// The builder has its own progress bar, so the dev nav only shows elsewhere.
+// The builder has its own progress bar and the arena draws the nav as a pill in its own chrome, so the dev nav only shows elsewhere.
 function Nav() {
-  if (useLocation().pathname.startsWith("/builder")) return null
+  const path = useLocation().pathname
+  if (path.startsWith("/builder") || path.startsWith("/arena")) return null
   return (
     <nav className="flex gap-6 border-b border-line bg-bg px-6 py-2.5 text-sm">
       <span className="font-semibold text-text">agentsquad</span>

@@ -3,8 +3,9 @@ import { AnimatePresence, animate, motion, useIsPresent, useMotionValue } from "
 import type { Scene, Spot, Squad } from "@agentsquad/shared"
 import Backdrop from "./Backdrop"
 import { sceneScale } from "./MapView"
-import { Actor, H, TALL, W, useFacing, useManifest, useNatural, useUi, type Size } from "./Sprite"
+import { Actor, H, TALL, W, useFacing, useManifest, useNatural, type Size } from "./Sprite"
 import { who, type Agent, type Arena } from "./store"
+import { Scope, labelOf } from "./world"
 
 const SPEED = 0.12
 
@@ -80,8 +81,8 @@ function Desk({ spot, ds, src, size, k, quiet }: { spot: Spot; ds: number; src?:
 type Target = { to: Spot; sit: boolean; leave?: boolean }
 
 // Walks in a straight line at a steady pace (standing sprite with step bob), then sits if the target is a desk seat.
-function Worker({ id, type, agent, squad, s, from, target, raise, onSit }: {
-  id: string; type: string; agent?: Agent; squad: Squad | null; s: number; from: Spot; target: Target; raise?: number; onSit: (id: string) => void
+function Worker({ id, type, agent, label, squad, s, from, target, onSit }: {
+  id: string; type: string; agent?: Agent; label: string; squad: Squad | null; s: number; from: Spot; target: Target; onSit: (id: string) => void
 }) {
   const x = useMotionValue(from.x), y = useMotionValue(from.y), o = useMotionValue(1)
   const { to, sit, leave } = target
@@ -103,14 +104,13 @@ function Worker({ id, type, agent, squad, s, from, target, raise, onSit }: {
     if (seated) onSit(id)
   }, [seated])
   const face = useFacing(x, y)
-  return <Actor who={who(type, squad)} agent={agent} seed={type} s={s} x={x} y={y} o={o} face={face} seated={seated} raise={raise} />
+  return <Actor who={who(type, squad)} agent={agent} label={label} seed={type} s={s} x={x} y={y} o={o} face={face} seated={seated} />
 }
 
 // Rooms: a whole-scene room (office, beach) with the lead, or a building interior showing only the agents inside it.
 export default function RoomView({ scene, arena, squad, members, main }: { scene: Scene; arena: Arena; squad: Squad | null; members: Agent[]; main: boolean }) {
   const opened = useRef(Date.now())
   const taken = useRef(new Map<string, number>())
-  const ui = useUi()
   const s = sceneScale(scene)
   const { src, size } = useDesk(scene.id)
   const lead = Object.values(arena.agents).find((a) => a.type === "lead")
@@ -179,6 +179,7 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
 
   if (!size) return <div className="absolute inset-0"><Backdrop scene={scene} /></div>
   return (
+    <Scope.Provider value={scene.id}>
     <div className="absolute inset-0">
       <Backdrop scene={scene} />
       {main && (
@@ -188,7 +189,7 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
             return (
               <motion.line
                 key={a.id} x1={p.x} y1={p.y} x2={q.x} y2={q.y}
-                stroke={who(a.type, squad).color} strokeWidth={4 * ui} strokeLinecap="round"
+                stroke={who(a.type, squad).color} strokeWidth={4 * s} strokeLinecap="round"
                 initial={{ pathLength: 0, opacity: 1 }} animate={{ pathLength: 1, opacity: [1, 1, 0] }}
                 transition={{ duration: 2.2, delay: i * 0.05, times: [0, 0.6, 1] }}
               />
@@ -196,11 +197,11 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
           })}
         </svg>
       )}
-      {main && <Worker id="lead" type="lead" agent={lead} squad={squad} s={s} from={leadTarget().to} target={leadTarget()} onSit={onSit} />}
+      {main && <Worker id="lead" type="lead" agent={lead} label="Lead" squad={squad} s={s} from={leadTarget().to} target={leadTarget()} onSit={onSit} />}
       {members.map((a) => {
         if (!main && a.doneAt && a.doneAt < opened.current) return null
         const t = targetFor(a)
-        return <Worker key={a.id} id={a.id} type={a.type} agent={a} squad={squad} s={s} from={fresh(a) ? scene.bench : t.to} target={t} raise={((map.get(a.id) ?? 0) % 2) * 52} onSit={onSit} />
+        return <Worker key={a.id} id={a.id} type={a.type} agent={a} label={labelOf(a, arena, squad)} squad={squad} s={s} from={fresh(a) ? scene.bench : t.to} target={t} onSit={onSit} />
       })}
       <AnimatePresence initial={false}>
         {leadAtDesk && <Desk key="lead" spot={scene.lead} ds={ds} src={src} size={size} k={s} quiet={quiet()} />}
@@ -208,9 +209,10 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
       </AnimatePresence>
       {!working.length && !main && (
         <div className="absolute inset-x-0 top-[45%] z-[4500] flex justify-center">
-          <div className="card px-4 py-2.5 text-sm text-muted shadow-[0_8px_24px_rgba(0,0,0,.45)]" style={{ transform: `scale(${ui})` }}>Nobody is working in here right now.</div>
+          <div className="card px-4 py-2.5 text-sm text-muted shadow-[0_8px_24px_rgba(0,0,0,.45)]" style={{ transform: "scale(var(--ui))" }}>Nobody is working in here right now.</div>
         </div>
       )}
     </div>
+    </Scope.Provider>
   )
 }
