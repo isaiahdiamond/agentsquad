@@ -47,6 +47,12 @@ See [[Art Pack]]. It supersedes the sizes in [[Art Requests]] where they differ.
 - **Scenes:** `uf-campus` (map) with 3 buildings: top-left Library (scout, docs-writer → `interior-library`), top-right Lab (backend-dev, test-engineer → `interior-lab`), bottom-right Union (frontend-dev, reviewer → `interior-union`). Rooms you can pick directly: `office` and `beach`. The Bar/Club is dropped. The welcome screen uses `web/public/art/scenes/welcome-bg.png` (not a scene in scenes.json).
 - Scene art is 2688×1520; render it to fit the 16:9 stage.
 
+### Narrator (2026-10-17, user)
+
+- **Narrator model: Google Gemini** (`gemini-3.5-flash-lite`, via the Gemini API; hackathon requirement). Key lives in `.env.local` as `GEMINI_API_KEY` (git-ignored, never committed); the server loads it at startup. Template lines are the fallback when the key is missing or a call fails or is slow.
+- **Calm status, not a feed:** the narrator turns each agent's raw tool events into one short, plain status line ("Working on the header toggle", "Fixing a failing test") and only emits a new `narration` for that agent when the meaning changes, at most every few seconds. `REPORT:` lines at the end of a turn are unchanged.
+- **Arena shows a stationary Team panel** (one row per agent, status line crossfades in place) instead of a scrolling activity feed; speech bubbles only for key moments (task assigned, needs you, done).
+
 ## Open (owner decides by the hour shown)
 
 | Question | Owner | By |
@@ -55,7 +61,6 @@ See [[Art Pack]]. It supersedes the sizes in [[Art Requests]] where they differ.
 | Can hooks attribute tool calls to the right subagent? If not, transcript tailing | Bridge | hour 2 — **Answered: yes.** Tool hooks fired inside a subagent carry `agent_id` + `agent_type`; `SubagentStart`/`SubagentStop` carry the same `agent_id`. No transcript tailing. See `hooks/FINDINGS.md` |
 | Which tool name delegates: `Task`, `Agent`, or both | Bridge | hour 2 — **Answered: `Agent`** on v2.1.302 (`tool_input.subagent_type`). Server accepts both |
 | Gemini role: build-time asset edits, runtime narration, or both (check sub-track rules) | Team | hour 1 |
-| Narrator model: Gemini Flash or Claude Haiku | Team | hour 1 |
 | Demo task and demo repo | Team | hour 10 |
 | Delegation hit rate on demo prompt (target 8/10) | Bridge | hour 24 |
 
