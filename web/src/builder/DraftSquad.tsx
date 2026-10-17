@@ -1,24 +1,39 @@
-import { motion } from "framer-motion"
+import { useState } from "react"
+import { AnimatePresence, motion } from "framer-motion"
 import type { Character } from "@agentsquad/shared"
 import { MAX_MEMBERS, type Draft } from "./draft"
 import { roster } from "./roster"
-import { spriteSet, useSprites } from "../ui/sprites"
 import Portrait from "./Portrait"
+import { ArrowRight, BackButton, Progress } from "./parts"
 
 const MODELS = ["haiku", "sonnet", "opus"] as const
 
 export const readOnly = (c: Character) => !c.tools.includes("Edit") && !c.tools.includes("Write")
+const shortName = (c: Pick<Character, "name">) => c.name.replace(" Agent", "")
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+
+function describe(c: Character) {
+  const role = c.role.replace(/\.$/, "")
+  const never = readOnly(c) && !/never edits/i.test(role) ? ". Never edits" : ""
+  return `${c.name}: ${role.charAt(0).toLowerCase()}${role.slice(1)}${never}.`
+}
 
 type Props = { draft: Draft; update: (p: Partial<Draft>) => void; back: () => void; next: () => void }
 
 export default function DraftSquad({ draft, update, back, next }: Props) {
   const members = draft.members
-  const { sprites } = useSprites()
-  const lead = { name: draft.name, color: "#f5c542", portrait: spriteSet(sprites, "lead", draft.look)?.front ?? "" }
-  const slotOf = (id: string) => members.findIndex((m) => m.id === id)
+  const [focusId, setFocusId] = useState(members[0]?.id ?? roster[0].id)
+  const focused = roster.find((c) => c.id === focusId) ?? roster[0]
+  const focusedMember = members.find((m) => m.id === focused.id)
 
+  const remove = (id: string) => update({ members: members.filter((m) => m.id !== id) })
+
+  // A picked agent that isn't focused gets focus first (so touch users can reach its model); a second click removes it.
   const toggle = (c: Character) => {
-    if (slotOf(c.id) !== -1) return update({ members: members.filter((m) => m.id !== c.id) })
+    const picked = members.some((m) => m.id === c.id)
+    setFocusId(c.id)
+    if (picked && focusId !== c.id) return
+    if (picked) return remove(c.id)
     if (members.length >= MAX_MEMBERS) return
     update({ members: [...members, { id: c.id, model: c.model }] })
   }
@@ -27,123 +42,122 @@ export default function DraftSquad({ draft, update, back, next }: Props) {
     update({ members: members.map((m) => (m.id === id ? { ...m, model } : m)) })
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-3 gap-4">
+    <div
+      className="relative flex min-h-screen flex-col items-center px-6 pt-7 pb-6"
+      style={{ backgroundImage: "radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px)", backgroundSize: "28px 28px" }}
+    >
+      <div className="absolute top-7 left-8">
+        <BackButton onClick={back} />
+      </div>
+      <Progress step="squad" className="items-center" />
+
+      <div
+        className="mt-[max(16px,calc(14.6vh_-_74px))] h-20 w-20 rounded-full"
+        style={{
+          background: "radial-gradient(circle at 38% 32%, #d9d2ff, #9d8cf8 40%, #5b47d6 85%)",
+          boxShadow: "0 0 60px rgba(139,124,246,0.45), 0 0 140px rgba(139,124,246,0.2)",
+        }}
+      />
+      <h1 className="mt-[max(12px,calc(8.75vh_-_40px))] text-[36px] font-semibold tracking-[-0.02em] text-white">Pick your team</h1>
+      <p className="mt-2 text-[17px] text-muted">Each one is a real Claude Code subagent. Pick up to four.</p>
+
+      <div className="mt-[max(16px,calc(11.7vh_-_52px))] flex flex-wrap justify-center gap-x-7 gap-y-6">
         {roster.map((c) => {
-          const slot = slotOf(c.id)
-          const full = slot === -1 && members.length >= MAX_MEMBERS
+          const selected = members.some((m) => m.id === c.id)
+          const full = !selected && members.length >= MAX_MEMBERS
           return (
-            <motion.button
+            <button
               key={c.id}
-              whileHover={full ? {} : { y: -3 }}
-              whileTap={full ? {} : { scale: 0.98 }}
               onClick={() => toggle(c)}
-              className={`relative flex flex-col bg-navy-900 text-left ${full ? "opacity-50" : ""}`}
-              style={{
-                border: `3px solid ${c.color}`,
-                boxShadow: slot !== -1 ? `0 0 0 2px ${c.color}, 0 0 24px ${c.color}99, 4px 4px 0 #000` : "4px 4px 0 #000",
-              }}
+              onPointerEnter={(e) => e.pointerType === "mouse" && setFocusId(c.id)}
+              onFocus={() => setFocusId(c.id)}
+              aria-pressed={selected}
+              title={full ? "Squad is full. Remove someone first." : undefined}
+              className={`group flex flex-col items-center gap-3 outline-none ${full ? "cursor-not-allowed" : ""}`}
             >
-              {slot !== -1 && (
-                <span className="absolute -top-3 -right-3 z-10 border-2 border-black bg-gold-400 px-2 py-1 font-pixel text-[9px] text-navy-950">
-                  SLOT {slot + 1}
-                </span>
-              )}
-              <div className="flex gap-3 p-3">
-                <Portrait c={c} className="h-36 w-28 shrink-0 border-2 border-black" />
-                <div className="flex min-w-0 flex-1 flex-col gap-2">
-                  <h3 className="font-pixel text-[12px] leading-snug" style={{ color: c.color }}>
-                    {c.name.toUpperCase()}
-                  </h3>
-                  <div className="flex flex-wrap gap-1">
-                    {c.tools.map((t) => (
-                      <span key={t} className="border border-navy-500 bg-navy-800 px-1.5 py-0.5 font-ui text-[11px] text-slate-300">
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                  {readOnly(c) && (
-                    <span className="self-start border-2 border-red-500 bg-red-950 px-1.5 py-0.5 font-pixel text-[8px] text-red-300">
-                      READ ONLY · NEVER EDITS
-                    </span>
+              <motion.span
+                whileHover={full ? {} : { y: -3 }}
+                whileTap={full ? {} : { scale: 0.96 }}
+                className={`relative block rounded-full p-1 transition-all ${
+                  selected ? "ring-[3px] ring-white" : "ring-0"
+                } group-focus-visible:outline-2 group-focus-visible:outline-offset-4 group-focus-visible:outline-accent`}
+              >
+                <Portrait
+                  c={c}
+                  scale={3}
+                  top={1}
+                  className={`h-[132px] w-[132px] rounded-full transition-opacity ${selected ? "" : full ? "opacity-35" : "opacity-60 group-hover:opacity-90"}`}
+                />
+                <AnimatePresence>
+                  {selected && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 28 }}
+                      className="absolute top-1 right-1 flex h-7 w-7 items-center justify-center rounded-full bg-white text-black shadow"
+                    >
+                      <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3.5 8.5l3 3 6-7" />
+                      </svg>
+                    </motion.span>
                   )}
-                  <span className="mt-auto font-ui text-[11px] text-slate-400">Default model: {c.model}</span>
-                </div>
-              </div>
-              <p className="border-t-2 border-navy-700 px-3 py-2 text-center font-pixel text-[9px] leading-relaxed text-slate-200">
-                {c.role.toUpperCase()}
-              </p>
-            </motion.button>
-          )
-        })}
-      </div>
-
-      <div className="panel flex items-center gap-4 p-4">
-        <div className="w-28 shrink-0 text-center">
-          <p className="font-pixel text-base text-gold-400">SQUAD</p>
-          <p className="mt-1 font-ui text-xs text-slate-400">
-            {members.length}/{MAX_MEMBERS} drafted
-          </p>
-        </div>
-
-        <div className="flex h-44 w-36 shrink-0 flex-col items-center justify-end border-3 border-gold-400 bg-navy-800 pb-1">
-          <Portrait c={lead} className="w-full flex-1" />
-          <span className="font-pixel text-[8px] text-gold-300">LEAD</span>
-          <span className="max-w-full truncate px-1 font-ui text-[11px] text-slate-300">{draft.name}</span>
-        </div>
-
-        {Array.from({ length: MAX_MEMBERS }, (_, i) => {
-          const m = members[i]
-          const c = m && roster.find((r) => r.id === m.id)
-          if (!m || !c) {
-            return (
-              <div
-                key={i}
-                className="flex h-44 w-36 shrink-0 items-center justify-center border-3 border-dashed border-navy-500 font-pixel text-2xl text-navy-500"
-              >
-                +
-              </div>
-            )
-          }
-          return (
-            <div key={i} className="flex h-44 w-36 shrink-0 flex-col bg-navy-800" style={{ border: `3px solid ${c.color}` }}>
-              <button
-                onClick={() => toggle(c)}
-                title="Remove from squad"
-                className="group relative flex flex-1 flex-col items-center justify-end overflow-hidden"
-              >
-                <Portrait c={c} className="h-full w-full" />
-                <span className="absolute inset-0 hidden items-center justify-center bg-black/70 font-pixel text-[9px] text-red-300 group-hover:flex">
-                  REMOVE
+                </AnimatePresence>
+              </motion.span>
+              <span className="flex flex-col items-center gap-1.5">
+                <span className={`text-[16px] font-medium transition-colors ${selected ? "text-white" : "text-muted"}`}>{shortName(c)}</span>
+                <span
+                  className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                    selected ? "border-accent/40 bg-accent-soft text-accent" : "invisible border-transparent"
+                  }`}
+                >
+                  {cap(members.find((m) => m.id === c.id)?.model ?? c.model)}
                 </span>
-              </button>
-              <div className="grid grid-cols-3 border-t-2 border-black">
-                {MODELS.map((model) => (
-                  <button
-                    key={model}
-                    onClick={() => setModel(c.id, model)}
-                    className={`py-1.5 font-pixel text-[7px] ${
-                      m.model === model ? "bg-gold-400 text-navy-950" : "bg-navy-900 text-slate-400 hover:text-gold-300"
-                    }`}
-                  >
-                    {model.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
+              </span>
+            </button>
           )
         })}
-
-        <div className="ml-auto flex flex-col gap-3">
-          <motion.button whileTap={{ scale: 0.96 }} onClick={next} disabled={members.length === 0} className="btn-gold text-sm">
-            NEXT &gt;
-          </motion.button>
-          <motion.button whileTap={{ scale: 0.96 }} onClick={back} className="btn text-xs">
-            &lt; BACK
-          </motion.button>
-          {members.length === 0 && <p className="font-ui text-[11px] text-slate-400">Draft at least 1 agent</p>}
-        </div>
       </div>
+
+      <div className="mt-[max(16px,calc(14.6vh_-_74px))] flex min-h-9 flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[14px] text-muted">
+        <span>{describe(focused)}</span>
+        {focusedMember ? (
+          <>
+            <div className="flex rounded-full border border-line bg-panel p-0.5">
+              {MODELS.map((model) => (
+                <button
+                  key={model}
+                  onClick={() => setModel(focused.id, model)}
+                  className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
+                    focusedMember.model === model ? "bg-accent text-white" : "text-faint hover:text-text"
+                  }`}
+                >
+                  {cap(model)}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => remove(focused.id)} className="text-[13px] text-faint underline-offset-4 transition-colors hover:text-text hover:underline">
+              Remove
+            </button>
+          </>
+        ) : (
+          <span className="text-faint">{cap(focused.model)}.</span>
+        )}
+      </div>
+
+      <p className="mt-[max(12px,calc(8.75vh_-_40px))] text-[13px] text-faint">
+        {members.length} of {MAX_MEMBERS} picked
+      </p>
+      <motion.button
+        whileHover={members.length ? { scale: 1.05 } : {}}
+        whileTap={members.length ? { scale: 0.95 } : {}}
+        onClick={next}
+        disabled={members.length === 0}
+        title={members.length === 0 ? "Pick at least one agent" : "Continue"}
+        className="mt-3 flex h-14 w-14 items-center justify-center rounded-full border border-line-strong bg-panel text-white transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-line-strong"
+      >
+        <ArrowRight className="h-5 w-5" />
+      </motion.button>
     </div>
   )
 }

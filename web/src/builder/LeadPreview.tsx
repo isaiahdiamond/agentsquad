@@ -13,7 +13,7 @@ type Props = {
 export default function LeadPreview({ look, height, view = "front", className = "" }: Props) {
   const { sprites, error } = useSprites()
   const [failed, setFailed] = useState("")
-  const native = sprites?.height ?? 44
+  const native = sprites?.height ?? 96
   const h = native * Math.max(1, Math.floor(height / native))
   const src = spriteSet(sprites, "lead", look)?.[view]
 
@@ -21,11 +21,11 @@ export default function LeadPreview({ look, height, view = "front", className = 
   if (!src || failed === src) {
     return (
       <div
-        className={`flex items-center justify-center border-2 border-black/60 bg-gold-600 font-pixel text-[10px] text-navy-950 ${className}`}
+        className={`flex items-center justify-center rounded-lg bg-accent-soft text-[11px] font-semibold text-accent ${className}`}
         style={{ height: h, width: h * 0.4 }}
         title={`missing art: lead-${look.body}-${look.outfit} ${view}`}
       >
-        LEAD
+        Lead
       </div>
     )
   }
