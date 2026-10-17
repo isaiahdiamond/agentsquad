@@ -12,11 +12,11 @@
 - Replay mode is never cut.
 - A deployed replay site for judges (static build playing a recorded run).
 - Art style: 32-bit chibi isometric pixel art for everything (characters, scenes, UI). Dark outlines, 3-4 tone shading, isometric 3/4 top-down camera. See [[References]].
-- UI look: dark navy panels, gold pixel borders, pixel font (Press Start 2P or Silkscreen from Google Fonts), gold primary buttons.
+- UI look (replaced 2026-10-17, see [[References]]): a clean dark product UI with pixel art only in characters and scenes. Background `#0B0D12`, panels `#14161D` with a faint 1px border, 14-16px corners, Inter for all text, one soft violet accent. The gold-border pixel-font look is retired.
 - Scenes: UF Campus (overview map) with clickable building interiors, The Bar, The Beach. The standalone Office scene is dropped; building interiors replace it.
 - Interiors: 2 max, reused across buildings. A library reading room (Collegiate Gothic, inspired by Smathers Library) and a lab.
 - Characters are original. No Marvel, no real people, no NBA players or logos, no UF logos or Gator mascot.
-- Characters are engineers, not heroes. The app is an engineering tool with a pixel art skin, not a game. Roles are named plainly (Frontend Agent, Backend Agent). No villains, powers, or game mechanics.
+- Characters are engineers, not heroes. The app is an engineering tool with pixel art inside it, not a game. Roles are named plainly (Frontend Agent, Backend Agent). No villains, powers, or game mechanics.
 - Status is shown with small fun animations on the sprite: waiting for the user = yellow glow and hand raised; error or failing test = sprite catches cartoon fire until fixed.
 - Lead customization uses palette swaps in code: one base sprite per body, hair and outfit colors swapped by replacing exact pixel colors. Plus a small set of full outfit variants and hat overlays. Pixel art makes this reliable where AI-generated layers are not.
 
@@ -41,10 +41,10 @@ These fill gaps in [[Contracts]] without changing any type.
 
 See [[Art Pack]]. It supersedes the sizes in [[Art Requests]] where they differ.
 
-- **Characters** are single images per view: `front`, `back`, `hand` (hand raised), 44px tall, one shared 64-color palette, listed in `web/public/art/sprites.json`. Left/right facing = flip front/back horizontally. No walk-cycle frames: walking is the front or back image with a bob. Draw at integer scale, anchored at the feet.
+- **Characters** are single images per view: `front`, `back`, `hand` (hand raised), **96px tall, each sprite keeping its own colors** (the first 44px shared-palette pass destroyed the art), listed in `web/public/art/sprites.json`. Typical scales: campus map 1×, rooms 2×, builder preview 4×. Left/right facing = flip front/back horizontally. No walk-cycle frames: walking is the front or back image with a bob. Draw at integer scale, anchored at the feet.
 - **Lead looks** are full variants, not layers: body `a` or `b` × outfit `blazer`, `hoodie`, `flannel`, `track`. In `Look`, `body` is `"a"`/`"b"`, `outfit` is the outfit id, `hair` and `hat` are `"none"`, `hairColor` is unused for now. The Color/Hair/Hat tabs are hidden until recolor art lands. `looks.json` is retired.
 - **Portraits** come from each character's `front` sprite (head crop, upscaled in code). No separate portrait files.
-- **Scenes:** `uf-campus` (map) with 3 buildings: top-left Library (scout, docs-writer → `interior-library`), top-right Lab (backend-dev, test-engineer → `interior-lab`), bottom-right Union (frontend-dev, reviewer → `interior-union`). Rooms you can pick directly: `office` (back from the cut list, since art exists) and `beach`. The Bar has no art yet and is hidden.
+- **Scenes:** `uf-campus` (map) with 3 buildings: top-left Library (scout, docs-writer → `interior-library`), top-right Lab (backend-dev, test-engineer → `interior-lab`), bottom-right Union (frontend-dev, reviewer → `interior-union`). Rooms you can pick directly: `office` and `beach`. The Bar/Club is dropped. The welcome screen uses `web/public/art/scenes/welcome-bg.png` (not a scene in scenes.json).
 - Scene art is 2688×1520; render it to fit the 16:9 stage.
 
 ## Open (owner decides by the hour shown)
