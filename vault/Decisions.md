@@ -39,8 +39,8 @@ These fill gaps in [[Contracts]] without changing any type.
 | Question | Owner | By |
 |---|---|---|
 | Lead sprite test: one base body, 2 outfits, 2 hair styles, palette swap works in code | Art + Builder | hour 3 |
-| Can hooks attribute tool calls to the right subagent? If not, transcript tailing | Bridge | hour 2 |
-| Which tool name delegates: `Task`, `Agent`, or both | Bridge | hour 2 |
+| Can hooks attribute tool calls to the right subagent? If not, transcript tailing | Bridge | hour 2 — **Answered: yes.** Tool hooks fired inside a subagent carry `agent_id` + `agent_type`; `SubagentStart`/`SubagentStop` carry the same `agent_id`. No transcript tailing. See `hooks/FINDINGS.md` |
+| Which tool name delegates: `Task`, `Agent`, or both | Bridge | hour 2 — **Answered: `Agent`** on v2.1.302 (`tool_input.subagent_type`). Server accepts both |
 | Gemini role: build-time asset edits, runtime narration, or both (check sub-track rules) | Team | hour 1 |
 | Narrator model: Gemini Flash or Claude Haiku | Team | hour 1 |
 | Demo task and demo repo | Team | hour 10 |
@@ -58,3 +58,4 @@ Add one line per decision made: date, hour, what, who.
 
 - 2026-10-17: Applied Vault Update 01 (pixel art style, campus map with buildings, new roster, new Scene contract). Architect.
 - 2026-10-17: Event conventions above, settling the Phase 0 ambiguities. Architect.
+- 2026-10-17: Hooks attribute subagent tool calls via `agent_id`/`agent_type`; delegation tool is `Agent`; failed tools fire `PostToolUseFailure` (not PostToolUse), so deploy installs that hook plus `SubagentStart` and `SessionEnd`. Notification unverified in headless mode. Bridge.
