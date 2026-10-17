@@ -1,8 +1,10 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react"
-import { AnimatePresence, motion, useTransform, type MotionValue } from "framer-motion"
+import { motion, motionValue, useTransform, type MotionValue } from "framer-motion"
 import type { AgentState } from "@agentsquad/shared"
-import { spriteSet, useSprites, type SpriteManifest, type SpriteView } from "../ui/sprites"
+import { useLeadSprite } from "../ui/lead"
+import { spriteSet, useSprites, type SpriteManifest, type SpriteSet, type SpriteView } from "../ui/sprites"
 import type { Agent, Who } from "./store"
+import { Scope, positions, verbOf } from "./world"
 
 // Code-drawn chibi, only used when sprites.json has no sprite for a character or its file is broken.
 const BODY = [
@@ -103,20 +105,20 @@ export function useImage(src?: string) {
 export const W = 2688
 export const H = 1520
 
-// fit = screen px per native px.
-export const Stage = createContext({ fit: 0.5 })
+// fit = screen px per native px at rest; ui = native px per screen px right now (follows the camera zoom).
+// Overlays inside the stage scale by var(--ui), so labels keep their design size on screen at any window size or zoom.
+export const Stage = createContext({ fit: 0.5, ui: motionValue(2) })
 
-// Native px per design px for overlays (bubbles, icons, badges): the 1600-wide look on big screens, held near 1x on laptops,
-// capped so a bubble stays modest on very small stages.
 export function useUi() {
-  const { fit } = useContext(Stage)
-  return Math.min(3, Math.max(2, 1 / fit))
+  return useContext(Stage).ui
 }
 
-// Puts the child's bottom center on (x, y), fractions of the scene. Y-sorted unless z is given.
-export function Placed({ x, y, o, z, children }: { x: MotionValue<number>; y: MotionValue<number>; o?: MotionValue<number>; z?: number; children: React.ReactNode }) {
-  const left = useTransform(x, (v) => v * W)
-  const top = useTransform(y, (v) => v * H)
+const ZERO = motionValue(0)
+
+// Puts the child's bottom center on (x, y), fractions of the scene, raised by dy native px. Y-sorted unless z is given.
+export function Placed({ x, y, o, z, dy = ZERO, children }: { x: MotionValue<number>; y: MotionValue<number>; o?: MotionValue<number>; z?: number; dy?: MotionValue<number>; children: React.ReactNode }) {
+  const left = useTransform(x, (v) => Math.round(v * W))
+  const top = useTransform([y, dy], ([v, d]: number[]) => Math.round(v * H + d))
   const zy = useTransform(y, (v) => Math.round(v * H))
   return (
     <motion.div className="pointer-events-none absolute" style={{ left, top, opacity: o, zIndex: z ?? zy, translateX: "-50%", translateY: "-100%" }}>
@@ -170,8 +172,17 @@ export function useManifest() {
 }
 
 // Unknown agent types (e.g. general-purpose) borrow the default lead sprite in greyscale, so they stay the right size.
+// The lead is drawn from its composited look (body, outfit, skin, hair, or a character like the robot); it has no back view,
+// so walking away shows the front. The old per-look sprites are only the fallback when the layered art fails.
 function useSpriteSet(who: Who) {
   const { m, ready } = useManifest()
+  const look = who.lead ? who.look ?? null : null
+  const front = useLeadSprite(look, "front"), hand = useLeadSprite(look, "hand"), sit = useLeadSprite(look, "sit")
+  if (who.lead && front.sprite) {
+    const set: SpriteSet = { front: front.sprite.url, back: front.sprite.url, hand: (hand.sprite ?? front.sprite).url, sit: sit.sprite ? [sit.sprite.url] : undefined }
+    return { set, ready: true, generic: false }
+  }
+  if (who.lead && !front.failed) return { set: null, ready: false, generic: false }
   const own = !m ? null : who.lead ? spriteSet(m, "lead", who.look ?? null) ?? spriteSet(m, "lead") : spriteSet(m, who.type)
   const generic = !!m && !own && !who.lead
   return { set: own ?? (generic ? spriteSet(m, "lead") : null), ready, generic }
@@ -252,7 +263,7 @@ function Body({ who, seed, s, view, flip, seated, typing }: { who: Who; seed: st
 export function Portrait({ who, seed, size, className = "" }: { who: Who; seed: string; size: number; className?: string }) {
   const { set, ready, generic } = useSpriteSet(who)
   const nat = useNatural(set?.front)
-  const k = Math.max(1, Math.round(size / 36))
+  const k = size < 26 ? size / 34 : Math.max(1, Math.round(size / 36))
   return (
     <div className={`relative shrink-0 overflow-hidden ${className}`} style={{ width: size, height: size, background: shade(who.color, 0.3) }}>
       {ready && set && nat ? (
@@ -263,22 +274,6 @@ export function Portrait({ who, seed, size, className = "" }: { who: Who; seed: 
       ) : ready && nat === false ? (
         <div className="px-[8%] pt-[10%]"><Sprite color={who.color} seed={seed} lead={who.lead} bust /></div>
       ) : null}
-    </div>
-  )
-}
-
-function Icon({ state, size }: { state: AgentState; size: number }) {
-  const line = { fill: "none", stroke: "#0b0d12", strokeWidth: 1.6, strokeLinecap: "round" as const, strokeLinejoin: "round" as const }
-  let body: React.ReactNode = null
-  if (state === "reading") body = <><path d="M2 4.5c2-1 4-1 6 .5v10c-2-1.5-4-1.5-6-.5z" {...line} /><path d="M18 4.5c-2-1-4-1-6 .5v10c2-1.5 4-1.5 6-.5z" {...line} /></>
-  if (state === "writing") body = <><rect x={2} y={5} width={16} height={10} rx={2} {...line} /><path d="M5 8.5h1M8 8.5h1M11 8.5h1M14 8.5h1M6 12h8" {...line} /></>
-  if (state === "running") body = <><rect x={2} y={3.5} width={16} height={13} rx={2} {...line} /><path d="M5.5 8l2.5 2-2.5 2M10 13h4" {...line} stroke="#16a34a" /></>
-  if (state === "searching") body = <><circle cx={8.5} cy={8.5} r={5} {...line} /><path d="M12.5 12.5L17 17" {...line} /></>
-  if (state === "thinking") body = <>{[5, 10, 15].map((x, i) => <motion.circle key={x} cx={x} cy={10} r={1.6} fill="#0b0d12" animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }} />)}</>
-  if (!body) return null
-  return (
-    <div className="flex items-center justify-center rounded-lg bg-white/95 shadow-[0_2px_8px_rgba(0,0,0,.35)] ring-1 ring-black/10" style={{ width: size, height: size }}>
-      <svg viewBox="0 0 20 20" style={{ width: size * 0.7 }}>{body}</svg>
     </div>
   )
 }
@@ -343,52 +338,75 @@ function Puff() {
   )
 }
 
-export function Bubble({ text, color, at }: { text?: string; color: string; at: number }) {
-  const [shown, setShown] = useState(false)
-  useEffect(() => {
-    const left = at + 4000 - Date.now()
-    if (!text || left <= 0) return setShown(false)
-    setShown(true)
-    const t = setTimeout(() => setShown(false), left)
-    return () => clearTimeout(t)
-  }, [text, at])
+const stepped = (t: number) => (t < 0.5 ? 0 : 1)
+
+// The nameplate above each head: role · verb, one line, 11px on screen. Waiting turns it yellow, error red, done green.
+export function Nameplate({ label, agent, color }: { label: string; agent?: Agent; color: string }) {
+  const state = agent?.state ?? "idle"
+  const verb = useSettled(agent ? verbOf(agent) : "on call", !!agent && (!!agent.doneAt || state === "waiting" || state === "error"))
+  const waiting = state === "waiting" && !agent?.doneAt
+  const error = state === "error" && !agent?.doneAt
   return (
-    <AnimatePresence>
-      {shown && text && (
-        <motion.div
-          key={at} initial={{ opacity: 0, y: 6, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4 }}
-          className="relative mb-2 flex items-start gap-1.5 rounded-xl bg-white px-2.5 py-1.5 font-medium leading-snug text-[#0b0d12] shadow-[0_4px_14px_rgba(0,0,0,.35)]"
-          style={{ fontSize: 12, width: "max-content", maxWidth: 190 }}
-        >
-          <span className="mt-[0.45em] h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: color }} />
-          {text}
-          <div className="absolute -bottom-1 left-1/2 h-2.5 w-2.5 -translate-x-1/2 rotate-45 rounded-[2px] bg-white" />
-        </motion.div>
+    <div
+      className={`flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-[3px] text-[11px] leading-[14px] ${waiting ? "border-amber-300 bg-amber-400 text-[#0b0d12]" : "border-white/[0.08] bg-[rgba(11,13,18,0.72)] text-white"}`}
+    >
+      {agent?.doneAt ? (
+        <span className="flex h-3 w-3 items-center justify-center rounded-full bg-emerald-500">
+          <svg viewBox="0 0 10 10" className="w-2"><path d="M2 5.2 L4.2 7.4 L8 2.8" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" fill="none" /></svg>
+        </span>
+      ) : waiting ? (
+        <span className="flex h-3 w-3 items-center justify-center rounded-full bg-[#0b0d12] text-[9px] font-extrabold text-amber-300">!</span>
+      ) : (
+        <span className="h-1.5 w-1.5 rounded-full" style={{ background: error ? "#ef4444" : color }} />
       )}
-    </AnimatePresence>
+      <span className="font-semibold">{label}</span>
+      <span className={waiting ? "text-[#0b0d12]/70" : error ? "text-red-300" : "text-white/60"}>· {verb}</span>
+    </div>
   )
 }
 
-const stepped = (t: number) => (t < 0.5 ? 0 : 1)
+// The latest text, but never changing more than once per 1.5s: rapid updates settle on the newest one. Urgent text shows at once.
+export function useSettled(text: string, urgent: boolean) {
+  const [shown, setShown] = useState(text)
+  const last = useRef(0)
+  useEffect(() => {
+    if (text === shown) return
+    const t = setTimeout(() => {
+      last.current = Date.now()
+      setShown(text)
+    }, urgent ? 0 : Math.max(0, last.current + 1500 - Date.now()))
+    return () => clearTimeout(t)
+  }, [text, shown, urgent])
+  return shown
+}
 
 // The character plus every status effect. x, y put the feet (bottom center) on the scene; s is the scene scale.
-// The body is y-sorted with the desks; the effects (icon, bubble, fire, puff) sit above everything.
-export function Actor({ who, agent, seed, s, x, y, o, face = STANDING, seated = false, bubble = true, icon = true, raise = 0 }: {
-  who: Who; agent?: Agent; seed: string; s: number; x: MotionValue<number>; y: MotionValue<number>; o?: MotionValue<number>
-  face?: Face; seated?: boolean; bubble?: boolean; icon?: boolean; raise?: number
+// The body is y-sorted with the desks; the nameplate, fire and puff sit above everything. dy lifts the whole character
+// (the portal fall) and squash scales the body from the feet (the landing).
+export function Actor({ who, agent, label, seed, s, x, y, o, dy, squash, face = STANDING, seated = false, plate = true }: {
+  who: Who; agent?: Agent; label?: string; seed: string; s: number; x: MotionValue<number>; y: MotionValue<number>; o?: MotionValue<number>
+  dy?: MotionValue<number>; squash?: MotionValue<number>; face?: Face; seated?: boolean; plate?: boolean
 }) {
   const state = agent?.state ?? "idle"
   const waiting = state === "waiting"
   const error = state === "error"
-  const ui = useUi()
+  const scope = useContext(Scope)
   const [bob] = useState(() => 1.1 + Math.random() * 0.5)
   const view: SpriteView = waiting ? "hand" : face.back ? "back" : "front"
-  const badge = 28
   const box = { width: BOX * s, height: TALL * s }
+  const id = agent?.id ?? seed
+  useEffect(() => {
+    const key = `${scope}:${id}`
+    const p = { x, y, o, dy, s }
+    positions.set(key, p)
+    return () => {
+      if (positions.get(key) === p) positions.delete(key)
+    }
+  }, [scope, id, x, y, o, dy, s])
   return (
     <>
-      <Placed x={x} y={y} o={o}>
-        <div className="relative" style={box}>
+      <Placed x={x} y={y} o={o} dy={dy}>
+        <motion.div className="relative" style={{ ...box, scaleY: squash, originY: 1 }}>
           {waiting && (
             <motion.div
               className="absolute left-1/2 top-1/2 rounded-full"
@@ -409,28 +427,15 @@ export function Actor({ who, agent, seed, s, x, y, o, face = STANDING, seated = 
           >
             <Body who={who} seed={seed} s={s} view={view} flip={face.flip} seated={seated} typing={seated && TYPING.includes(state)} />
           </motion.div>
-        </div>
+        </motion.div>
       </Placed>
-      <Placed x={x} y={y} o={o} z={5000}>
+      <Placed x={x} y={y} o={o} dy={dy} z={5000}>
         <div className="relative" style={box}>
-          <div className="absolute bottom-full left-1/2 flex flex-col items-center" style={{ marginBottom: 2 * s + raise * ui, transform: `translateX(-50%) scale(${ui})`, transformOrigin: "50% 100%" }}>
-            {bubble && <Bubble text={agent?.say} color={who.color} at={agent?.sayAt ?? 0} />}
-            {waiting ? (
-              <motion.div
-                className="flex items-center justify-center rounded-full bg-amber-400 font-extrabold text-[#0b0d12] shadow-[0_0_0_3px_rgba(251,191,36,.35),0_2px_8px_rgba(0,0,0,.35)]"
-                style={{ width: badge, height: badge, fontSize: badge * 0.62 }}
-                animate={{ y: [0, -4, 0] }} transition={{ duration: 0.7, repeat: Infinity }}
-              >!</motion.div>
-            ) : state === "done" ? (
-              <motion.div
-                initial={{ scale: 0 }} animate={{ scale: 1 }}
-                className="flex items-center justify-center rounded-full bg-emerald-500 shadow-[0_2px_8px_rgba(0,0,0,.35)]"
-                style={{ width: badge, height: badge }}
-              >
-                <svg viewBox="0 0 10 10" className="w-[62%]"><path d="M2 5.2 L4.2 7.4 L8 2.8" stroke="white" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" fill="none" /></svg>
-              </motion.div>
-            ) : icon && !error ? <Icon state={state} size={badge} /> : null}
-          </div>
+          {plate && label && (
+            <div className="absolute bottom-full left-1/2" style={{ marginBottom: 3 * s, transform: "translateX(-50%) scale(var(--ui))", transformOrigin: "50% 100%" }}>
+              <Nameplate label={label} agent={agent} color={who.color} />
+            </div>
+          )}
           {error && <div className="absolute inset-x-0 top-0" style={{ height: seated ? "55%" : "100%" }}><Fire /></div>}
           {agent && Date.now() - agent.fixedAt < 1500 && <Puff key={agent.fixedAt} />}
         </div>

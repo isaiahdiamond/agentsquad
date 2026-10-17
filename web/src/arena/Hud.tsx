@@ -1,185 +1,189 @@
 import { useEffect, useRef, useState } from "react"
+import { NavLink } from "react-router-dom"
 import { AnimatePresence, motion } from "framer-motion"
 import type { Squad } from "@agentsquad/shared"
-import { Portrait } from "./Sprite"
-import { roster } from "../builder/roster"
-import { clock, who, type Agent, type Arena } from "./store"
+import { Portrait, useSettled } from "./Sprite"
+import { clock, who, type Agent, type Arena, type Toast } from "./store"
+import { nameOf, statusLine, teamOf } from "./world"
 
-function useNow() {
+export const GLASS = "border border-white/[0.08] bg-[rgba(11,13,18,0.6)] backdrop-blur-[12px]"
+
+export function useNow(ms = 1000) {
   const [now, setNow] = useState(Date.now())
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000)
+    const t = setInterval(() => setNow(Date.now()), ms)
     return () => clearInterval(t)
-  }, [])
+  }, [ms])
   return now
 }
 
-function Stat({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-2 rounded-xl border border-line bg-panel px-3 py-1.5">
-      <span className="text-xs text-muted">{label}</span>
-      <span className="text-sm font-semibold tabular-nums text-text">{children}</span>
-    </div>
-  )
-}
+const link = ({ isActive }: { isActive: boolean }) => `rounded-full px-2.5 py-1 transition-colors ${isActive ? "bg-white/[0.08] text-text" : "text-muted hover:text-text"}`
 
-export function TopBar({ arena, squad, title, connected }: { arena: Arena; squad: Squad | null; title: string; connected: boolean }) {
-  const now = useNow()
-  const elapsed = arena.startAt ? (arena.endAt || now) - arena.startAt : 0
-  const active = Object.values(arena.agents).filter((a) => !a.doneAt)
-  return (
-    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line bg-bg px-4 py-2.5">
-      <div className="mr-2 flex items-center gap-2.5">
-        <span className="relative flex h-2.5 w-2.5" title={connected ? "Live" : "Reconnecting"}>
-          {connected && <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/60" />}
-          <span className={`relative h-2.5 w-2.5 rounded-full ${connected ? "bg-emerald-400" : "bg-red-500"}`} />
-        </span>
-        <span className="text-[15px] font-semibold text-text">{title}</span>
-      </div>
-      <Stat label="Time">{clock(elapsed)}</Stat>
-      <Stat label="Tool calls">{arena.toolCount}</Stat>
-      <Stat label="Active">
-        <span className="flex items-center gap-2">
-          {active.length}
-          <span className="flex -space-x-1">
-            {active.map((a) => <Portrait key={a.id} who={who(a.type, squad)} seed={a.type} size={22} className="rounded-md ring-2 ring-panel" />)}
-          </span>
-        </span>
-      </Stat>
-    </div>
-  )
-}
-
-function base(path?: string) {
-  return path?.split("/").pop() ?? ""
-}
-
-// A short status from the agent's state when it hasn't narrated yet.
-function verb(a: Agent) {
-  if (a.doneAt) return a.doneText || "Done"
-  if (a.state === "waiting") return "Needs your OK"
-  if (a.state === "error") return "Hit an error"
-  if (a.state === "reading") return a.target ? `Reading ${base(a.target)}` : "Reading"
-  if (a.state === "writing") return a.target ? `Editing ${base(a.target)}` : "Writing code"
-  if (a.state === "running") return "Running a command"
-  if (a.state === "searching") return "Searching the code"
-  if (a.state === "thinking") return a.task ? a.task : "Thinking"
-  return "Ready"
-}
-
-function status(a: Agent) {
-  if (a.doneAt) return a.doneText || "Done"
-  return a.narration || verb(a)
-}
-
-// The latest text, but never changing more than once per 1.5s: rapid updates settle on the newest one.
-// Urgent states (waiting, error, done) show at once.
-function useSettled(text: string, urgent: boolean) {
-  const [shown, setShown] = useState(text)
-  const last = useRef(0)
-  useEffect(() => {
-    if (text === shown) return
-    const t = setTimeout(() => {
-      last.current = Date.now()
-      setShown(text)
-    }, urgent ? 0 : Math.max(0, last.current + 1500 - Date.now()))
-    return () => clearTimeout(t)
-  }, [text, shown, urgent])
-  return shown
-}
-
-function Dot({ a }: { a?: Agent }) {
-  if (a?.doneAt) {
-    return (
-      <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500">
-        <svg viewBox="0 0 10 10" className="w-2.5"><path d="M2 5.2 L4.2 7.4 L8 2.8" stroke="white" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" fill="none" /></svg>
-      </span>
-    )
-  }
-  const tone = !a || a.state === "idle" ? "bg-faint" : a.state === "waiting" ? "bg-amber-400" : a.state === "error" ? "bg-red-500" : "bg-accent"
-  return (
-    <span className="relative flex h-3.5 w-3.5 items-center justify-center">
-      {a && a.state !== "idle" && <span className={`absolute inset-0.5 animate-ping rounded-full opacity-40 ${tone}`} />}
-      <span className={`relative h-2 w-2 rounded-full ${tone}`} />
-    </span>
-  )
-}
-
-function Row({ type, agent, n, squad }: { type: string; agent?: Agent; n: number; squad: Squad | null }) {
-  const w = who(type, squad)
-  const urgent = !!agent && (!!agent.doneAt || agent.state === "waiting" || agent.state === "error")
-  const text = useSettled(agent ? status(agent) : "On call", urgent)
-  return (
-    <div className={`flex items-center gap-3 rounded-xl px-2 py-2.5 transition-opacity duration-500 ${agent ? "" : "opacity-45"}`}>
-      <Portrait who={w} seed={type} size={36} className="rounded-lg" />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-[13px] font-semibold text-text">{n > 1 ? `${w.name} ${n}` : w.name}</span>
-          <Dot a={agent} />
-        </div>
-        <div className="relative mt-0.5 h-[1.35em] overflow-hidden text-[13px] leading-[1.35em]">
-          <AnimatePresence initial={false}>
-            <motion.p
-              key={text} className={`absolute inset-x-0 top-0 truncate ${agent?.state === "error" && !agent.doneAt ? "text-red-300" : agent?.state === "waiting" ? "text-amber-200" : "text-muted"}`}
-              title={text}
-              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-            >
-              {text}
-            </motion.p>
-          </AnimatePresence>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// One fixed row per squad member (the whole roster when no squad is deployed): lead first, then specialists in roster order,
-// then any other type that shows up. A second agent of a type gets its own row under the first. Rows never move.
-export function Rail({ arena, squad }: { arena: Arena; squad: Squad | null }) {
+// The app nav, collapsed to the wordmark until hovered or focused.
+export function NavPill({ children }: { children?: React.ReactNode }) {
   const [open, setOpen] = useState(false)
-  const order = (t: string) => {
-    const i = roster.findIndex((r) => r.id === t)
-    return i < 0 ? 99 : i
-  }
-  const agents = Object.values(arena.agents).sort((a, b) => a.order - b.order)
-  const squadTypes = (squad?.members.map((m) => m.id) ?? roster.map((r) => r.id)).sort((a, b) => order(a) - order(b))
-  const types = [...new Set(["lead", ...squadTypes, ...agents.map((a) => a.type)])]
-  const rows = types.flatMap((t) => {
-    const mine = agents.filter((a) => a.type === t)
-    return mine.length ? mine.map((a, i) => ({ key: i ? a.id : t, type: t, agent: a as Agent | undefined, n: i + 1 })) : [{ key: t, type: t, agent: undefined, n: 1 }]
-  })
   return (
-    <aside className="flex w-[300px] shrink-0 flex-col border-l border-line bg-panel">
-      <h2 className="px-4 pb-1 pt-4 text-sm font-semibold text-text">Team</h2>
-      <div className="min-h-0 flex-1 overflow-y-auto px-2">
-        {rows.map((r) => <Row key={r.key} type={r.type} agent={r.agent} n={r.n} squad={squad} />)}
-      </div>
+    <div
+      className={`flex h-9 items-center rounded-full pl-4 pr-1.5 text-[13px] ${GLASS}`}
+      onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)}
+    >
+      <span className="pr-2.5 font-semibold text-text">agentsquad</span>
+      <nav className={`flex items-center gap-0.5 overflow-hidden transition-[max-width,opacity] duration-200 ${open ? "max-w-[260px] opacity-100" : "max-w-0 opacity-0"}`}>
+        <NavLink to="/builder" className={link}>Builder</NavLink>
+        <NavLink to="/arena" className={link}>Arena</NavLink>
+        <NavLink to="/report" className={link}>Report</NavLink>
+      </nav>
+      {children}
+    </div>
+  )
+}
+
+// "Add a dark mode toggle that remembers…": the prompt's first sentence, cut on a word.
+export function titleOf(prompt?: string, max = 46) {
+  if (!prompt) return ""
+  const first = prompt.split(/(?<=[.!?])\s|\n/)[0].replace(/[.!?]+$/, "").trim()
+  if (first.length <= max) return first
+  return first.slice(0, max).replace(/\s+\S*$/, "") + "…"
+}
+
+export function MissionPill({ arena, finished, connected }: { arena: Arena; finished: number; connected: boolean }) {
+  const now = useNow()
+  const start = arena.promptAt || arena.startAt
+  const title = titleOf(arena.prompt)
+  return (
+    <div className={`flex h-9 items-center gap-2.5 rounded-full px-3.5 text-[13px] ${GLASS}`}>
+      <span className={`h-2 w-2 shrink-0 rounded-full ${connected ? "bg-emerald-400" : "bg-red-500"}`} title={connected ? "Live" : "Reconnecting"} />
+      <span className="max-w-[38vw] truncate font-medium text-text" title={arena.prompt}>{title || (connected ? "No mission yet" : "Reconnecting")}</span>
+      {start > 0 && <span className="tabular-nums text-muted">{clock((finished || now) - start)}</span>}
+    </div>
+  )
+}
+
+// What the squad is doing, in one line.
+export function modeOf(arena: Arena, finished: number, connected: boolean) {
+  if (!connected) return "Reconnecting to the server"
+  if (finished) return "Mission complete"
+  const agents = Object.values(arena.agents)
+  if (agents.some((a) => !a.doneAt && a.state === "waiting")) return "Waiting for you"
+  const working = agents.filter((a) => !a.doneAt && a.state !== "idle").length
+  if (working > 1) return `${working} agents working`
+  if (arena.prompt) return `Mission: ${titleOf(arena.prompt, 40).replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase())}`
+  return "Standing by"
+}
+
+export function ModeCaption({ text }: { text: string }) {
+  return (
+    <div className={`relative h-10 overflow-hidden rounded-full px-4 text-[15px] font-medium text-text ${GLASS}`}>
+      <AnimatePresence initial={false} mode="popLayout">
+        <motion.span
+          key={text} className="flex h-10 items-center whitespace-nowrap"
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.25 }}
+        >
+          {text}
+        </motion.span>
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function Chip({ type, agent, label, squad, onPick }: { type: string; agent?: Agent; label: string; squad: Squad | null; onPick: (id: string) => void }) {
+  const [hover, setHover] = useState(false)
+  const w = who(type, squad)
+  const done = !!agent?.doneAt
+  const waiting = !done && agent?.state === "waiting"
+  const error = !done && agent?.state === "error"
+  const working = !!agent && !done && agent.state !== "idle"
+  const ring = waiting ? "ring-amber-400" : error ? "ring-red-500" : working ? "ring-accent" : done ? "ring-emerald-500/70" : "ring-white/10"
+  const status = useSettled(agent ? statusLine(agent) : "On call", !!agent && (done || waiting || error))
+  return (
+    <div className="relative" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
       <button
-        className="flex items-center justify-between border-t border-line px-4 py-3 text-sm font-semibold text-text hover:bg-panel-2"
-        onClick={() => setOpen((o) => !o)} aria-expanded={open}
+        className={`relative block rounded-full ring-2 transition-[box-shadow,opacity] ${ring} ${agent ? "" : "opacity-45 grayscale"}`}
+        onClick={() => agent && onPick(agent.id)} aria-label={`${label}: ${status}`}
       >
-        <span className="flex items-center gap-2">
-          Files
-          <span className="rounded-md bg-panel-2 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-muted">{arena.files.length}</span>
-        </span>
-        <svg viewBox="0 0 16 16" className={`h-4 w-4 text-muted transition-transform ${open ? "rotate-180" : ""}`}><path d="M4 10l4-4 4 4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" /></svg>
+        {waiting && <motion.span className="absolute -inset-1 rounded-full ring-2 ring-amber-400" animate={{ opacity: [0.9, 0], scale: [1, 1.35] }} transition={{ duration: 1.2, repeat: Infinity }} />}
+        <Portrait who={w} seed={type} size={30} className="rounded-full" />
+        {done && (
+          <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-[#0b0d12]">
+            <svg viewBox="0 0 10 10" className="w-2"><path d="M2 5.2 L4.2 7.4 L8 2.8" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" fill="none" /></svg>
+          </span>
+        )}
+        {waiting && <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[9px] font-extrabold text-[#0b0d12] ring-2 ring-[#0b0d12]">!</span>}
       </button>
-      {open && (
-        <div className="max-h-[40%] overflow-y-auto px-2 pb-3">
-          {!arena.files.length && <p className="px-2 py-2 text-sm text-faint">No files touched yet.</p>}
-          {arena.files.map((f) => {
-            const w = who(f.agentType, squad)
-            return (
-              <div key={`${f.agentId}:${f.path}`} className="flex items-center gap-2 rounded-lg px-2 py-1 text-[12px]" title={f.path}>
-                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${f.changed ? "bg-accent" : "bg-faint"}`} title={f.changed ? "Changed" : "Read"} />
-                <span className={`min-w-0 flex-1 truncate font-mono ${f.changed ? "text-text" : "text-muted"}`}>{f.path}</span>
-                <span className="shrink-0 text-[11px] font-medium" style={{ color: w.color }}>{w.name.replace(/ Agent$/, "")}</span>
-              </div>
-            )
-          })}
-        </div>
+      <AnimatePresence>
+        {hover && (
+          <motion.div
+            className="absolute right-0 top-[calc(100%+10px)] z-20 w-64 rounded-[14px] border border-white/[0.08] bg-[rgba(11,13,18,0.92)] px-3 py-2.5 text-[13px]"
+            initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
+          >
+            <div className="flex items-center gap-1.5 font-semibold text-text">
+              <span className="h-2 w-2 rounded-full" style={{ background: w.color }} />
+              {label}
+            </div>
+            <p className={`mt-0.5 leading-snug ${waiting ? "text-amber-200" : error ? "text-red-300" : "text-muted"}`}>{status}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// One chip per agent instance (two Frontend agents = two chips), plus one greyed chip per squad member still on call.
+export function TeamChips({ arena, squad, onPick }: { arena: Arena; squad: Squad | null; onPick: (id: string) => void }) {
+  const team = teamOf(arena, squad)
+  return (
+    <div className={`flex items-center gap-2 rounded-full p-1.5 ${GLASS}`}>
+      {team.map((t) => (
+        <Chip key={t.key} type={t.type} agent={t.agent} squad={squad} onPick={onPick} label={t.agent ? nameOf(t.agent, arena, squad) : who(t.type, squad).name} />
+      ))}
+    </div>
+  )
+}
+
+const TONE: Record<Toast["tone"], string> = { info: "bg-accent", wait: "bg-amber-400", error: "bg-red-500", done: "bg-emerald-400" }
+
+// One narration line at a time, 3.5s each. A backlog never grows past two waiting lines: older ones are dropped.
+export function Toaster({ items, arena, squad, since }: { items: Toast[]; arena: Arena; squad: Squad | null; since: number }) {
+  const [cur, setCur] = useState<Toast | null>(null)
+  const seen = useRef(new Set<string>())
+  useEffect(() => {
+    if (!cur) return
+    const t = setTimeout(() => setCur(null), 3500)
+    return () => clearTimeout(t)
+  }, [cur])
+  useEffect(() => {
+    if (cur) return
+    const pending = items.filter((t) => !seen.current.has(t.id) && t.at >= since && Date.now() - t.at < 12000).sort((a, b) => a.at - b.at)
+    pending.slice(0, -2).forEach((t) => seen.current.add(t.id))
+    const next = pending.slice(-2)[0]
+    if (!next) return
+    seen.current.add(next.id)
+    setCur(next)
+  }, [cur, items])
+  const named = cur && arena.agents[cur.agentId]
+  const text = cur ? (cur.named ? `${named ? nameOf(named, arena, squad) : who(cur.agentType, squad).name} ${cur.text}` : cur.text) : ""
+  return (
+    <AnimatePresence>
+      {cur && (
+        <motion.div
+          key={cur.id} className={`flex max-w-[min(560px,80vw)] items-center gap-2.5 rounded-full px-4 py-2.5 text-[13px] text-text ${GLASS}`}
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.25 }}
+        >
+          <span className={`h-2 w-2 shrink-0 rounded-full ${TONE[cur.tone]}`} />
+          <span className="truncate">{text}</span>
+        </motion.div>
       )}
-    </aside>
+    </AnimatePresence>
+  )
+}
+
+export function Pill({ on, onClick, children, label, title }: { on?: boolean; onClick: () => void; children: React.ReactNode; label?: string; title?: string }) {
+  return (
+    <button
+      className={`flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium transition-colors ${GLASS} ${on ? "text-text ring-1 ring-accent/70" : "text-muted hover:text-text"}`}
+      onClick={onClick} aria-pressed={on} aria-label={label} title={title}
+    >
+      {children}
+    </button>
   )
 }

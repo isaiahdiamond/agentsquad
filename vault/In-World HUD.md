@@ -1,6 +1,8 @@
 # In-World HUD
 
-> Status: **planned, not started** — a big arena change the user queued for after the current proportion work. A working draft like every vault note; edit as we learn. See "Architect notes" at the end.
+> Status (2026-10-17, Arena): **sections 1–7 built** on branch `worktree-agent-acc84ebf332e5527d` (one commit per milestone). Section 8 (ambience) not started. Deviations: the stand-up camera targets the lead at 1.3x and Follow centers 75% of the way toward the event so the scene keeps context; the toast backlog keeps at most two lines; an error chip/nameplate goes red (not in the table).
+>
+> Original status: planned — a big arena change the user queued for after the current proportion work. A working draft like every vault note; edit as we learn. See "Architect notes" at the end.
 
 Goal: the scene is the whole screen and status lives inside it. No fixed sidebars or stat bars on the arena page. Reference: a 3D agent world ("The Commons") where all UI floats over a full-bleed world, labels are attached to buildings and characters, and panels appear only during events. We keep our 2D pixel style and dark glass UI.
 
