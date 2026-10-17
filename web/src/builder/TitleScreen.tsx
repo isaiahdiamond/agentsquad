@@ -1,5 +1,6 @@
 import { motion } from "framer-motion"
 import type { Draft } from "./draft"
+import WelcomeLights from "./WelcomeLights"
 
 const BG = "/art/scenes/welcome-bg.png"
 
@@ -8,6 +9,7 @@ export default function TitleScreen({ draft, start, reset }: { draft: Draft; sta
   return (
     <div className="relative flex min-h-screen flex-col">
       <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${BG})` }} />
+      <WelcomeLights />
       <div
         className="absolute inset-0"
         style={{
