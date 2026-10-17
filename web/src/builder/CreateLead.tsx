@@ -147,7 +147,7 @@ export default function CreateLead({ draft, update, next }: Props) {
           </p>
         </section>
 
-        <section className="flex min-h-0 flex-col gap-5 p-6 xl:p-8">
+        <section className="flex min-h-0 flex-col gap-5 p-6">
           <input
             value={draft.name}
             maxLength={24}
@@ -219,18 +219,16 @@ function Stage({ look, view }: { look: Look; view: SpriteView }) {
           }}
         />
       </div>
-      {room > 0 && (
-        <motion.div
-          key={`${view}-${look.body}-${look.outfit}`}
-          initial={{ opacity: 0.4 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.2 }}
-          className="absolute left-1/2 -translate-x-1/2"
-          style={{ bottom: feet }}
-        >
-          <LeadPreview look={look} view={view} height={SPRITE_HEIGHT * scale} />
-        </motion.div>
-      )}
+      <motion.div
+        key={`${view}-${look.body}-${look.outfit}`}
+        initial={{ opacity: 0.4 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2 }}
+        className="absolute left-1/2 -translate-x-1/2"
+        style={{ bottom: feet }}
+      >
+        <LeadPreview look={look} view={view} height={SPRITE_HEIGHT * scale} />
+      </motion.div>
     </div>
   )
 }

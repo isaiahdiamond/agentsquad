@@ -38,7 +38,7 @@ export default function DraftSquad({ draft, update, back, next }: Props) {
 
   return (
     <div
-      className="relative flex min-h-screen flex-col items-center px-6 pt-7 pb-12"
+      className="relative flex min-h-screen flex-col items-center px-6 pt-7 pb-8"
       style={{ backgroundImage: "radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px)", backgroundSize: "28px 28px" }}
     >
       <div className="absolute top-7 left-8">
@@ -47,16 +47,16 @@ export default function DraftSquad({ draft, update, back, next }: Props) {
       <Progress step="squad" className="items-center" />
 
       <div
-        className="mt-[7vh] h-20 w-20 rounded-full"
+        className="mt-[max(16px,calc(14.6vh_-_66px))] h-20 w-20 rounded-full"
         style={{
           background: "radial-gradient(circle at 38% 32%, #d9d2ff, #9d8cf8 40%, #5b47d6 85%)",
           boxShadow: "0 0 60px rgba(139,124,246,0.45), 0 0 140px rgba(139,124,246,0.2)",
         }}
       />
-      <h1 className="mt-10 text-[36px] font-semibold tracking-[-0.02em] text-white">Pick your team</h1>
+      <h1 className="mt-[max(12px,calc(8.75vh_-_40px))] text-[36px] font-semibold tracking-[-0.02em] text-white">Pick your team</h1>
       <p className="mt-2 text-[17px] text-muted">Each one is a real Claude Code subagent. Pick up to four.</p>
 
-      <div className="mt-12 flex flex-wrap justify-center gap-x-7 gap-y-6">
+      <div className="mt-[max(16px,calc(11.7vh_-_47px))] flex flex-wrap justify-center gap-x-7 gap-y-6">
         {roster.map((c) => {
           const selected = members.some((m) => m.id === c.id)
           const full = !selected && members.length >= MAX_MEMBERS
@@ -105,7 +105,7 @@ export default function DraftSquad({ draft, update, back, next }: Props) {
         })}
       </div>
 
-      <div className="mt-12 flex min-h-9 flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[14px] text-muted">
+      <div className="mt-[max(16px,calc(14.6vh_-_66px))] flex min-h-9 flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[14px] text-muted">
         <span>{describe(focused)}</span>
         {focusedMember ? (
           <div className="flex rounded-full border border-line bg-panel p-0.5">
@@ -126,7 +126,7 @@ export default function DraftSquad({ draft, update, back, next }: Props) {
         )}
       </div>
 
-      <p className="mt-8 text-[13px] text-faint">
+      <p className="mt-[max(12px,calc(8.75vh_-_40px))] text-[13px] text-faint">
         {members.length} of {MAX_MEMBERS} picked
       </p>
       <motion.button
