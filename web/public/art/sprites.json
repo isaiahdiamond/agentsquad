@@ -15,42 +15,66 @@
       "lead-a-blazer": {
         "front": "/art/sprites/lead-a-blazer-front.png",
         "back": "/art/sprites/lead-a-blazer-back.png",
-        "hand": "/art/sprites/lead-a-blazer-hand.png"
+        "hand": "/art/sprites/lead-a-blazer-hand.png",
+        "sit": [
+          "/art/sprites/lead-a-blazer-sit1.png"
+        ]
       },
       "lead-a-hoodie": {
         "front": "/art/sprites/lead-a-hoodie-front.png",
         "back": "/art/sprites/lead-a-hoodie-back.png",
-        "hand": "/art/sprites/lead-a-hoodie-hand.png"
+        "hand": "/art/sprites/lead-a-hoodie-hand.png",
+        "sit": [
+          "/art/sprites/lead-a-hoodie-sit1.png"
+        ]
       },
       "lead-a-flannel": {
         "front": "/art/sprites/lead-a-flannel-front.png",
         "back": "/art/sprites/lead-a-flannel-back.png",
-        "hand": "/art/sprites/lead-a-flannel-hand.png"
+        "hand": "/art/sprites/lead-a-flannel-hand.png",
+        "sit": [
+          "/art/sprites/lead-a-flannel-sit1.png"
+        ]
       },
       "lead-a-track": {
         "front": "/art/sprites/lead-a-track-front.png",
         "back": "/art/sprites/lead-a-track-back.png",
-        "hand": "/art/sprites/lead-a-track-hand.png"
+        "hand": "/art/sprites/lead-a-track-hand.png",
+        "sit": [
+          "/art/sprites/lead-a-track-sit1.png"
+        ]
       },
       "lead-b-blazer": {
         "front": "/art/sprites/lead-b-blazer-front.png",
         "back": "/art/sprites/lead-b-blazer-back.png",
-        "hand": "/art/sprites/lead-b-blazer-hand.png"
+        "hand": "/art/sprites/lead-b-blazer-hand.png",
+        "sit": [
+          "/art/sprites/lead-b-blazer-sit1.png"
+        ]
       },
       "lead-b-hoodie": {
         "front": "/art/sprites/lead-b-hoodie-front.png",
         "back": "/art/sprites/lead-b-hoodie-back.png",
-        "hand": "/art/sprites/lead-b-hoodie-hand.png"
+        "hand": "/art/sprites/lead-b-hoodie-hand.png",
+        "sit": [
+          "/art/sprites/lead-b-hoodie-sit1.png"
+        ]
       },
       "lead-b-flannel": {
         "front": "/art/sprites/lead-b-flannel-front.png",
         "back": "/art/sprites/lead-b-flannel-back.png",
-        "hand": "/art/sprites/lead-b-flannel-hand.png"
+        "hand": "/art/sprites/lead-b-flannel-hand.png",
+        "sit": [
+          "/art/sprites/lead-b-flannel-sit1.png"
+        ]
       },
       "lead-b-track": {
         "front": "/art/sprites/lead-b-track-front.png",
         "back": "/art/sprites/lead-b-track-back.png",
-        "hand": "/art/sprites/lead-b-track-hand.png"
+        "hand": "/art/sprites/lead-b-track-hand.png",
+        "sit": [
+          "/art/sprites/lead-b-track-sit1.png"
+        ]
       }
     }
   },
@@ -58,33 +82,64 @@
     "frontend-dev": {
       "front": "/art/sprites/frontend-dev-front.png",
       "back": "/art/sprites/frontend-dev-back.png",
-      "hand": "/art/sprites/frontend-dev-hand.png"
+      "hand": "/art/sprites/frontend-dev-hand.png",
+      "sit": [
+        "/art/sprites/frontend-dev-sit1.png",
+        "/art/sprites/frontend-dev-sit2.png"
+      ]
     },
     "backend-dev": {
       "front": "/art/sprites/backend-dev-front.png",
       "back": "/art/sprites/backend-dev-back.png",
-      "hand": "/art/sprites/backend-dev-hand.png"
+      "hand": "/art/sprites/backend-dev-hand.png",
+      "sit": [
+        "/art/sprites/backend-dev-sit1.png",
+        "/art/sprites/backend-dev-sit2.png"
+      ]
     },
     "test-engineer": {
       "front": "/art/sprites/test-engineer-front.png",
       "back": "/art/sprites/test-engineer-back.png",
-      "hand": "/art/sprites/test-engineer-hand.png"
+      "hand": "/art/sprites/test-engineer-hand.png",
+      "sit": [
+        "/art/sprites/test-engineer-sit1.png",
+        "/art/sprites/test-engineer-sit2.png"
+      ]
     },
     "reviewer": {
       "front": "/art/sprites/reviewer-front.png",
       "back": "/art/sprites/reviewer-back.png",
-      "hand": "/art/sprites/reviewer-hand.png"
+      "hand": "/art/sprites/reviewer-hand.png",
+      "sit": [
+        "/art/sprites/reviewer-sit1.png",
+        "/art/sprites/reviewer-sit2.png"
+      ]
     },
     "scout": {
       "front": "/art/sprites/scout-front.png",
       "back": "/art/sprites/scout-back.png",
-      "hand": "/art/sprites/scout-hand.png"
+      "hand": "/art/sprites/scout-hand.png",
+      "sit": [
+        "/art/sprites/scout-sit1.png",
+        "/art/sprites/scout-sit2.png"
+      ]
     },
     "docs-writer": {
       "front": "/art/sprites/docs-writer-front.png",
       "back": "/art/sprites/docs-writer-back.png",
-      "hand": "/art/sprites/docs-writer-hand.png"
+      "hand": "/art/sprites/docs-writer-hand.png",
+      "sit": [
+        "/art/sprites/docs-writer-sit1.png",
+        "/art/sprites/docs-writer-sit2.png"
+      ]
     }
+  },
+  "desks": {
+    "interior-library": "/art/desks/interior-library.png",
+    "interior-lab": "/art/desks/interior-lab.png",
+    "interior-union": "/art/desks/interior-union.png",
+    "office": "/art/desks/office.png",
+    "beach": "/art/desks/beach.png"
   },
   "scenes": {
     "uf-campus": "/art/scenes/uf-campus.png",

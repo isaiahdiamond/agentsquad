@@ -10,6 +10,9 @@ ap.add_argument("--colors", type=int, default=32)
 ap.add_argument("--palette")
 ap.add_argument("--tol", type=int, default=40)
 ap.add_argument("--preview", type=int, default=6)
+ap.add_argument("--scale", type=float)
+ap.add_argument("--width", type=int)
+ap.add_argument("--box")
 a = ap.parse_args()
 
 im = Image.open(a.src).convert("RGBA")
@@ -24,13 +27,23 @@ if im.getextrema()[3][0] == 255:
             if abs(r - bg[0]) + abs(g - bg[1]) + abs(b - bg[2]) < a.tol:
                 px[x, y] = (0, 0, 0, 0)
 
-box = im.getchannel("A").point(lambda v: 255 if v > 128 else 0).getbbox()
+if a.box:
+    box = tuple(int(v) for v in a.box.split(","))
+else:
+    box = im.getchannel("A").point(lambda v: 255 if v > 128 else 0).getbbox()
 if not box:
     sys.exit("image is empty after background removal")
 im = im.crop(box)
 
-nh = a.height
-nw = max(1, round(im.width * nh / im.height))
+if a.scale:
+    nh = max(1, round(im.height * a.scale))
+    nw = max(1, round(im.width * a.scale))
+elif a.width:
+    nw = a.width
+    nh = max(1, round(im.height * nw / im.width))
+else:
+    nh = a.height
+    nw = max(1, round(im.width * nh / im.height))
 small = im.resize((nw, nh), Image.BOX)
 
 alpha = small.getchannel("A").point(lambda v: 255 if v > 128 else 0)

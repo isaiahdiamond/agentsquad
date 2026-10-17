@@ -51,5 +51,62 @@
     "office": "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_132021_7425c147-fe6d-41a8-8c84-d65504aa63b8.png",
     "beach": "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_131808_519379ca-25b8-4622-9d31-496e78b72f43.png",
     "welcome-bg": "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_143657_1bbcb905-64a5-4adb-94f6-2abd37fe7eb5.png"
+  },
+  "seated": {
+    "frontend-dev": [
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163312_f2ea6332-31c6-493e-9126-8655b1173090.png",
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163501_4075d986-5b4e-4459-bb4d-8d53c263837d.png"
+    ],
+    "backend-dev": [
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163313_5d38f52d-a469-4701-823c-4abb8625b1dc.png",
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163500_d2f4a438-ec9f-4f51-bd20-63f22ce8e7a1.png"
+    ],
+    "test-engineer": [
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163312_bdffde2c-fc0b-4be5-8b24-fed8bb222fa2.png",
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163535_68a8c93a-3ee7-4a27-820d-2d1ba5f47e1c.png"
+    ],
+    "reviewer": [
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163312_8e9c321e-5d8d-4080-94b8-1e5dfb331258.png",
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163535_827e691d-0b2d-49ac-8b96-588e68f8cc64.png"
+    ],
+    "scout": [
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163345_6edc9a40-af69-43a9-b32e-44e34412d42a.png",
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163536_5305342e-fd90-4c74-9a5e-e08260bee586.png"
+    ],
+    "docs-writer": [
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163344_4427862a-3843-4dcf-9d47-391396a010f5.png",
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163534_aab9853d-1a37-4853-ac59-39e495a0fe58.png"
+    ],
+    "lead-a-blazer": [
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163346_ce3a7ba1-0625-431f-900f-6570e0c4f0d0.png"
+    ],
+    "lead-a-hoodie": [
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163356_877db721-89fd-4398-ace8-5d30aaa2f693.png"
+    ],
+    "lead-a-flannel": [
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163427_9bb13b38-6983-4f0f-b5bc-ccb144791124.png"
+    ],
+    "lead-a-track": [
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163427_65051c7a-1a0c-47dc-bd56-0bfc1a6d8d7b.png"
+    ],
+    "lead-b-blazer": [
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163427_77ad414b-4b5d-47fb-b2a5-b0881b8db126.png"
+    ],
+    "lead-b-hoodie": [
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163427_e7845219-0f41-402b-8786-73e2d7cd0d52.png"
+    ],
+    "lead-b-flannel": [
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163500_525587f3-68f1-4dc9-871c-18b02d30d97b.png"
+    ],
+    "lead-b-track": [
+      "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163500_eedc1b69-acc7-47b4-9767-f0c20cc91ca8.png"
+    ]
+  },
+  "desks": {
+    "interior-library": "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163612_4e82b301-9f8d-4096-bfc1-db332f3dcac9.png",
+    "interior-lab": "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163611_8e17bb1b-1700-4624-9b6f-15bd59170eae.png",
+    "interior-union": "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163611_04d51d7e-08e3-49e2-a247-e885807c500e.png",
+    "office": "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163611_64d52687-af99-4b01-aa12-4cdf05f44374.png",
+    "beach": "https://d8j0ntlcm91z4.cloudfront.net/user_3Hn0qEeIrzd8eKu5vKMg5oAY4ej/hf_20261017_163641_7981c23a-0c34-44a9-a86e-732f1292fac5.png"
   }
 }
