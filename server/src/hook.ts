@@ -54,7 +54,7 @@ function failed(response: any) {
   return typeof code === "number" && code !== 0
 }
 
-export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId: string) => Out[]) {
+export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId: string) => Promise<void>) {
   if (!raw || typeof raw !== "object" || typeof raw.session_id !== "string") return
   const sessionId: string = raw.session_id
   let s = sessions.get(sessionId)
@@ -104,12 +104,11 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
   }
 
   const endTurn = () => {
-    if (session.turnDone) return
+    if (session.turnDone) return Promise.resolve()
     session.turnDone = true
     for (const a of session.agents.values()) clearTimeout(a.timer)
-    const l = lead()
-    send(l, { kind: "agent_done", state: "done" })
-    for (const r of reports(sessionId)) emit(r)
+    send(lead(), { kind: "agent_done", state: "done" })
+    return reports(sessionId)
   }
 
   const tool: string | undefined = raw.tool_name
@@ -172,13 +171,12 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
       break
     }
     case "Stop": {
-      endTurn()
+      void endTurn()
       break
     }
     case "SessionEnd": {
-      endTurn()
-      send(lead(), { kind: "session_end", state: "idle" })
       sessions.delete(sessionId)
+      void endTurn().then(() => send(lead(), { kind: "session_end", state: "idle" }))
       break
     }
   }

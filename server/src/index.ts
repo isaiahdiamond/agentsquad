@@ -4,7 +4,7 @@ import path from "node:path"
 import { WebSocketServer, WebSocket } from "ws"
 import type { AgentEvent } from "@agentsquad/shared"
 import { handleHook, type Out } from "./hook"
-import { createNarrator } from "./narrator"
+import { createNarrator, narratorMode } from "./narrator"
 import { ROOT, deploy, loadState, undeploy } from "./deploy"
 
 const PORT = Number(process.env.PORT ?? 4317)
@@ -116,4 +116,7 @@ wss.on("connection", (socket) => {
   socket.on("message", (data) => broadcast(data.toString(), socket))
 })
 
-server.listen(PORT, "127.0.0.1", () => console.log(`agentsquad server on http://127.0.0.1:${PORT} (ws at /ws)`))
+server.listen(PORT, "127.0.0.1", () => {
+  console.log(`agentsquad server on http://127.0.0.1:${PORT} (ws at /ws)`)
+  console.log(narratorMode())
+})
