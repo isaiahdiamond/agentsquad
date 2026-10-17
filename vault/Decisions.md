@@ -68,6 +68,10 @@ See [[Art Pack]]. It supersedes the sizes in [[Art Requests]] where they differ.
 
 See [[Arena Art]]: native-size stage (2688x1520) scaled by one transform, desk stations, seated typing agents, y-sorted layering. Contract additions approved by the user with this pack: `Scene.scale` and `Spot.kind: "desk"`. Sprites stay **96px with per-sprite colors** (the pack's script reverted to 44px + shared palette; not used), so the pack's starting scales are multiplied by 44/96: rooms ≈2.75, beach ≈1.83, campus ≈0.92. Sprite manifest gains `sit` frames per look and `desks` per room.
 
+### Lead customization (2026-10-17, user)
+
+See [[Character Customization]]: the lead is layered (type, outfit, skin, hair, hair color; robot/dog/gator are complete characters), composed in code into an offscreen canvas and cached. `Look` gains an optional `skin`; `body` holds the type (approved by the user with this spec). Lead art comes from `tools/fetch_lead.py` into `web/public/art/lead/` + `lead.json`, **run at 96px** to match the specialists and scene scales (the spec's 44px predates the 96px switch). Its shared palette is intentional here: skin swapping needs identical skin hexes across outfits.
+
 ## Requests
 
 Agents: write contract change requests here, then stop and wait.

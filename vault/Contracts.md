@@ -40,11 +40,12 @@ Tool to state:
 
 ```ts
 export type Look = {
-  body: string           // id from looks.json bodies, e.g. "body-a"
-  hair: string           // "hair-1" ... or "none"
-  hairColor: string      // hex
-  outfit: string         // "outfit-hoodie"
-  hat: string            // "hat-cap" or "none"
+  body: string           // lead type: "a" | "b" (people) or "robot" | "dog" | "gator" (complete characters)
+  hair: string           // hair style id from lead.json, or "bald"/"none"; ignored for characters
+  hairColor: string      // hair color id from lead.json hairColors, e.g. "black"
+  outfit: string         // outfit id for that body, e.g. "blazer"; ignored for characters
+  hat: string            // unused ("none")
+  skin?: string          // skin tone id from lead.json skinTones, e.g. "s3"; ignored for characters
 }
 ```
 
