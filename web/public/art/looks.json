@@ -1,0 +1,65 @@
+{
+  "bodies": [
+    {
+      "id": "body-a",
+      "label": "Body A"
+    },
+    {
+      "id": "body-b",
+      "label": "Body B"
+    }
+  ],
+  "hair": [
+    {
+      "id": "hair-1",
+      "label": "Short",
+      "file": {
+        "body-a": "/art/looks/body-a-hair-1.svg",
+        "body-b": "/art/looks/body-b-hair-1.svg"
+      }
+    },
+    {
+      "id": "hair-2",
+      "label": "Long",
+      "file": {
+        "body-a": "/art/looks/body-a-hair-2.svg",
+        "body-b": "/art/looks/body-b-hair-2.svg"
+      }
+    }
+  ],
+  "outfits": [
+    {
+      "id": "outfit-hoodie",
+      "label": "Hoodie",
+      "file": {
+        "body-a": "/art/looks/body-a-outfit-hoodie.svg",
+        "body-b": "/art/looks/body-b-outfit-hoodie.svg"
+      }
+    },
+    {
+      "id": "outfit-jersey",
+      "label": "Jersey",
+      "file": {
+        "body-a": "/art/looks/body-a-outfit-jersey.svg",
+        "body-b": "/art/looks/body-b-outfit-jersey.svg"
+      }
+    }
+  ],
+  "hats": [
+    {
+      "id": "hat-cap",
+      "label": "Cap",
+      "file": {
+        "body-a": "/art/looks/body-a-hat-cap.svg",
+        "body-b": "/art/looks/body-b-hat-cap.svg"
+      }
+    }
+  ],
+  "hairColors": [
+    "#1c1917",
+    "#78350f",
+    "#facc15",
+    "#ef4444",
+    "#3b82f6"
+  ]
+}
