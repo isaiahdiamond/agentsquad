@@ -11,7 +11,7 @@ python tools/fetch_art.py
 New since last time (all listed in `web/public/art/sprites.json`):
 
 - `sit` frames for every look: `team[id].sit` has 2 frames (typing animation), `lead.looks[id].sit` has 1
-- `desks[sceneId]`: one desk per room, drawn to match it: `interior-library`, `interior-lab`, `interior-union`, `office`, `beach`
+- `desks[sceneId]`: one desk per room, drawn to match it: `interior-library`, `interior-lab`, `interior-union`, `office`. `club` has no desk of its own yet and borrows `office` (`BORROWED` in `RoomView.tsx`); a `desks.club` entry takes over automatically when it lands
 
 Seated sprites are already at the correct size relative to the standing sprites (shorter than 44px). Never resize them to 44.
 
@@ -31,7 +31,7 @@ Starting scales (tune with the `D` debug overlay):
 | Scene | scale | standing agent height |
 |---|---|---|
 | interior-library, interior-lab, interior-union, office | 6 | about 17% of scene height |
-| beach | 4 | about 12% |
+| club | 3.5 (1.6 for the 96px sprites) | about 10% |
 | uf-campus | 2 | about 6% (door height) |
 
 These come from the team's test: 44px sprites at 3x looked right on an 805px-tall view of the library, which is about 5.7x at native size.
@@ -48,10 +48,27 @@ Original baseline set by the user in the office: a standing agent was **255 nati
 | interior-library | table chair 140 → 95 cm; reading table 100 → 74 cm | 1.41 | 2.5 | **2.9** | 278 |
 | interior-lab | stool 90 → 65 cm; lab bench 175 → 92 cm | 1.64 | 2.9 | **3.35** | 322 |
 | interior-union | café bar chair 165 → 105 cm; bar table 180 → 105 cm; arcade 212 → 175 cm | 1.57 (median) | 2.75 | **3.15** | 302 |
-| beach | volleyball players 128 → 170 cm; net post 250 → 240 cm | 0.90 | 1.6 | **1.85** | 178 |
+| club (2026-10-17, replaces beach) | painted standing people 115–148 → 160–180 cm; high-top chair back 160 (the art draws furniture large next to its people, so people win) | 0.85 | 1.54 | **1.6** | 154 (10% of height, a touch taller than the tallest painted men) |
 | uf-campus (map) | door openings: Library 132, Union 128, Lab 78 | n/a | 1.5 | **1.75** | 168 (≈1.3× Library/Union doors) |
 
 The art isn't drawn at one consistent scale inside a room: the union's arcade cabinets imply much smaller people than its bar tables do, and the lab bench implies bigger people than its stools. These scales take the median. Campus is a zoomed-out map, so it targets door height instead. The Lab door is much smaller than the others and is still an open question. Known nit: the union `bench` (0.45, 0.88) sits next to the desk at (0.5, 0.9), so a 5th agent standing there overlaps a seated one.
+
+### Scenes you can pick (2026-10-17)
+
+`uf-campus` (map, opens the three interiors), `office`, and **`club`** ("The Club", `club.png`: Las Vegas rooftop pool day-club). The Beach is gone: `beach.png` and its desk are deleted, and a squad deployed with `scene: "beach"` (or `?scene=beach`) opens the club (`RENAMED` in `ArenaPage.tsx`). Unknown scene ids fall back to the campus map.
+
+The club art has people painted into it (pool, dance floor, bar, cabanas), so every spot is on open deck, clear of the pool, furniture and painted people:
+
+| Spot | x, y | Where |
+|---|---|---|
+| lead (desk) | 0.625, 0.875 | bottom deck, right of the front high-top |
+| station 0 | 0.815, 0.695 | right deck, between the hot tub and the right high-top |
+| station 1 | 0.875, 0.605 | deck strip in front of the bar, right of the stools |
+| station 2 | 0.505, 0.83 | bottom deck by the pool rail, right of the glass planter |
+| station 3 | 0.725, 0.685 | right deck, left of the hot tub, behind the middle high-tops |
+| bench | 0.52, 0.905 | bottom deck front edge |
+
+The open deck is small: a 5th specialist stands in the row right of the bench. Stations 0/3 put the desk's back edge against the pool rail; that's fine, the desk's feet are on the deck.
 
 Desks follow the agents: a standing agent is about 1.075× the desk's width, so changing a scene's scale resizes its desks too. Standing, walking, waiting and seated sprites all draw at the same `scene.scale`.
 

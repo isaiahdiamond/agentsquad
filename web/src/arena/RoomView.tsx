@@ -14,11 +14,13 @@ const SPEED = 0.12
 // The lead only takes its desk once it has started doing something.
 const busy = (a: Agent) => !a.doneAt && (a.state !== "idle" || a.tools > 0)
 const DESK = { w: 62, h: 52 }
+// Scenes without their own desk art borrow one until it lands.
+const BORROWED: Record<string, string> = { club: "office" }
 
 // Desk image size in art pixels, or the fallback size when the art is missing. Undefined while loading.
 export function useDesk(sceneId: string) {
   const { m, ready } = useManifest()
-  const src = m?.desks?.[sceneId]
+  const src = m?.desks?.[sceneId] ?? m?.desks?.[BORROWED[sceneId]]
   const nat = useNatural(src)
   if (!ready || (src && nat === undefined)) return { src, size: undefined }
   return { src: nat ? src : undefined, size: nat || DESK }
@@ -126,7 +128,7 @@ function Worker({ id, type, agent, label, squad, s, from, target, portal, onSit 
   return <Actor who={who(type, squad)} agent={agent} label={label} seed={type} s={s} x={x} y={y} o={o} dy={dy} squash={squash} face={face} seated={seated} />
 }
 
-// Rooms: a whole-scene room (office, beach) with the lead, or a building interior showing only the agents inside it.
+// Rooms: a whole-scene room (office, club) with the lead, or a building interior showing only the agents inside it.
 export default function RoomView({ scene, arena, squad, members, main }: { scene: Scene; arena: Arena; squad: Squad | null; members: Agent[]; main: boolean }) {
   const opened = useRef(Date.now())
   const taken = useRef(new Map<string, number>())

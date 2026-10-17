@@ -89,7 +89,7 @@ export default function Bubbles({ agents, scope, squad, portals }: { agents: Age
         >
           <motion.div
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
-            className="relative mb-2 flex items-start gap-1.5 rounded-xl bg-white px-2.5 py-1.5 text-[12px] font-medium leading-snug text-[#0b0d12] shadow-[0_4px_14px_rgba(0,0,0,.35)]"
+            className="relative mb-2 flex items-start gap-1.5 rounded-xl bg-white px-2.5 py-1.5 text-[12px] font-medium leading-snug text-[#050505] shadow-[0_4px_14px_rgba(0,0,0,.35)]"
             style={{ width: "max-content", maxWidth: 220 }}
           >
             <span className="mt-[0.45em] h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: a.state === "waiting" ? "#f59e0b" : who(a.type, squad).color }} />

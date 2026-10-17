@@ -13,6 +13,8 @@ import { buildingFor, emptyArena, finishedAt, reduce, saveReport, type Received,
 import { positions } from "./world"
 
 const BRIEF_W = 356
+// Squads deployed before a scene was replaced still name the old one.
+const RENAMED: Record<string, string> = { beach: "club" }
 
 export default function ArenaPage() {
   const navigate = useNavigate()
@@ -155,7 +157,7 @@ export default function ArenaPage() {
     return () => window.removeEventListener("keydown", onKey)
   }, [])
 
-  const scene = scenes.find((s) => s.id === (sceneId || "uf-campus")) ?? scenes.find((s) => s.id === "uf-campus") ?? scenes[0]
+  const scene = scenes.find((s) => s.id === (RENAMED[sceneId] ?? (sceneId || "uf-campus"))) ?? scenes.find((s) => s.id === "uf-campus") ?? scenes[0]
   const buildings = scene?.buildings ?? []
   const building = buildings.find((b) => b.id === view || b.interior === view)
   const interior = building && scenes.find((s) => s.id === building.interior)
@@ -386,7 +388,7 @@ export default function ArenaPage() {
           {interior && (
             <motion.div key="back" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <button
-                className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-[rgba(11,13,18,0.6)] px-3.5 py-2 text-[13px] font-medium text-text backdrop-blur-[12px] transition-colors hover:border-accent"
+                className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-[rgba(14,14,16,0.6)] px-3.5 py-2 text-[13px] font-medium text-text backdrop-blur-[12px] transition-colors hover:border-accent"
                 onClick={() => setView(null)}
               >
                 <svg viewBox="0 0 16 16" className="h-4 w-4"><path d="M10 3L5 8l5 5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -398,7 +400,7 @@ export default function ArenaPage() {
           <ModeCaption text={modeOf(arena, finished, connected)} />
         </div>
         {notice && (
-          <div className="pointer-events-auto absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-4 rounded-[14px] border border-white/[0.08] bg-[rgba(11,13,18,0.6)] px-4 py-3 text-[13px] text-text backdrop-blur-[12px]">
+          <div className="pointer-events-auto absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-4 rounded-[14px] border border-white/[0.08] bg-[rgba(14,14,16,0.6)] px-4 py-3 text-[13px] text-text backdrop-blur-[12px]">
             <span className="h-2 w-2 shrink-0 rounded-full bg-accent" />
             {notice}
             <button className="rounded-md px-1.5 text-muted hover:text-text" onClick={() => setNotice("")} aria-label="Dismiss">✕</button>

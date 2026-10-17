@@ -138,8 +138,7 @@
     "interior-library": "/art/desks/interior-library.png",
     "interior-lab": "/art/desks/interior-lab.png",
     "interior-union": "/art/desks/interior-union.png",
-    "office": "/art/desks/office.png",
-    "beach": "/art/desks/beach.png"
+    "office": "/art/desks/office.png"
   },
   "scenes": {
     "uf-campus": "/art/scenes/uf-campus.png",
@@ -147,6 +146,6 @@
     "interior-lab": "/art/scenes/interior-lab.png",
     "interior-union": "/art/scenes/interior-union.png",
     "office": "/art/scenes/office.png",
-    "beach": "/art/scenes/beach.png"
+    "club": "/art/scenes/club.png"
   }
 }

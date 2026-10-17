@@ -131,18 +131,18 @@
     "bench": { "x": 0.16, "y": 0.8, "scale": 3.05 }
   },
   {
-    "id": "beach",
-    "name": "The Beach",
+    "id": "club",
+    "name": "The Club",
     "kind": "room",
-    "background": "/art/scenes/beach.png",
-    "scale": 1.85,
-    "lead": { "x": 0.62, "y": 0.46, "scale": 1.85, "kind": "desk" },
+    "background": "/art/scenes/club.png",
+    "scale": 1.6,
+    "lead": { "x": 0.625, "y": 0.875, "scale": 1.6, "kind": "desk" },
     "stations": [
-      { "x": 0.465, "y": 0.4, "scale": 1.85, "kind": "desk" },
-      { "x": 0.56, "y": 0.435, "scale": 1.85, "kind": "desk" },
-      { "x": 0.78, "y": 0.8, "scale": 1.85, "kind": "desk" },
-      { "x": 0.86, "y": 0.6, "scale": 1.85, "kind": "desk" }
+      { "x": 0.815, "y": 0.695, "scale": 1.6, "kind": "desk" },
+      { "x": 0.875, "y": 0.605, "scale": 1.6, "kind": "desk" },
+      { "x": 0.505, "y": 0.83, "scale": 1.6, "kind": "desk" },
+      { "x": 0.725, "y": 0.685, "scale": 1.6, "kind": "desk" }
     ],
-    "bench": { "x": 0.25, "y": 0.5, "scale": 1.85 }
+    "bench": { "x": 0.52, "y": 0.905, "scale": 1.6 }
   }
 ]

@@ -109,7 +109,7 @@ const ROOMS: Record<string, { wall: string; trim: string; floor: string; floor2:
   library: { wall: "#5a2a22", trim: "#d9c9a3", floor: "#8a6a48", floor2: "#7a5c3e", rug: "#1f5f3a" },
   lab: { wall: "#26384f", trim: "#8fb3d1", floor: "#5b6b7d", floor2: "#4f5e6f", rug: "#1d3060" },
   bar: { wall: "#4a2614", trim: "#f2a541", floor: "#5a3a22", floor2: "#4c311c", rug: "#7c2d12" },
-  beach: { wall: "#3aa0d8", trim: "#ffffff", floor: "#e8cf8f", floor2: "#dcc07c", rug: "#e2572f" },
+  club: { wall: "#3aa0d8", trim: "#ffffff", floor: "#e8cf8f", floor2: "#dcc07c", rug: "#e2572f" },
 }
 
 function RoomArt({ scene }: { scene: Scene }) {
@@ -126,7 +126,7 @@ function RoomArt({ scene }: { scene: Scene }) {
         </pattern>
       </defs>
       <rect width={W} height={H} fill={`url(#floor-${kind})`} />
-      {kind === "beach" ? (
+      {kind === "club" ? (
         <g>
           <rect width={W} height={wallH * 0.7} fill="#7cc6f0" />
           <circle cx={1300} cy={110} r={60} fill="#fde68a" stroke="#f59e0b" strokeWidth={6} />
@@ -148,7 +148,7 @@ function RoomArt({ scene }: { scene: Scene }) {
       <rect x={W * 0.15} y={H * 0.575} width={W * 0.7} height={H * 0.27} fill="none" stroke="#f5c542" strokeOpacity={0.35} strokeWidth={4} />
       {scene.stations.map((s, i) => (
         <g key={i} transform={`translate(${s.x * W} ${s.y * H})`}>
-          {kind === "beach" ? (
+          {kind === "club" ? (
             <g>
               <rect x={-4} y={-150} width={8} height={110} fill="#f5f5f4" stroke="#1a0f0a" strokeWidth={2} />
               <path d="M-80 -140 Q0 -200 80 -140 Z" fill={i % 2 ? "#ef4444" : "#3b82f6"} stroke="#1a0f0a" strokeWidth={4} />

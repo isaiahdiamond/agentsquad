@@ -90,7 +90,7 @@ export default function ReportPage() {
             return (
               <motion.article
                 key={a.id} initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: i * 0.05, duration: 0.3 }}
-                className={`card relative flex flex-col gap-4 p-5 ${isMvp ? "border-accent/60 shadow-[0_0_0_1px_rgba(90,143,230,.35)]" : ""}`}
+                className={`card relative flex flex-col gap-4 p-5 ${isMvp ? "border-accent/60 shadow-[0_0_0_1px_rgba(255,255,255,.35)]" : ""}`}
               >
                 {isMvp && (
                   <div className="absolute right-4 top-4 rounded-full bg-accent px-2.5 py-0.5 text-[11px] font-semibold text-on-accent">MVP</div>

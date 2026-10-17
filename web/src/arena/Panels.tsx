@@ -69,13 +69,13 @@ export function NeedsYou({ agent, arena, squad }: { agent: Agent; arena: Arena; 
     >
       <div className="relative shrink-0">
         <Portrait who={w} seed={agent.type} size={36} className="rounded-full ring-2 ring-amber-400" />
-        <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[10px] font-extrabold text-[#0b0d12] ring-2 ring-[#0b0d12]">!</span>
+        <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[10px] font-extrabold text-[#050505] ring-2 ring-[#050505]">!</span>
       </div>
       <div className="min-w-0 flex-1">
         <div className="font-semibold">{nameOf(agent, arena, squad)} is waiting for you</div>
         <p className="line-clamp-2 leading-snug text-muted" title={message}>{message}</p>
       </div>
-      <span className="shrink-0 rounded-full bg-amber-400 px-2.5 py-1 text-[12px] font-semibold text-[#0b0d12]">Approve in your terminal</span>
+      <span className="shrink-0 rounded-full bg-amber-400 px-2.5 py-1 text-[12px] font-semibold text-[#050505]">Approve in your terminal</span>
     </motion.div>
   )
 }

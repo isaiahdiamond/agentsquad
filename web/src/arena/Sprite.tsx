@@ -301,7 +301,7 @@ export function Fire() {
       <Flame className="bottom-[88%] left-[30%] w-[40%]" delay={0.2} />
       {[0, 1, 2].map((i) => (
         <motion.div
-          key={i} className="absolute top-[-8%] rounded-full bg-slate-400/60"
+          key={i} className="absolute top-[-8%] rounded-full bg-zinc-400/60"
           style={{ left: `${22 + i * 20}%`, width: "26%", aspectRatio: "1" }}
           animate={{ y: ["0%", "-220%"], opacity: [0, 0.7, 0], scale: [0.5, 1.4] }}
           transition={{ duration: 1.8, repeat: Infinity, delay: i * 0.6, ease: "easeOut" }}
@@ -348,19 +348,19 @@ export function Nameplate({ label, agent, color }: { label: string; agent?: Agen
   const error = state === "error" && !agent?.doneAt
   return (
     <div
-      className={`flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-[3px] text-[11px] leading-[14px] ${waiting ? "border-amber-300 bg-amber-400 text-[#0b0d12]" : "border-white/[0.08] bg-[rgba(11,13,18,0.72)] text-white"}`}
+      className={`flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-[3px] text-[11px] leading-[14px] ${waiting ? "border-amber-300 bg-amber-400 text-[#050505]" : "border-white/[0.08] bg-[rgba(14,14,16,0.72)] text-white"}`}
     >
       {agent?.doneAt ? (
         <span className="flex h-3 w-3 items-center justify-center rounded-full bg-emerald-500">
           <svg viewBox="0 0 10 10" className="w-2"><path d="M2 5.2 L4.2 7.4 L8 2.8" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" fill="none" /></svg>
         </span>
       ) : waiting ? (
-        <span className="flex h-3 w-3 items-center justify-center rounded-full bg-[#0b0d12] text-[9px] font-extrabold text-amber-300">!</span>
+        <span className="flex h-3 w-3 items-center justify-center rounded-full bg-[#050505] text-[9px] font-extrabold text-amber-300">!</span>
       ) : (
         <span className="h-1.5 w-1.5 rounded-full" style={{ background: error ? "#ef4444" : color }} />
       )}
       <span className="font-semibold">{label}</span>
-      <span className={waiting ? "text-[#0b0d12]/70" : error ? "text-red-300" : "text-white/60"}>· {verb}</span>
+      <span className={waiting ? "text-[#050505]/70" : error ? "text-red-300" : "text-white/60"}>· {verb}</span>
     </div>
   )
 }

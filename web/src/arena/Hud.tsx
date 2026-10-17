@@ -6,7 +6,7 @@ import { Portrait, useSettled } from "./Sprite"
 import { clock, who, type Agent, type Arena, type Toast } from "./store"
 import { nameOf, statusLine, teamOf } from "./world"
 
-export const GLASS = "border border-white/[0.08] bg-[rgba(11,13,18,0.6)] backdrop-blur-[12px]"
+export const GLASS = "border border-white/[0.08] bg-[rgba(14,14,16,0.6)] backdrop-blur-[12px]"
 
 export function useNow(ms = 1000) {
   const [now, setNow] = useState(Date.now())
@@ -104,16 +104,16 @@ function Chip({ type, agent, label, squad, onPick }: { type: string; agent?: Age
         {waiting && <motion.span className="absolute -inset-1 rounded-full ring-2 ring-amber-400" animate={{ opacity: [0.9, 0], scale: [1, 1.35] }} transition={{ duration: 1.2, repeat: Infinity }} />}
         <Portrait who={w} seed={type} size={30} className="rounded-full" />
         {done && (
-          <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-[#0b0d12]">
+          <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-[#050505]">
             <svg viewBox="0 0 10 10" className="w-2"><path d="M2 5.2 L4.2 7.4 L8 2.8" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" fill="none" /></svg>
           </span>
         )}
-        {waiting && <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[9px] font-extrabold text-[#0b0d12] ring-2 ring-[#0b0d12]">!</span>}
+        {waiting && <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[9px] font-extrabold text-[#050505] ring-2 ring-[#050505]">!</span>}
       </button>
       <AnimatePresence>
         {hover && (
           <motion.div
-            className="absolute right-0 top-[calc(100%+10px)] z-20 w-64 rounded-[14px] border border-white/[0.08] bg-[rgba(11,13,18,0.92)] px-3 py-2.5 text-[13px]"
+            className="absolute right-0 top-[calc(100%+10px)] z-20 w-64 rounded-[14px] border border-white/[0.08] bg-[rgba(14,14,16,0.92)] px-3 py-2.5 text-[13px]"
             initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
           >
             <div className="flex items-center gap-1.5 font-semibold text-text">

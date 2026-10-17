@@ -14,7 +14,7 @@ Goal: the scene is the whole screen and status lives inside it. No fixed sidebar
 
 ## 2. Floating chrome
 
-All chrome is small glass pills over the scene: background `rgba(11,13,18,0.6)`, `backdrop-filter: blur(12px)`, 1px border `rgba(255,255,255,0.08)`, radius 999px for pills and 14px for cards, Inter 13px.
+All chrome is small glass pills over the scene: background `rgba(14,14,16,0.6)`, `backdrop-filter: blur(12px)`, 1px border `rgba(255,255,255,0.08)`, radius 999px for pills and 14px for cards, Inter 13px.
 
 | Where | What |
 |---|---|
@@ -48,7 +48,7 @@ On prompt, before work starts:
 4. Toast: "Lead assembled the team"
 5. Agents walk to their buildings, camera eases back out
 
-Indoor scenes (office, beach) do the same around the lead's spot, then agents walk to desks.
+Indoor scenes (office, club) do the same around the lead's spot, then agents walk to desks.
 
 ## 6. Camera
 
@@ -79,4 +79,4 @@ Slides over the right 360px of the scene, glass card. Tabs: Activity (the old fe
 - **Overlaps [[Session Flow]]:** the stand-up moment, portal spawns, mission states and On-call tray all live there. Build them together as one arena round; the team chips here replace that doc's On-call tray.
 - **Cover vs. contain:** cover crops scene edges at some window shapes, so building doors/desk stations near the edges may go off-screen. Keep a safe area (stations and doors inside the central ~80%) or clamp the camera so the active agent stays visible.
 - **The calm activity log (Gemini) feeds this:** narration becomes nameplate verbs, toasts and the Log tab instead of a constantly scrolling sidebar — which is exactly the "less sporadic" goal. Do the Gemini narrator before or with this.
-- **Accent:** chips use the blue accent `#5A8FE6`, "needs you" yellow, done green, per [[Decisions]].
+- **Accent:** chips use the white accent (black and white UI, 2026-10-17; blue dropped), "needs you" yellow, done green, per [[Decisions]]. Glass is `rgba(14,14,16,0.6)` (the `#0E0E10` panel); dark text on yellow or white is `#050505`.

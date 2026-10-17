@@ -177,11 +177,11 @@ function Sign({ b, inside, squad }: { b: Building; inside: Agent[]; squad: Squad
     <div className="pointer-events-none absolute z-[4900]" style={{ left: Math.round(b.door.x * W), top: Math.round(b.door.y * H - 150), transform: "translate(-50%, -100%) scale(var(--ui))", transformOrigin: "50% 100%" }}>
       <motion.div ref={safe}
         animate={controls}
-        className={`flex flex-col items-center gap-1 rounded-[12px] border px-2.5 py-1.5 backdrop-blur-[12px] ${waiting ? "border-amber-300 bg-[rgba(60,45,5,0.75)]" : "border-white/[0.08] bg-[rgba(11,13,18,0.6)]"}`}
+        className={`flex flex-col items-center gap-1 rounded-[12px] border px-2.5 py-1.5 backdrop-blur-[12px] ${waiting ? "border-amber-300 bg-[rgba(60,45,5,0.75)]" : "border-white/[0.08] bg-[rgba(14,14,16,0.6)]"}`}
       >
         <span className="flex items-center gap-1 text-[12px] font-semibold leading-none text-text">
           {b.name}
-          {waiting && <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[9px] font-extrabold text-[#0b0d12]">!</span>}
+          {waiting && <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[9px] font-extrabold text-[#050505]">!</span>}
           {error && <FlameBadge size={9} />}
         </span>
         {inside.length > 0 && (

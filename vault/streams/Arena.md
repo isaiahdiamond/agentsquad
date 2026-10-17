@@ -48,7 +48,7 @@ Clean dark product UI per [[References]] (Inter, `#0B0D12`/`#14161D` panels, vio
 - [ ] Scene intro: squad walks in from the edge when the arena opens.
 - [ ] Sound effects for spawn, done, error (one file each, mute button).
 - [ ] Bar scene gags: reviewer stands behind the bar; done agents raise a glass.
-- [ ] Beach scene.
+- [x] Beach scene (replaced by The Club, 2026-10-17).
 
 ## Done when
 
@@ -64,3 +64,4 @@ The mock session plays start to finish in the UF scene looking demo-ready, and t
 - 2026-10-17: Desks only while occupied: poof in when the agent sits, poof out after it stands to leave (waiting/error keep it). Desks sized to agents (standing agent ≈1.075x desk width), seat height derived from the desk. Scales raised: campus 1.4 (agent ≈1.02–1.05x Library/Union doors; the Lab door is much smaller), library 2.65, lab 2.8, union 3.0, office 2.55, beach 1.8. Arena.
 - 2026-10-17: Team panel replaces the activity feed: one fixed row per squad member (whole roster when no squad), lead first, roster order, "On call" until spawned; one status line (latest narration, else a short verb from state/tool, done text when done) that crossfades in place, settling to the latest when changes come under 1.5s apart. Files list collapsed under it. Speech bubbles only on spawn (task), waiting and done, 4s. Feed and file data still recorded for the report. Arena.
 - 2026-10-17: Scales derived from the user baseline (office agent 255 px = 2.656) via measured furniture, table in Arena Art.md: library 2.5, lab 2.9, union 2.75, beach 1.6, campus 1.5 (≈1.1× Library/Union doors). Desks follow via the fixed agent:desk ratio. Arena.
+- 2026-10-17: The Club replaces The Beach. `club` in scenes.json (scale 1.6, about the painted people and a touch taller; lead desk, 4 desk stations and bench all on open deck, table in Arena Art.md); `beach.png` scene and desk deleted; a deployed `scene: "beach"` opens the club. The club borrows the office desk until Art draws one. Arena chrome on the black-and-white tokens: glass `rgba(14,14,16,…)`, dark text `#050505`, debug overlay white/grey instead of blue, report MVP glow white. Arena.
