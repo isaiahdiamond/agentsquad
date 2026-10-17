@@ -3,6 +3,7 @@ import { animate, motion, useAnimationControls, useMotionValue } from "framer-mo
 import type { Building, Scene, Spot, Squad } from "@agentsquad/shared"
 import Backdrop from "./Backdrop"
 import Bubbles from "./Bubbles"
+import { PortalFx, fall, usePortals, type Portal } from "./Portal"
 import { Actor, FlameBadge, H, Portrait, W, useFacing } from "./Sprite"
 import { buildingFor, who, type Agent, type Arena } from "./store"
 import { Scope, labelOf } from "./world"
@@ -63,9 +64,13 @@ function toward(path: Spot[], target: Spot): Spot[] {
   return [...path.slice(0, i), { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, scale: a.scale }]
 }
 
-// Walks out along the path to the door and fades in; on done, fades in at the door, walks back to the lead, then to its parking spot.
-function Walker({ agent, label, squad, path, park, s, onArrive }: { agent: Agent; label: string; squad: Squad | null; path: Spot[]; park: Spot; s: number; onArrive: (id: string) => void }) {
-  const x = useMotionValue(path[0].x), y = useMotionValue(path[0].y), o = useMotionValue(0)
+// Portals in beside the lead (or fades in at the lead when it was already delegated before the view opened), walks the path
+// to the door and fades out; on done, fades in at the door, walks back to the lead, then to its parking spot.
+function Walker({ agent, label, squad, path, park, s, portal, onArrive }: {
+  agent: Agent; label: string; squad: Squad | null; path: Spot[]; park: Spot; s: number; portal?: Portal; onArrive: (id: string) => void
+}) {
+  const x = useMotionValue(portal?.spot.x ?? path[0].x), y = useMotionValue(portal?.spot.y ?? path[0].y), o = useMotionValue(0)
+  const dy = useMotionValue(0), squash = useMotionValue(1)
   const done = agent.doneAt > 0
 
   useEffect(() => {
@@ -91,6 +96,15 @@ function Walker({ agent, label, squad, path, park, s, onArrive }: { agent: Agent
     }
     const here = () => ({ x: x.get(), y: y.get(), scale: 1 })
     const run = async () => {
+      if (!done && portal) {
+        put(portal.spot)
+        await fall(portal, s, o, dy, squash, () => alive)
+        o.set(1)
+        if (alive) await walk([portal.spot, ...path.slice(1)])
+        if (alive) await fade(0)
+        if (alive) onArrive(agent.id)
+        return
+      }
       if (!done) {
         put(path[0])
         await fade(1)
@@ -116,7 +130,7 @@ function Walker({ agent, label, squad, path, park, s, onArrive }: { agent: Agent
   }, [done, park.x, park.y])
 
   const face = useFacing(x, y)
-  return <Actor who={who(agent.type, squad)} agent={agent} label={label} seed={agent.type} s={s} x={x} y={y} o={o} face={face} />
+  return <Actor who={who(agent.type, squad)} agent={agent} label={label} seed={agent.type} s={s} x={x} y={y} o={o} dy={dy} squash={squash} face={face} />
 }
 
 // A small glass sign above each door: the building's name, then who's inside. Yellow when someone inside needs you, a flame on error.
@@ -159,6 +173,8 @@ export default function MapView({ scene, arena, squad, onOpen }: { scene: Scene;
   const s = sceneScale(scene)
   const [arrived, setArrived] = useState<string[]>([])
   const onArrive = useCallback((id: string) => setArrived((ids) => (ids.includes(id) ? ids : [...ids, id])), [])
+  const [opened] = useState(Date.now)
+  const portals = usePortals(agents, scene.lead, s, opened)
   const pathFor = (a: Agent) => {
     const i = buildingFor(scene, a.type)
     return scene.paths?.[i] ?? [scene.lead, buildings[i]?.door ?? scene.lead]
@@ -185,9 +201,13 @@ export default function MapView({ scene, arena, squad, onOpen }: { scene: Scene;
       <StaticActor spot={scene.lead} who={who("lead", squad)} agent={lead} label="Lead" seed="lead" s={s} />
       {agents.map((a) => {
         const k = done.indexOf(a)
-        return <Walker key={a.id} agent={a} label={labelOf(a, arena, squad)} squad={squad} path={pathFor(a)} park={parkSpot(scene, Math.max(0, k))} s={s} onArrive={onArrive} />
+        return <Walker key={a.id} agent={a} label={labelOf(a, arena, squad)} squad={squad} path={pathFor(a)} park={parkSpot(scene, Math.max(0, k))} s={s} portal={portals.get(a.id)} onArrive={onArrive} />
       })}
-      <Bubbles agents={Object.values(arena.agents)} scope={scene.id} squad={squad} />
+      {agents.map((a) => {
+        const p = portals.get(a.id)
+        return p && <PortalFx key={`portal-${a.id}`} p={p} color={who(a.type, squad).color} s={s} from={scene.lead} />
+      })}
+      <Bubbles agents={Object.values(arena.agents)} scope={scene.id} squad={squad} portals={portals} />
     </div>
     </Scope.Provider>
   )

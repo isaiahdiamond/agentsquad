@@ -3,6 +3,7 @@ import { AnimatePresence, animate, motion, useIsPresent, useMotionValue } from "
 import type { Scene, Spot, Squad } from "@agentsquad/shared"
 import Backdrop from "./Backdrop"
 import Bubbles from "./Bubbles"
+import { PortalFx, fall, usePortals, type Portal } from "./Portal"
 import { sceneScale } from "./MapView"
 import { Actor, H, TALL, W, useFacing, useManifest, useNatural, type Size } from "./Sprite"
 import { who, type Agent, type Arena } from "./store"
@@ -82,20 +83,37 @@ function Desk({ spot, ds, src, size, k, quiet }: { spot: Spot; ds: number; src?:
 type Target = { to: Spot; sit: boolean; leave?: boolean }
 
 // Walks in a straight line at a steady pace (standing sprite with step bob), then sits if the target is a desk seat.
-function Worker({ id, type, agent, label, squad, s, from, target, onSit }: {
-  id: string; type: string; agent?: Agent; label: string; squad: Squad | null; s: number; from: Spot; target: Target; onSit: (id: string) => void
+// A portal agent first falls in beside the lead and holds there; every walk waits for that.
+function Worker({ id, type, agent, label, squad, s, from, target, portal, onSit }: {
+  id: string; type: string; agent?: Agent; label: string; squad: Squad | null; s: number; from: Spot; target: Target; portal?: Portal; onSit: (id: string) => void
 }) {
-  const x = useMotionValue(from.x), y = useMotionValue(from.y), o = useMotionValue(1)
+  const x = useMotionValue(portal?.spot.x ?? from.x), y = useMotionValue(portal?.spot.y ?? from.y), o = useMotionValue(1)
+  const dy = useMotionValue(0), squash = useMotionValue(1)
   const { to, sit, leave } = target
-  const [seated, setSeated] = useState(sit && from.x === to.x && from.y === to.y)
+  const [seated, setSeated] = useState(!portal && sit && from.x === to.x && from.y === to.y)
+  const gate = useRef<Promise<void> | null>(null)
+  const mounted = useRef(true)
+  if (portal && !gate.current) gate.current = fall(portal, s, o, dy, squash, () => mounted.current)
   useEffect(() => {
-    if (!(sit && x.get() === to.x && y.get() === to.y)) setSeated(false)
-    const d = Math.hypot(to.x - x.get(), (to.y - y.get()) * (H / W))
-    const opts = { duration: Math.max(0.15, d / SPEED), ease: "linear" as const }
-    const cs = [animate(x, to.x, opts), animate(y, to.y, opts)]
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
+  useEffect(() => {
     let alive = true
-    Promise.all(cs).then(() => alive && sit && setSeated(true))
-    if (leave) cs.push(animate(o, 0, { delay: opts.duration, duration: 0.5 }))
+    const cs: { stop: () => void }[] = []
+    ;(gate.current ?? Promise.resolve()).then(() => {
+      if (!alive) return
+      o.set(1)
+      if (!(sit && x.get() === to.x && y.get() === to.y)) setSeated(false)
+      const d = Math.hypot(to.x - x.get(), (to.y - y.get()) * (H / W))
+      const opts = { duration: Math.max(0.15, d / SPEED), ease: "linear" as const }
+      const walk = [animate(x, to.x, opts), animate(y, to.y, opts)]
+      cs.push(...walk)
+      Promise.all(walk).then(() => alive && sit && setSeated(true))
+      if (leave) cs.push(animate(o, 0, { delay: opts.duration, duration: 0.5 }))
+    })
     return () => {
       alive = false
       cs.forEach((c) => c.stop())
@@ -105,7 +123,7 @@ function Worker({ id, type, agent, label, squad, s, from, target, onSit }: {
     if (seated) onSit(id)
   }, [seated])
   const face = useFacing(x, y)
-  return <Actor who={who(type, squad)} agent={agent} label={label} seed={type} s={s} x={x} y={y} o={o} face={face} seated={seated} />
+  return <Actor who={who(type, squad)} agent={agent} label={label} seed={type} s={s} x={x} y={y} o={o} dy={dy} squash={squash} face={face} seated={seated} />
 }
 
 // Rooms: a whole-scene room (office, beach) with the lead, or a building interior showing only the agents inside it.
@@ -174,6 +192,8 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
   }, [])
   const quiet = () => !mountedAt.current || Date.now() - mountedAt.current < 100
   const fresh = (a: Agent) => a.firstAt > opened.current - 300
+  const allPortals = usePortals(members, scene.lead, s, opened.current)
+  const portals = main ? allPortals : new Map<string, Portal>()
   const head = (p: Spot) => ({ x: p.x * W, y: p.y * H - TALL * s * 0.75 })
   const occupied = working.filter((a) => (sat.includes(a.id) || a.state === "waiting") && desks[map.get(a.id) ?? -1])
   const leadAtDesk = main && leadDesk && !lead?.doneAt && (sat.includes("lead") || lead?.state === "waiting")
@@ -183,32 +203,21 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
     <Scope.Provider value={scene.id}>
     <div className="absolute inset-0">
       <Backdrop scene={scene} />
-      {main && (
-        <svg viewBox={`0 0 ${W} ${H}`} className="pointer-events-none absolute inset-0 z-[4000] h-full w-full">
-          {working.filter(fresh).map((a, i) => {
-            const p = head(scene.lead), q = head(targetFor(a).to)
-            return (
-              <motion.line
-                key={a.id} x1={p.x} y1={p.y} x2={q.x} y2={q.y}
-                stroke={who(a.type, squad).color} strokeWidth={4 * s} strokeLinecap="round"
-                initial={{ pathLength: 0, opacity: 1 }} animate={{ pathLength: 1, opacity: [1, 1, 0] }}
-                transition={{ duration: 2.2, delay: i * 0.05, times: [0, 0.6, 1] }}
-              />
-            )
-          })}
-        </svg>
-      )}
       {main && <Worker id="lead" type="lead" agent={lead} label="Lead" squad={squad} s={s} from={leadTarget().to} target={leadTarget()} onSit={onSit} />}
       {members.map((a) => {
         if (!main && a.doneAt && a.doneAt < opened.current) return null
         const t = targetFor(a)
-        return <Worker key={a.id} id={a.id} type={a.type} agent={a} label={labelOf(a, arena, squad)} squad={squad} s={s} from={fresh(a) ? scene.bench : t.to} target={t} onSit={onSit} />
+        return <Worker key={a.id} id={a.id} type={a.type} agent={a} label={labelOf(a, arena, squad)} squad={squad} s={s} from={fresh(a) ? scene.bench : t.to} target={t} portal={portals.get(a.id)} onSit={onSit} />
       })}
       <AnimatePresence initial={false}>
         {leadAtDesk && <Desk key="lead" spot={scene.lead} ds={ds} src={src} size={size} k={s} quiet={quiet()} />}
         {occupied.map((a) => <Desk key={`desk-${map.get(a.id)}`} spot={desks[map.get(a.id)!]} ds={ds} src={src} size={size} k={s} quiet={quiet()} />)}
       </AnimatePresence>
-      <Bubbles agents={main && lead ? [lead, ...members] : members} scope={scene.id} squad={squad} />
+      {members.map((a) => {
+        const p = portals.get(a.id)
+        return p && <PortalFx key={`portal-${a.id}`} p={p} color={who(a.type, squad).color} s={s} from={scene.lead} />
+      })}
+      <Bubbles agents={main && lead ? [lead, ...members] : members} scope={scene.id} squad={squad} portals={portals} />
       {!working.length && !main && (
         <div className="absolute inset-x-0 top-[45%] z-[4500] flex justify-center">
           <div className="card px-4 py-2.5 text-sm text-muted shadow-[0_8px_24px_rgba(0,0,0,.45)]" style={{ transform: "scale(var(--ui))" }}>Nobody is working in here right now.</div>

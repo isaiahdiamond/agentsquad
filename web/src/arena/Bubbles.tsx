@@ -5,6 +5,7 @@ import { useNow } from "./Hud"
 import { H, Stage, TALL, W } from "./Sprite"
 import { who, type Agent } from "./store"
 import { positions } from "./world"
+import { LAND_AT, type Portal } from "./Portal"
 
 const LIFE = 4000
 const GAP = 6
@@ -14,11 +15,16 @@ type Rect = { l: number; r: number; t: number; b: number }
 
 // Speech bubbles for key moments (task assigned, needs you, done): at most one per agent, 4s each, and never overlapping.
 // Every frame each bubble is placed over its agent's nameplate; when it would touch an earlier bubble it moves up until it clears.
-export default function Bubbles({ agents, scope, squad }: { agents: Agent[]; scope: string; squad: Squad | null }) {
+// A spawn bubble waits for its agent's portal landing, so task bubbles come in staggered with the squad.
+export default function Bubbles({ agents, scope, squad, portals }: { agents: Agent[]; scope: string; squad: Squad | null; portals?: Map<string, Portal> }) {
   const now = useNow(250)
   const { ui } = useContext(Stage)
   const els = useRef(new Map<string, HTMLDivElement>())
-  const live = agents.filter((a) => a.say && now - a.sayAt < LIFE).sort((a, b) => a.sayAt - b.sayAt || a.order - b.order)
+  const startOf = (a: Agent) => {
+    const p = portals?.get(a.id)
+    return p && a.sayAt <= p.start ? p.start + LAND_AT : a.sayAt
+  }
+  const live = agents.filter((a) => a.say && now >= startOf(a) && now - startOf(a) < LIFE).sort((a, b) => startOf(a) - startOf(b) || a.order - b.order)
   const key = live.map((a) => `${a.id}:${a.sayAt}`).join()
 
   useEffect(() => {

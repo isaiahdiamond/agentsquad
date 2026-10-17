@@ -171,14 +171,44 @@ export default function ArenaPage() {
     lastMove.current = Date.now()
     cam.moveTo({ x: home.x + (p.x - home.x) * 0.75, y: home.y + (p.y - home.y) * 0.75 }, 1.3)
   }
+  // Stand-up moment: on a prompt the camera eases to the lead (600ms) while the squad portals in around it; once the
+  // delegations stop for a moment, "Lead assembled the team", and the camera eases back out as they walk off.
+  const [standing, setStanding] = useState(false)
+  const mission = delegated(arena)
   useEffect(() => {
-    if (!follow || !shown || !arena.focusId || finished) return
+    if (!arena.promptAt || arena.promptAt < openedAt - 2000 || !shown) return
+    setStanding(true)
+    const p = locateRef.current("lead")
+    if (follow && p) {
+      lastMove.current = Date.now()
+      cam.moveTo(p, 1.3, 600)
+    }
+  }, [arena.promptAt])
+  useEffect(() => {
+    if (!standing) return
+    const n = mission.length
+    const due = n ? lastSpawn + 300 * n + 1500 : arena.promptAt + 12000
+    const t = setTimeout(() => {
+      if (n) setLocal((l) => [...l.slice(-4), { id: `assembled-${arena.promptAt}`, agentId: "lead", agentType: "lead", text: "Lead assembled the team", tone: "info", named: false, at: Date.now() }])
+      setTimeout(() => {
+        setStanding(false)
+        if (follow && shown) {
+          lastMove.current = Date.now()
+          cam.moveTo(homeOf(shown), 1)
+        }
+      }, n ? 1700 : 0)
+    }, Math.max(0, due - Date.now()))
+    return () => clearTimeout(t)
+  }, [standing, lastSpawn, mission.length])
+
+  useEffect(() => {
+    if (!follow || !shown || !arena.focusId || finished || standing) return
     const t = setTimeout(() => {
       const p = locateRef.current(arena.focusId!)
       if (p) toward(p)
     }, Math.max(0, lastMove.current + 3000 - Date.now()))
     return () => clearTimeout(t)
-  }, [arena.focusAt, follow, shown?.id, !!finished])
+  }, [arena.focusAt, follow, shown?.id, !!finished, standing])
   useEffect(() => {
     if (!follow || !finished || !shown) return
     lastMove.current = Date.now()

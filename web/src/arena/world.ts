@@ -75,7 +75,8 @@ export function verbOf(a: Agent) {
   if (a.state === "waiting") return "needs you"
   if (a.state === "error") return "hit an error"
   if (a.state === "running" && /\btest/.test(a.target ?? "")) return "running tests"
-  if (a.narration && a.narrationAt >= a.pulseAt - 1500) return shorten(a.narration)
+  const said = a.narration && a.narrationAt >= a.pulseAt - 1500 ? shorten(a.narration) : ""
+  if (/^\w+ing\b/.test(said)) return said
   if (a.state === "writing" && a.target) return `editing ${base(a.target)}`
   if (a.state === "reading" && a.target) return `reading ${base(a.target)}`
   return STATE_VERB[a.state] ?? a.state
