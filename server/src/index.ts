@@ -2,7 +2,7 @@ import http from "node:http"
 import { WebSocketServer, WebSocket } from "ws"
 import type { Squad } from "@agentsquad/shared"
 
-const PORT = 4317
+const PORT = Number(process.env.PORT ?? 4317)
 
 // Phase 0 stubs. The Bridge stream replaces each one with the real behavior in vault/streams/Bridge.md.
 let lastSquad: Squad | null = null
