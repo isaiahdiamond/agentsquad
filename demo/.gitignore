@@ -1,3 +1,4 @@
 state.json
 runs/*
 !runs/hero.jsonl
+result.json

@@ -1,5 +1,6 @@
 import type { AgentEvent, AgentState } from "@agentsquad/shared"
 import { WAITING } from "./narrator"
+import { resultFor } from "./result"
 
 type LiveAgent = {
   agentId: string
@@ -98,7 +99,7 @@ export function snapshot() {
           startedAt: latest.startedAt,
           lastEventAt: latest.lastEventAt,
           phase: latest.phase,
-          mission: latest.mission,
+          mission: latest.mission?.endedAt ? { ...latest.mission, result: resultFor(latest.sessionId, latest.mission.startedAt) ?? null } : latest.mission,
           agents: [...latest.agents.values()],
         }
       : null,

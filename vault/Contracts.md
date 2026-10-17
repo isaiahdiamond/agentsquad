@@ -144,6 +144,8 @@ Bridge: emit `waiting` when Claude Code fires a `Notification` hook (permission 
 | GET | `/runs` | list of recorded runs |
 | GET | `/replay/:file?speed=1` | plays a run over `/ws` |
 | GET | `/state` | current squad and scene, plus the live session, so a refresh (or an arena opened mid-session) restores the right state |
+| GET | `/result` | what the latest finished mission built: files, localhost URLs, preview link, run command (`null` before any mission) |
+| GET | `/preview/*` | static files from the latest mission's preview folder in the deployed target (only while a squad is deployed) |
 
 `GET /state` shape (the live fields were added 2026-10-17; `squad`, `scene`, `target` are unchanged):
 
@@ -161,7 +163,7 @@ type StateResponse = {
     startedAt: number
     lastEventAt: number
     phase: "connected" | "mission" | "done"   // done = lead agent_done for the current mission
-    mission: { prompt: string; startedAt: number; endedAt: number | null } | null
+    mission: { prompt: string; startedAt: number; endedAt: number | null; result?: MissionResult | null } | null  // result only once endedAt is set
     agents: {
       agentId: string; agentType: string; parentId?: string
       state: AgentState; done: boolean; since: number
@@ -174,6 +176,31 @@ type StateResponse = {
 ```
 
 Staleness: a live session is dropped (→ `connected: false`) after SessionEnd, after 5 min with no events while `phase` is `"mission"`, or after 30 min otherwise (Claude idle at the prompt fires no hooks). If the server restarts mid-session, the first hook it sees opens the session as `phase: "mission"` with `mission.prompt: ""` (joined mid-mission; prompt unknown). A `/ws` client that connects while `phase` is `"mission"` first receives that mission's `prompt` event (original `id` and `ts`), so a reloaded Arena still has the title.
+
+`GET /result` shape (added 2026-10-17). The latest finished mission across sessions, persisted to `demo/result.json` (git-ignored) so it survives a restart:
+
+```ts
+type ResultResponse = null | {
+  sessionId: string
+  target: string                 // deployed target dir (same as /state target)
+  missionPrompt: string          // full prompt; "" if the server joined mid-mission
+  startedAt: number
+  endedAt: number                // ms, when the lead's agent_done went out
+  files: { path: string; agentId: string; action: "created" | "edited" }[]   // Write/Edit/MultiEdit/NotebookEdit inside target, path relative to it, last writer's agentId, in last-touched order, max 200
+  urls: { url: string; source: "bash" | "report" | "command"; up?: boolean }[]
+  preview: { url: "/api/preview/index.html"; entry: "index.html"; dir: string } | null   // dir relative to target, "" = root
+  run: { command: string; cwd: string; ran: boolean } | null   // cwd absolute
+}
+
+type MissionResult = { files: number; url: string | null; preview: string | null; run: string | null }  // in /state live.mission.result
+```
+
+- `urls`: `http://localhost|127.0.0.1|0.0.0.0|[::1]:<port>` seen in Bash/BashOutput output (`bash`, ANSI stripped) or in the lead's / a specialist's final message or REPORT (`report`). Only if none was seen: a guess from a dev-server command's port flag or tool default (`command`, never 4317/5173). `up` is a HEAD with a 1s timeout, re-checked on every `GET /result`.
+- `preview`: first match of: a fresh (written this mission) `dist/`, `build/` or `out/` `index.html`; the shallowest folder holding a written `index.html` that does not need a bundler; target root `index.html` if it does not need one. "Needs a bundler" = that folder's `package.json` depends on vite/next/react-scripts/parcel/webpack/astro/etc., or its `index.html` loads `/src/*.jsx|tsx|ts`. Relative links (`style.css`) work; root-absolute ones (`/style.css`) do not.
+- `run`: the last dev-server command Claude ran (`npm|pnpm|yarn|bun run dev|start|serve|preview`, `vite`, `next dev`, `astro dev`, `python -m http.server`, `npx serve|http-server|live-server`, `php -S`, ...) with `ran: true`; else a suggestion from `package.json` scripts (`dev`, `start`, `serve`, `preview`) in the target or a written package folder, `ran: false`.
+- `GET /preview/<path>` serves from `<target>/<preview.dir>`: correct content types, `cache-control: no-store`, `content-security-policy: sandbox allow-scripts allow-forms allow-popups allow-modals` (the page runs as an opaque origin, so it cannot call the server's `/api` with the arena's origin; `localStorage` throws inside it), a folder serves its `index.html` (301 to add the trailing slash), no listings, 403 on `..`, dot-segments (`.env`, `.claude`), backslashes, NUL, or symlinks leaving the folder; 404 when no squad is deployed or the result is for another target.
+
+Report UI: primary button "Open it" → first `urls` entry with `up: true` (new tab); else "Preview" → `preview.url` (iframe or new tab); else show `run.command` with `cd run.cwd` as a copyable command ("Run it", or "Claude started it with" when `ran`). Under it, the `files` list grouped by agent (`created` / `edited` tag). A URL with `up: false` is shown greyed with "not running — start it with `run.command`".
 
 Arena states: `squad && !connected` = deployed, waiting for Claude (show "Run `claude` in this project. Restart it if it was already running"); `connected && phase === "connected"` = connected; `"mission"` = mission running; `"done"` = mission complete.
 

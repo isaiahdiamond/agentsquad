@@ -1,5 +1,6 @@
 import path from "node:path"
 import type { AgentEvent, AgentState } from "@agentsquad/shared"
+import { begin, finish, noteCommand, noteFile, noteText } from "./result"
 
 export type Out = Omit<AgentEvent, "id" | "ts">
 
@@ -151,6 +152,7 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
       a.toolAt = undefined
     }
     send(lead(), { kind: "agent_done", state: "done" })
+    finish(sessionId)
     session.pending = reports(sessionId)
   }
 
@@ -174,6 +176,7 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
       }
       session.turnDone = false
       session.stopped = false
+      begin(sessionId, session.cwd, typeof raw.prompt === "string" ? raw.prompt : "")
       session.spawnText.clear()
       session.resumeText.clear()
       for (const a of session.agents.values()) {
@@ -203,6 +206,7 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
         break
       }
       send(agent, { kind: "tool_start", state: STATE[tool] ?? "thinking", tool, target })
+      if (tool === "Bash") noteCommand(sessionId, session.cwd, raw.tool_input?.command)
       agent.toolAt = now
       think(agent, TOOL_STALL_MS[tool] ?? 15_000)
       break
@@ -224,6 +228,8 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
         break
       }
       const bad = raw.hook_event_name === "PostToolUseFailure" ? raw.is_interrupt !== true : failed(raw.tool_response)
+      if (!bad) noteFile(sessionId, session.cwd, agent.id, tool, raw.tool_input, raw.tool_response)
+      noteText(sessionId, session.cwd, raw.hook_event_name === "PostToolUseFailure" ? raw.error : raw.tool_response, "bash", tool)
       if (bad) send(agent, { kind: "tool_end", tool, target, state: "error", text: firstLine(raw.error) })
       else if (agent.state === "waiting" || stalled) send(agent, { kind: "tool_end", tool, target, state: "thinking" })
       else send(agent, { kind: "tool_end", tool, target })
@@ -243,6 +249,7 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
       if (!agent || agent.state === "done") break
       clearTimeout(agent.timer)
       agent.toolAt = undefined
+      noteText(sessionId, session.cwd, raw.last_assistant_message, "report")
       send(agent, { kind: "agent_done", state: "done", text: firstLine(raw.last_assistant_message) })
       if (!session.stopped) think(lead())
       break
@@ -261,6 +268,7 @@ export function handleHook(raw: any, emit: (e: Out) => void, reports: (sessionId
       break
     }
     case "Stop": {
+      noteText(sessionId, session.cwd, raw.last_assistant_message, "report")
       if (busy()) session.stopped = true
       else endTurn()
       break

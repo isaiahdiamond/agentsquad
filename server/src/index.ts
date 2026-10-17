@@ -7,6 +7,7 @@ import { handleHook, type Out } from "./hook"
 import { createNarrator, narratorMode } from "./narrator"
 import { missionPrompt, sawHook, snapshot, track } from "./live"
 import { ROOT, deploy, loadState, undeploy } from "./deploy"
+import { latestResult, noteReport, previewRoot } from "./result"
 
 const PORT = Number(process.env.PORT ?? 4317)
 const RUNS = path.join(ROOT, "demo/runs")
@@ -40,10 +41,51 @@ function emit(e: Out) {
   fs.appendFile(path.join(RUNS, `${e.sessionId.replace(/[^\w.-]/g, "_")}.jsonl`), line + "\n", () => {})
   broadcast(line)
   track(event)
+  if (event.kind === "narration" && event.text?.startsWith("REPORT:")) noteReport(event.sessionId, event.text)
   narrator.feed(event)
 }
 
 const narrator = createNarrator(emit)
+
+const TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8", ".htm": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8",
+  ".map": "application/json; charset=utf-8", ".txt": "text/plain; charset=utf-8", ".md": "text/plain; charset=utf-8",
+  ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif",
+  ".webp": "image/webp", ".avif": "image/avif", ".ico": "image/x-icon", ".woff": "font/woff", ".woff2": "font/woff2",
+  ".ttf": "font/ttf", ".otf": "font/otf", ".wasm": "application/wasm", ".mp4": "video/mp4", ".webm": "video/webm",
+  ".mp3": "audio/mpeg", ".wav": "audio/wav", ".xml": "application/xml", ".pdf": "application/pdf",
+}
+
+function preview(rawPath: string, res: http.ServerResponse) {
+  const root = previewRoot()
+  if (!root) return send(res, 404, { error: "no preview" })
+  let rel: string
+  try {
+    rel = decodeURIComponent(rawPath)
+  } catch {
+    return send(res, 400, { error: "bad path" })
+  }
+  const parts = rel.split("/").filter(Boolean)
+  if (rel.includes("\\") || rel.includes("\0") || parts.some((p) => p === ".." || p.startsWith("."))) return send(res, 403, { error: "forbidden" })
+  let file = path.join(root, ...parts)
+  try {
+    const realRoot = fs.realpathSync(root)
+    if (fs.statSync(file).isDirectory()) {
+      if (!rawPath.endsWith("/")) {
+        res.writeHead(301, { location: `${parts.at(-1) ?? "preview"}/` })
+        return res.end()
+      }
+      file = path.join(file, "index.html")
+    }
+    file = fs.realpathSync(file)
+    if (!file.startsWith(realRoot + path.sep) || !fs.statSync(file).isFile()) return send(res, 403, { error: "forbidden" })
+  } catch {
+    return send(res, 404, { error: "not found" })
+  }
+  res.writeHead(200, { "content-type": TYPES[path.extname(file).toLowerCase()] ?? "application/octet-stream", "cache-control": "no-store", "x-content-type-options": "nosniff", "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-modals" })
+  fs.createReadStream(file).pipe(res)
+}
 
 function runFile(name: string) {
   if (!/^[\w.-]+\.jsonl$/.test(name) || name.includes("..")) return null
@@ -91,6 +133,12 @@ const server = http.createServer(async (req, res) => {
       const state = loadState()
       const live = snapshot()
       return send(res, 200, { squad: state.squad, scene: state.squad?.scene ?? null, target: state.target, deployedAt: state.deployedAt, ...live, hooksSinceDeploy: !!live.lastHookAt && live.lastHookAt >= (state.deployedAt ?? 0) })
+    }
+    if (route === "GET /result") return send(res, 200, await latestResult())
+    if (req.method === "GET" && (url.pathname === "/preview" || url.pathname.startsWith("/preview/"))) {
+      const raw = (req.url ?? "").split("?")[0]
+      if (!raw.startsWith("/preview")) return send(res, 403, { error: "forbidden" })
+      return preview(url.pathname.slice("/preview".length), res)
     }
     if (route === "GET /runs") {
       const runs = fs.readdirSync(RUNS).filter((f) => f.endsWith(".jsonl")).map((file) => {

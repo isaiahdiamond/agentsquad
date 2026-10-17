@@ -3,6 +3,7 @@
 // npm run replay-hooks -- --scripted   the mock's dark mode session, converted to raw hooks
 // npm run replay-hooks -- <file.jsonl>  one raw hook file (e.g. from AGENTSQUAD_RAW), using its tapAt times when present
 // --speed 2 plays twice as fast
+// --cwd <dir> rewrites the recording's cwd (first line) to <dir> everywhere, so file paths land in your TARGET
 import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -13,6 +14,7 @@ const SAMPLES = path.join(path.dirname(fileURLToPath(import.meta.url)), "../hook
 const CWD = "/demo/target"
 const args = process.argv.slice(2)
 const speed = Number(args[args.indexOf("--speed") + 1]) || 1
+const cwd = args.includes("--cwd") ? path.resolve(args[args.indexOf("--cwd") + 1]) : undefined
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms / speed))
 
 const GAP: Record<string, number> = {
@@ -65,8 +67,10 @@ function scripted(sessionId: string): [number, any][] {
 function recorded(file: string, sessionId: string): [number, any][] {
   let at = 0
   let first: number | undefined
-  return fs.readFileSync(file, "utf8").split("\n").filter(Boolean).map((line) => {
-    const { tapAt, ...raw } = JSON.parse(line)
+  const lines = fs.readFileSync(file, "utf8").split("\n").filter(Boolean)
+  const from = cwd && JSON.parse(lines[0]).cwd
+  return lines.map((line) => {
+    const { tapAt, ...raw } = JSON.parse(from ? line.replaceAll(JSON.stringify(from).slice(1, -1), JSON.stringify(cwd).slice(1, -1)) : line)
     if (typeof tapAt === "number") at = tapAt - (first ??= tapAt)
     else at += GAP[raw.hook_event_name] ?? 1000
     return [at, { ...raw, session_id: sessionId }]
