@@ -111,8 +111,8 @@ export default function WelcomeLights({ src }: { src: string }) {
       const a = leds[Math.floor(Math.random() * leds.length)]
       const reach = 6 + 14 * a.k
       const row = leds.filter((l) => Math.abs(l.x - a.x) < reach && l.y >= a.y && l.y < a.y + 260 * (0.3 + a.k))
-      row.sort((p, q) => p.y - q.y)
-      row.forEach((l, i) => (l.flash = t + i * 0.07))
+      // Flash together with random jitter: a timed sweep down the column reads as a moving light.
+      row.forEach((l) => (l.flash = t + Math.random() * 0.15))
     }
 
     const draw = (dt: number) => {
