@@ -26,8 +26,9 @@ const label = (tab: Tab, id: string) => (tab === "skin" ? `Tone ${id.replace(/^s
 // The layered lead has no back view, so the toggle is Front and Wave.
 const VIEWS: LeadView[] = ["front", "hand"]
 const VIEW_LABELS: Record<string, string> = { front: "Front", hand: "Wave" }
-const LEAD_HEIGHT = 112
 const PEDESTAL_SIDE = 22
+// Tallest composed lead sprite (a raised hand, or Body 2 with the puff); keeps the scale steady across looks.
+const TALLEST_LEAD = 112
 const PEDESTAL_TOP = 64
 
 const pick = <T,>(list: T[]) => list[Math.floor(Math.random() * list.length)]
@@ -226,7 +227,7 @@ function Stage({ look, view }: { look: Look; view: LeadView }) {
   }, [])
 
   const feet = PEDESTAL_SIDE + PEDESTAL_TOP / 2
-  const scale = Math.max(1, Math.min(5, Math.floor((room - feet) / LEAD_HEIGHT)))
+  const scale = Math.max(1, Math.min(5, Math.floor((room - feet) / Math.max(sprite?.height ?? 0, TALLEST_LEAD))))
 
   return (
     <div ref={ref} className="relative min-h-[200px] flex-1">

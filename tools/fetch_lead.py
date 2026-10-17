@@ -41,7 +41,21 @@ def load(name, key):
     if not p.exists():
         urllib.request.urlretrieve(U + key + ".png", p)
         print("downloaded", p.name)
-    return Image.open(p).convert("RGBA")
+    return clean(Image.open(p).convert("RGBA"))
+
+
+def clean(im):
+    a = small(im).getchannel("A").point(lambda v: 255 if v > 128 else 0)
+    comps = components(a)
+    if len(comps) < 2:
+        return im
+    big = max(len(c) for c in comps)
+    for c in comps:
+        if len(c) < big * 0.01:
+            for j in c:
+                a.putpixel((j % a.width, j // a.width), 0)
+    im.putalpha(ImageChops.multiply(im.getchannel("A"), a.resize(im.size, Image.NEAREST)))
+    return im
 
 
 def box(im):
@@ -71,9 +85,10 @@ def is_skin(p, st):
     c = hsv(p)
     if sum(((c[i] - st[0][i]) / st[1][i]) ** 2 for i in range(3)) < 6.25:
         return True
-    if abs(c[0] - st[0][0]) > 3.5 * st[1][0]:
+    dh = (c[0] - st[0][0]) / st[1][0]
+    if not -5 < dh < 3.5:
         return False
-    shadow = abs(c[0] - st[0][0]) < 2.5 * st[1][0] and 0.45 < c[1] < 0.8 and 0.5 < c[2] <= st[0][2]
+    shadow = dh < 2.5 and 0.45 < c[1] < 0.75 and 0.45 < c[2] <= st[0][2]
     return shadow or (0.2 < c[1] < 0.75 and c[2] > st[0][2])
 
 
@@ -113,12 +128,12 @@ def make_ramp(st):
     return [tuple(round(sum(p[i] for p in b) / len(b)) for i in range(3)) for b in bins if b]
 
 
-def shrink(im, b, scale, pal, st=None, ramp=None, blob=8):
+def shrink(im, b, scale, pal, st=None, ramp=None):
     size = (max(1, round((b[2] - b[0]) * scale)), max(1, round((b[3] - b[1]) * scale)))
     im = im.crop(b).resize(size, Image.BOX)
     a = im.getchannel("A").point(lambda v: 255 if v > 128 else 0)
     for c in components(a):
-        if len(c) < blob:
+        if len(c) < 8:
             for j in c:
                 a.putpixel((j % a.width, j // a.width), 0)
     q = im.convert("RGB").quantize(palette=pal, dither=Image.Dither.NONE).convert("RGBA")
@@ -286,7 +301,7 @@ for c in src["characters"]:
     manifest["characters"][c] = {}
     for v in VIEWS:
         r = images[f"{c}-{v}"]
-        im, _ = shrink(r, box(r), scale, pal, blob=40)
+        im, _ = shrink(r, box(r), scale, pal)
         im.save(out / f"{c}-{v}.png")
         manifest["characters"][c][v] = {"src": f"/art/lead/{c}-{v}.png"}
 

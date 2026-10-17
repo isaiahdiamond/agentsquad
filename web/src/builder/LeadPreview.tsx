@@ -8,7 +8,7 @@ type Props = { look: Look; scale: number; view?: LeadView; className?: string }
 // The box is the sprite's size, anchored at the feet (bottom center).
 export default function LeadPreview({ look, scale, view = "front", className = "" }: Props) {
   const { sprite, failed } = useLeadSprite(look, view)
-  if (failed) {
+  if (failed && !sprite) {
     return (
       <div
         className={`flex items-center justify-center rounded-lg bg-accent-soft text-[11px] font-semibold text-accent ${className}`}

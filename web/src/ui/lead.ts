@@ -132,6 +132,7 @@ function pixels(img: HTMLImageElement) {
 }
 
 const sprites = new Map<string, Promise<LeadSprite>>()
+const MAX_SPRITES = 200
 
 export function leadKey(look: Look, view: LeadView) {
   if (isCharacter(look)) return `${look.body}/${view}`
@@ -197,22 +198,26 @@ async function compose(m: LeadManifest, look: Look, view: LeadView): Promise<Lea
   return { canvas: out, url: out.toDataURL(), width: out.width, height: out.height, head: [padX + o.head[0], padTop + o.head[1]] }
 }
 
-// Composed sprite for a look and view, cached by type/outfit/view/skin/hair/hairColor. Rejects if art is missing.
+// Composed sprite for a look and view, cached by type/outfit/view/skin/hair/hairColor (least recently used dropped past 200).
+// Rejects if art is missing.
 export async function leadSprite(look: Look, view: LeadView = "front"): Promise<LeadSprite> {
   const m = await loadLead()
   const l = normalizeLook(look, m)
   const key = leadKey(l, view)
   let p = sprites.get(key)
-  if (!p) {
+  if (p) {
+    sprites.delete(key)
+  } else {
     p = compose(m, l, view)
     p.catch(() => sprites.delete(key))
-    sprites.set(key, p)
   }
+  sprites.set(key, p)
+  if (sprites.size > MAX_SPRITES) sprites.delete(sprites.keys().next().value!)
   return p
 }
 
 // React hook. `sprite` is null until the first compose, then keeps the previous sprite while a new look composes
-// (no flicker). `failed` means the art could not load: draw a fallback.
+// or if it fails (no flicker). `failed` means the current look's art could not load.
 export function useLeadSprite(look: Look | null, view: LeadView = "front") {
   const l = look ?? DEFAULT_LOOK
   const key = leadKey(l, view)
@@ -221,7 +226,7 @@ export function useLeadSprite(look: Look | null, view: LeadView = "front") {
     let live = true
     leadSprite(l, view).then(
       (sprite) => live && setState({ sprite, failed: false }),
-      () => live && setState({ sprite: null, failed: true }),
+      () => live && setState((s) => ({ sprite: s.sprite, failed: true })),
     )
     return () => {
       live = false
