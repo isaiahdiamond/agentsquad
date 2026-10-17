@@ -2,35 +2,49 @@ import { useEffect } from "react"
 import { animate, motion, useAnimationControls, useMotionValue, useTransform, type MotionValue } from "framer-motion"
 import type { Building, Scene, Spot, Squad } from "@agentsquad/shared"
 import Backdrop from "./Backdrop"
-import { Actor, FlameBadge, Portrait } from "./Sprite"
+import { Actor, FlameBadge, Portrait, useFacing, usePx } from "./Sprite"
 import { buildingFor, who, type Agent, type Arena } from "./store"
 
-const SPEED = 0.17
-export const CHAR_W = 4.6
+const SPEED = 0.12
 
-export function Placed({ x, y, s, o, z, size = CHAR_W, children }: { x: MotionValue<number>; y: MotionValue<number>; s: MotionValue<number>; o?: MotionValue<number>; z?: number; size?: number; children: React.ReactNode }) {
+// Puts the child's bottom center on (x, y), as fractions of the stage.
+export function Placed({ x, y, o, z, children }: { x: MotionValue<number>; y: MotionValue<number>; o?: MotionValue<number>; z?: number; children: React.ReactNode }) {
   const left = useTransform(x, (v) => `${v * 100}%`)
   const top = useTransform(y, (v) => `${v * 100}%`)
-  const width = useTransform(s, (v) => `${size * v}cqw`)
   const zIndex = useTransform(y, (v) => z ?? Math.round(v * 100) + 10)
   return (
-    <motion.div className="pointer-events-none absolute -translate-x-1/2 -translate-y-full" style={{ left, top, width, opacity: o, zIndex }}>
+    <motion.div className="pointer-events-none absolute -translate-x-1/2 -translate-y-full" style={{ left, top, opacity: o, zIndex }}>
       {children}
     </motion.div>
   )
 }
 
-export function StaticPlaced({ spot, children, z, size }: { spot: Spot; children: React.ReactNode; z?: number; size?: number }) {
+export function StaticActor({ spot, ...props }: { spot: Spot } & Omit<React.ComponentProps<typeof Actor>, "k">) {
   const x = useMotionValue(spot.x), y = useMotionValue(spot.y), s = useMotionValue(spot.scale)
   useEffect(() => {
     x.set(spot.x)
     y.set(spot.y)
     s.set(spot.scale)
   }, [spot.x, spot.y, spot.scale])
-  return <Placed x={x} y={y} s={s} z={z} size={size}>{children}</Placed>
+  const k = usePx(s)
+  return <Placed x={x} y={y}><Actor {...props} k={k} /></Placed>
 }
 
-function Walker({ agent, squad, path, home }: { agent: Agent; squad: Squad | null; path: Spot[]; home: Spot }) {
+const dist = (a: Spot, b: Spot) => Math.hypot(b.x - a.x, (b.y - a.y) * 0.5625)
+
+// Point at distance d along the path from its start.
+function along(path: Spot[], d: number): Spot {
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1], b = path[i], len = dist(a, b)
+    if (d <= len) return { x: a.x + ((b.x - a.x) * d) / len, y: a.y + ((b.y - a.y) * d) / len, scale: a.scale }
+    d -= len
+  }
+  return path[path.length - 1]
+}
+
+// Done agents wait a few steps out from the lead on their own path, so they stand on the walkway.
+function Walker({ agent, squad, path, homeAt }: { agent: Agent; squad: Squad | null; path: Spot[]; homeAt: number }) {
+  const home = along(path, homeAt)
   const x = useMotionValue(path[0].x), y = useMotionValue(path[0].y), s = useMotionValue(path[0].scale), o = useMotionValue(0)
   const done = agent.doneAt > 0
 
@@ -65,21 +79,25 @@ function Walker({ agent, squad, path, home }: { agent: Agent; squad: Squad | nul
         return
       }
       if (o.get() > 0.5) return walk([{ x: x.get(), y: y.get(), scale: s.get() }, home])
-      const back = [...path].reverse()
+      let d = 0
+      const beyond = path.filter((p, i) => (d += i ? dist(path[i - 1], p) : 0) > homeAt)
+      const back = [...beyond.reverse(), home]
       put(back[0])
       await fade(1)
-      if (alive) await walk([...back, home])
+      if (alive) await walk(back)
     }
     run()
     return () => {
       alive = false
       running.forEach((c) => c.stop())
     }
-  }, [done, home.x, home.y])
+  }, [done, homeAt])
 
+  const k = usePx(s)
+  const face = useFacing(x, y)
   return (
-    <Placed x={x} y={y} s={s} o={o}>
-      <Actor who={who(agent.type, squad)} agent={agent} seed={agent.type} icon={done} />
+    <Placed x={x} y={y} o={o}>
+      <Actor who={who(agent.type, squad)} agent={agent} seed={agent.type} icon={done} k={k} face={face} />
     </Placed>
   )
 }
@@ -115,11 +133,10 @@ export default function MapView({ scene, arena, squad, onOpen }: { scene: Scene;
   const agents = Object.values(arena.agents).filter((a) => a.type !== "lead").sort((a, b) => a.order - b.order)
   const lead = Object.values(arena.agents).find((a) => a.type === "lead")
   const done = agents.filter((a) => a.doneAt).sort((a, b) => a.doneAt - b.doneAt)
-  const home = (a: Agent): Spot => {
-    const i = done.indexOf(a)
-    if (i < 0) return scene.lead
-    const side = i % 2 ? 1 : -1
-    return { x: scene.lead.x + side * 0.058 * (Math.floor(i / 2) + 1), y: scene.lead.y + 0.035 * (i % 2 ? 1 : 0.6), scale: scene.lead.scale * 0.95 }
+  const homeAt = (a: Agent) => {
+    if (!a.doneAt) return 0
+    const same = done.filter((d) => buildingFor(scene, d.type) === buildingFor(scene, a.type))
+    return 0.028 * (same.indexOf(a) + 1)
   }
   const pathFor = (a: Agent) => {
     const i = buildingFor(scene, a.type)
@@ -141,10 +158,8 @@ export default function MapView({ scene, arena, squad, onOpen }: { scene: Scene;
       {buildings.map((b, i) => (
         <Badge key={b.id} b={b} squad={squad} inside={agents.filter((a) => !a.doneAt && buildingFor(scene, a.type) === i)} />
       ))}
-      <StaticPlaced spot={scene.lead}>
-        <Actor who={who("lead", squad)} agent={lead} seed="lead" />
-      </StaticPlaced>
-      {agents.map((a) => <Walker key={a.id} agent={a} squad={squad} path={pathFor(a)} home={home(a)} />)}
+      <StaticActor spot={scene.lead} who={who("lead", squad)} agent={lead} seed="lead" />
+      {agents.map((a) => <Walker key={a.id} agent={a} squad={squad} path={pathFor(a)} homeAt={homeAt(a)} />)}
     </div>
   )
 }

@@ -1,14 +1,14 @@
 import type { Scene } from "@agentsquad/shared"
-import ArtImage from "../ui/ArtImage"
 import { useImage } from "./Sprite"
 
 const W = 1600
 const H = 900
 
-// Uses the scene image when it exists, otherwise draws the scene in code so the arena never looks broken.
+// The scene image stretched to the 16:9 stage (the art is 1.768:1, so it stretches 0.5% and spot fractions stay exact).
+// Without the image it draws the scene in code so the arena never looks broken.
 export default function Backdrop({ scene }: { scene: Scene }) {
   const ok = useImage(scene.background)
-  if (ok) return <ArtImage src={scene.background} label={scene.name} className="absolute inset-0 h-full w-full object-cover" />
+  if (ok) return <img src={scene.background} alt={scene.name} draggable={false} className="absolute inset-0 h-full w-full select-none" />
   if (ok === undefined) return <div className="absolute inset-0 bg-navy-950" />
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 h-full w-full" shapeRendering="crispEdges">

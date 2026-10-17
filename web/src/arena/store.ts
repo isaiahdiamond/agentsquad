@@ -136,13 +136,14 @@ export function reduce(prev: Arena, e: Received): Arena {
   return s
 }
 
-export type Who = { name: string; role: string; color: string; portrait?: string; look?: Look; lead: boolean }
+export type Who = { type: string; name: string; role: string; color: string; look?: Look; lead: boolean }
 
 export const LEAD_COLOR = "#f5c542"
 
 export function who(type: string, squad: Squad | null): Who {
   if (type === "lead") {
     return {
+      type,
       name: squad?.lead.name || "Lead",
       role: squad?.lead.role || "Lead Agent",
       color: LEAD_COLOR,
@@ -151,8 +152,8 @@ export function who(type: string, squad: Squad | null): Who {
     }
   }
   const c = squad?.members.find((m) => m.id === type) ?? roster.find((r) => r.id === type)
-  if (!c) return { name: type, role: "Specialist", color: "#94a3b8", lead: false }
-  return { name: c.name, role: c.role, color: c.color, portrait: c.portrait, lead: false }
+  if (!c) return { type, name: type, role: "Specialist", color: "#94a3b8", lead: false }
+  return { type, name: c.name, role: c.role, color: c.color, lead: false }
 }
 
 // The turn is over on session_end, or when the lead is done and no specialist is still working.

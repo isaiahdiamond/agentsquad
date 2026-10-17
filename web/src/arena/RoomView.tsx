@@ -2,11 +2,9 @@ import { useEffect, useRef } from "react"
 import { animate, motion, useMotionValue } from "framer-motion"
 import type { Scene, Spot, Squad } from "@agentsquad/shared"
 import Backdrop from "./Backdrop"
-import { CHAR_W, Placed, StaticPlaced } from "./MapView"
-import { Actor } from "./Sprite"
+import { Placed, StaticActor } from "./MapView"
+import { Actor, useFacing, usePx } from "./Sprite"
 import { who, type Agent, type Arena } from "./store"
-
-const ROOM_W = CHAR_W * 1.7
 
 function Mover({ agent, squad, from, to, leave }: { agent: Agent; squad: Squad | null; from: Spot; to: Spot; leave?: boolean }) {
   const x = useMotionValue(from.x), y = useMotionValue(from.y), s = useMotionValue(from.scale), o = useMotionValue(1)
@@ -16,9 +14,11 @@ function Mover({ agent, squad, from, to, leave }: { agent: Agent; squad: Squad |
     if (leave) cs.push(animate(o, 0, { delay: 0.9, duration: 0.6 }))
     return () => cs.forEach((c) => c.stop())
   }, [to.x, to.y, to.scale, leave])
+  const k = usePx(s)
+  const face = useFacing(x, y)
   return (
-    <Placed x={x} y={y} s={s} o={o} size={ROOM_W}>
-      <Actor who={who(agent.type, squad)} agent={agent} seed={agent.type} />
+    <Placed x={x} y={y} o={o}>
+      <Actor who={who(agent.type, squad)} agent={agent} seed={agent.type} k={k} face={face} />
     </Placed>
   )
 }
@@ -33,11 +33,11 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
   const station = (i: number): Spot => {
     const st = scene.stations[i % n] ?? scene.bench
     const lap = Math.floor(i / n)
-    return { x: st.x + lap * 0.05, y: st.y + lap * 0.04, scale: st.scale }
+    return { x: st.x + lap * 0.04, y: st.y + lap * 0.02, scale: st.scale }
   }
   const home = (i: number): Spot => {
     const side = i % 2 ? 1 : -1
-    return { x: scene.lead.x + side * 0.06 * (Math.floor(i / 2) + 1), y: scene.lead.y + 0.03, scale: scene.lead.scale * 0.95 }
+    return { x: scene.lead.x + side * 0.06 * (Math.floor(i / 2) + 1), y: scene.lead.y + 0.03, scale: scene.lead.scale }
   }
   const fresh = (a: Agent) => a.firstAt > opened.current - 300
 
@@ -50,7 +50,7 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
             const st = station(members.indexOf(a))
             return (
               <motion.line
-                key={a.id} x1={scene.lead.x * 1600} y1={scene.lead.y * 900 - 70} x2={st.x * 1600} y2={st.y * 900 - 70}
+                key={a.id} x1={scene.lead.x * 1600} y1={(scene.lead.y - scene.lead.scale * 0.03) * 900} x2={st.x * 1600} y2={(st.y - st.scale * 0.03) * 900}
                 stroke={who(a.type, squad).color} strokeWidth={6} strokeLinecap="round" strokeDasharray="1 0"
                 initial={{ pathLength: 0, opacity: 1 }} animate={{ pathLength: 1, opacity: [1, 1, 0] }}
                 transition={{ duration: 2.2, delay: i * 0.05, times: [0, 0.6, 1] }}
@@ -60,9 +60,7 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
         </svg>
       )}
       {main && (
-        <StaticPlaced spot={scene.lead} size={ROOM_W}>
-          <Actor who={who("lead", squad)} agent={lead} seed="lead" />
-        </StaticPlaced>
+        <StaticActor spot={scene.lead} who={who("lead", squad)} agent={lead} seed="lead" />
       )}
       {members.map((a) => {
         const i = members.indexOf(a)

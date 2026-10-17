@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useReducer, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { AnimatePresence, motion } from "framer-motion"
 import type { Building, Scene, Squad } from "@agentsquad/shared"
@@ -6,6 +6,7 @@ import Debug from "./Debug"
 import { Rail, TopBar } from "./Hud"
 import MapView from "./MapView"
 import RoomView from "./RoomView"
+import { StageH } from "./Sprite"
 import { buildingFor, emptyArena, finishedAt, reduce, saveReport, type Received } from "./store"
 
 export default function ArenaPage() {
@@ -23,10 +24,19 @@ export default function ArenaPage() {
   const [top, setTop] = useState(0)
   const [notice, setNotice] = useState("")
   const [stalled, setStalled] = useState(0)
+  const [stageH, setStageH] = useState(900)
+  const observer = useRef<ResizeObserver>(null)
   const latest = useRef(arena)
   latest.current = arena
 
   useLayoutEffect(() => setTop(document.querySelector("nav")?.getBoundingClientRect().bottom ?? 0), [])
+
+  const stage = useCallback((el: HTMLDivElement | null) => {
+    observer.current?.disconnect()
+    if (!el) return
+    observer.current = new ResizeObserver(() => setStageH(el.clientHeight))
+    observer.current.observe(el)
+  }, [])
 
   useEffect(() => {
     fetch("/art/scenes/scenes.json").then((r) => r.json()).then(setScenes).catch(() => setScenes([]))
@@ -128,9 +138,10 @@ export default function ArenaPage() {
         <TopBar arena={arena} squad={squad} connected={connected} title={building && interior ? `${scene.name} · ${building.name}` : scene.name} />
         <div className="relative flex min-h-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
           <div
-            className="relative overflow-hidden bg-navy-950"
+            ref={stage} className="relative overflow-hidden bg-navy-950"
             style={{ width: "min(100cqw, calc(100cqh * 16 / 9))", aspectRatio: "16 / 9", containerType: "inline-size" }}
           >
+            <StageH.Provider value={stageH}>
             {scene.kind === "map" ? (
               <motion.div
                 className="absolute inset-0"
@@ -181,6 +192,7 @@ export default function ArenaPage() {
                 </motion.div>
               )}
             </AnimatePresence>
+            </StageH.Provider>
           </div>
         </div>
       </div>
