@@ -1,4 +1,7 @@
-# AgentSquad
+<img width="2688" height="1152" alt="agentviz_logo" src="https://github.com/user-attachments/assets/bfaebcea-1faa-4b94-b426-d537f8fc8757" />
+
+# AgentViz
+
 
 Build a squad of AI coding agents, deploy them into Claude Code, and watch them work in a live scene.
 
