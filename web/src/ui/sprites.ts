@@ -3,12 +3,13 @@ import type { Look } from "@agentsquad/shared"
 
 // Shape of web/public/art/sprites.json, written by tools/fetch_art.py. See vault/Art Pack.md.
 export type SpriteView = "front" | "back" | "hand"
-export type SpriteSet = Record<SpriteView, string>
+export type SpriteSet = Record<SpriteView, string> & { sit?: string[] }
 
 export type SpriteManifest = {
   height: number
   lead: { bodies: string[]; outfits: string[]; looks: Record<string, SpriteSet> }
   team: Record<string, SpriteSet>
+  desks: Record<string, string>
   scenes: Record<string, string>
 }
 

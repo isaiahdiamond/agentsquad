@@ -90,7 +90,7 @@ export type Squad = {
 ## Scene
 
 ```ts
-export type Spot = { x: number; y: number; scale: number }  // x, y in 0-1 of the image
+export type Spot = { x: number; y: number; scale: number; kind?: "desk" }  // x, y in 0-1 of the image; kind "desk" = desk station
 
 export type Building = {
   id: string             // "library", "lab", "studio", "engineering", "court"
@@ -107,6 +107,7 @@ export type Scene = {
   name: string
   kind: "map" | "room"
   background: string
+  scale?: number         // sprite scale in native image pixels (2688x1520 stage); desks and seated sprites use it too
   lead: Spot
   stations: Spot[]       // rooms: where agents stand to work
   bench: Spot

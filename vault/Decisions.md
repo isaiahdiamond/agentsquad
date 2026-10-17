@@ -59,6 +59,10 @@ See [[Art Pack]]. It supersedes the sizes in [[Art Requests]] where they differ.
 | Demo task and demo repo | Team | hour 10 |
 | Delegation hit rate on demo prompt (target 8/10) | Bridge | hour 24 |
 
+### Arena Art pack (2026-10-17, delivered by Art)
+
+See [[Arena Art]]: native-size stage (2688x1520) scaled by one transform, desk stations, seated typing agents, y-sorted layering. Contract additions approved by the user with this pack: `Scene.scale` and `Spot.kind: "desk"`. Sprites stay **96px with per-sprite colors** (the pack's script reverted to 44px + shared palette; not used), so the pack's starting scales are multiplied by 44/96: rooms ≈2.75, beach ≈1.83, campus ≈0.92. Sprite manifest gains `sit` frames per look and `desks` per room.
+
 ## Requests
 
 Agents: write contract change requests here, then stop and wait.
