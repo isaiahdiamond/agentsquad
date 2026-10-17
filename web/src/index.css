@@ -1,7 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 
-/* Shared UI theme, per vault/References.md: a clean dark product UI; pixel art only in characters and scenes.
+/* Shared UI theme, per vault/References.md: a clean dark, monochrome product UI (white on black); pixel art only in characters and scenes.
    Owned by the architect; streams use these tokens and classes, not their own copies. */
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -13,9 +13,10 @@
   --color-text: #e8e9ee;
   --color-muted: #9097a6;
   --color-faint: #5d6474;
-  --color-accent: #8b7cf6;
-  --color-accent-strong: #7461f0;
-  --color-accent-soft: rgb(139 124 246 / 0.16);
+  --color-accent: #f4f4f5;
+  --color-accent-strong: #d4d4d8;
+  --color-accent-soft: rgb(255 255 255 / 0.1);
+  --color-on-accent: #0b0d12;
   --radius-card: 16px;
 }
 
@@ -50,7 +51,7 @@ body {
   font-size: 0.9rem;
   transition: background 0.15s, border-color 0.15s, transform 0.05s;
 }
-.btn-primary { background: var(--color-accent); color: #fff; }
+.btn-primary { background: var(--color-accent); color: var(--color-on-accent); }
 .btn-primary:hover { background: var(--color-accent-strong); }
 .btn-secondary { background: var(--color-panel-2); color: var(--color-text); border: 1px solid var(--color-line-strong); }
 .btn-secondary:hover { border-color: var(--color-accent); }

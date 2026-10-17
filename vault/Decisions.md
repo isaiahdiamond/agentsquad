@@ -12,7 +12,7 @@
 - Replay mode is never cut.
 - A deployed replay site for judges (static build playing a recorded run).
 - Art style: 32-bit chibi isometric pixel art for everything (characters, scenes, UI). Dark outlines, 3-4 tone shading, isometric 3/4 top-down camera. See [[References]].
-- UI look (replaced 2026-10-17, see [[References]]): a clean dark product UI with pixel art only in characters and scenes. Background `#0B0D12`, panels `#14161D` with a faint 1px border, 14-16px corners, Inter for all text, one soft violet accent. The gold-border pixel-font look is retired.
+- UI look (replaced 2026-10-17, see [[References]]): a clean dark product UI with pixel art only in characters and scenes. Background `#0B0D12`, panels `#14161D` with a faint 1px border, 14-16px corners, Inter for all text, monochrome white-on-black accent (violet dropped 2026-10-17 by the user; agent identity colors stay). The gold-border pixel-font look is retired.
 - Scenes: UF Campus (overview map) with clickable building interiors, The Bar, The Beach. The standalone Office scene is dropped; building interiors replace it.
 - Interiors: 2 max, reused across buildings. A library reading room (Collegiate Gothic, inspired by Smathers Library) and a lab.
 - Characters are original. No Marvel, no real people, no NBA players or logos, no UF logos or Gator mascot.
