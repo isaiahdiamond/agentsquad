@@ -85,7 +85,7 @@ export default function DraftSquad({ draft, update, back, next }: Props) {
         </div>
 
         <div className="flex h-44 w-32 shrink-0 flex-col items-center justify-end border-3 border-gold-400 bg-navy-800 pb-1">
-          <div className="flex flex-1 items-end overflow-hidden">{draft.look && <LeadPreview look={draft.look} height={110} />}</div>
+          <div className="flex flex-1 items-end overflow-hidden"><LeadPreview look={draft.look} height={110} /></div>
           <span className="font-pixel text-[8px] text-gold-300">LEAD</span>
           <span className="max-w-full truncate px-1 font-ui text-[11px] text-slate-300">{draft.name}</span>
         </div>

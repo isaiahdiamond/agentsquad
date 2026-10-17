@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { emptyDraft, loadDraft, saveDraft, STEPS, type Draft, type Step } from "./draft"
-import { useLookManifest } from "./LeadPreview"
 import TitleScreen from "./TitleScreen"
 import CreateLead from "./CreateLead"
 import DraftSquad from "./DraftSquad"
@@ -11,24 +10,7 @@ const STEP_LABELS = { lead: "Create Lead", squad: "Squad", scene: "Scene & Deplo
 
 export default function BuilderPage() {
   const [draft, setDraft] = useState<Draft>(loadDraft)
-  const { manifest, error: manifestError } = useLookManifest()
-
   useEffect(() => saveDraft(draft), [draft])
-
-  useEffect(() => {
-    if (manifest && !draft.look) {
-      setDraft((d) => ({
-        ...d,
-        look: {
-          body: manifest.bodies[0].id,
-          hair: manifest.hair[0]?.id ?? "none",
-          hairColor: manifest.hairColors[0] ?? "#1c1917",
-          outfit: manifest.outfits[0].id,
-          hat: "none",
-        },
-      }))
-    }
-  }, [manifest, draft.look])
 
   const update = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }))
   const go = (step: Step) => update({ step })
@@ -50,18 +32,7 @@ export default function BuilderPage() {
             transition={{ duration: 0.2 }}
           >
             {draft.step === "title" && <TitleScreen draft={draft} start={() => go("lead")} reset={() => setDraft({ ...emptyDraft, step: "lead" })} />}
-            {draft.step === "lead" && manifestError && (
-              <div className="panel mx-auto max-w-xl p-6 text-center">
-                <p className="font-pixel text-sm text-red-300">CAN'T LOAD THE LEAD ART</p>
-                <p className="mt-3 font-ui text-sm text-slate-300">{manifestError}. Check web/public/art/looks.json, then reload.</p>
-                <button onClick={() => location.reload()} className="btn mt-4 text-xs">
-                  RELOAD
-                </button>
-              </div>
-            )}
-            {draft.step === "lead" && manifest && draft.look && (
-              <CreateLead manifest={manifest} draft={draft} update={update} next={() => go("squad")} />
-            )}
+            {draft.step === "lead" && <CreateLead draft={draft} update={update} next={() => go("squad")} />}
             {draft.step === "squad" && <DraftSquad draft={draft} update={update} back={() => go("lead")} next={() => go("scene")} />}
             {draft.step === "scene" && <SceneDeploy draft={draft} update={update} back={() => go("squad")} />}
           </motion.div>

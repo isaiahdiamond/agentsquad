@@ -1,28 +1,29 @@
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import type { Look, LookManifest } from "@agentsquad/shared"
-import type { Draft } from "./draft"
+import type { Look } from "@agentsquad/shared"
+import { useSprites, type SpriteView } from "../ui/sprites"
+import { BODIES, OUTFITS, type Draft } from "./draft"
 import LeadPreview from "./LeadPreview"
 
-const TABS = ["body", "hair", "color", "outfit", "hat"] as const
+// Hair, Color and Hat tabs come back when the recolor art lands (see Decisions, Art Pack 01).
+const TABS = ["body", "outfit"] as const
 type Tab = (typeof TABS)[number]
 
-const FIELD: Record<Tab, keyof Look> = { body: "body", hair: "hair", color: "hairColor", outfit: "outfit", hat: "hat" }
-
-function options(m: LookManifest, tab: Tab) {
-  if (tab === "body") return m.bodies.map((b) => ({ value: b.id, label: b.label }))
-  if (tab === "hair") return [...m.hair.map((h) => ({ value: h.id, label: h.label })), { value: "none", label: "None" }]
-  if (tab === "color") return m.hairColors.map((c) => ({ value: c, label: c }))
-  if (tab === "outfit") return m.outfits.map((o) => ({ value: o.id, label: o.label }))
-  return [{ value: "none", label: "None" }, ...m.hats.map((h) => ({ value: h.id, label: h.label }))]
+const LABELS: Record<string, string> = {
+  a: "Body A", b: "Body B", blazer: "Blazer", hoodie: "Hoodie", flannel: "Flannel", track: "Tracksuit",
 }
+const VIEWS: SpriteView[] = ["front", "back", "hand"]
 
 const pick = <T,>(list: T[]) => list[Math.floor(Math.random() * list.length)]
 
-type Props = { manifest: LookManifest; draft: Draft; update: (p: Partial<Draft>) => void; next: () => void }
+type Props = { draft: Draft; update: (p: Partial<Draft>) => void; next: () => void }
 
-export default function CreateLead({ manifest, draft, update, next }: Props) {
-  const [tab, setTab] = useState<Tab>("hair")
+export default function CreateLead({ draft, update, next }: Props) {
+  const { sprites } = useSprites()
+  // Dev only: ?tab=body and ?view=back|hand open the creator in that state (for screenshots).
+  const dev = import.meta.env.DEV ? new URLSearchParams(location.search) : null
+  const [tab, setTab] = useState<Tab>(dev?.get("tab") === "body" ? "body" : "outfit")
+  const [view, setView] = useState(Math.max(0, VIEWS.indexOf(dev?.get("view") as SpriteView)))
   const [winHeight, setWinHeight] = useState(window.innerHeight)
 
   useEffect(() => {
@@ -30,22 +31,16 @@ export default function CreateLead({ manifest, draft, update, next }: Props) {
     window.addEventListener("resize", onResize)
     return () => window.removeEventListener("resize", onResize)
   }, [])
-  const look = draft.look!
-  const opts = options(manifest, tab)
-  const field = FIELD[tab]
-  const index = opts.findIndex((o) => o.value === look[field])
+
+  const look = draft.look
+  const bodies = sprites?.lead.bodies ?? BODIES
+  const outfits = sprites?.lead.outfits ?? OUTFITS
+  const opts = tab === "body" ? bodies : outfits
+  const index = opts.indexOf(look[tab])
 
   const set = (patch: Partial<Look>) => update({ look: { ...look, ...patch } })
-  const cycle = (dir: number) => set({ [field]: opts[(index + dir + opts.length) % opts.length].value })
-
-  const randomize = () =>
-    set({
-      body: pick(manifest.bodies).id,
-      hair: pick([...manifest.hair.map((h) => h.id), "none"]),
-      hairColor: pick(manifest.hairColors),
-      outfit: pick(manifest.outfits).id,
-      hat: Math.random() < 0.5 ? "none" : pick(manifest.hats).id,
-    })
+  const cycle = (dir: number) => set({ [tab]: opts[(index + dir + opts.length) % opts.length] })
+  const randomize = () => set({ body: pick(bodies), outfit: pick(outfits) })
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -65,17 +60,25 @@ export default function CreateLead({ manifest, draft, update, next }: Props) {
           style={{ background: "radial-gradient(ellipse 35% 75% at 50% 10%, rgba(255,226,138,0.18), transparent 70%)" }}
         />
         <p className="absolute top-4 font-pixel text-xs text-gold-300">{draft.name || "Lead Agent"}</p>
-        <div className="relative z-10 -mb-12 flex items-end">
-          <LeadPreview look={look} height={Math.max(160, Math.min(480, winHeight - 320))} manifest={manifest} />
+        <div className="relative z-10 -mb-7 flex items-end">
+          <LeadPreview look={look} view={VIEWS[view]} height={Math.max(176, Math.min(480, winHeight - 330))} />
         </div>
         <div className="relative h-16 w-72 rounded-[50%] border-4 border-gold-400 bg-navy-800 shadow-[0_0_40px_rgba(245,197,66,0.35),inset_0_-8px_0_var(--color-navy-950)]" />
         <div className="-mt-6 h-8 w-80 rounded-b-[50%] border-x-4 border-b-4 border-gold-600 bg-navy-900" />
         <ArrowButton label="‹" onClick={() => cycle(-1)} className="left-4" />
         <ArrowButton label="›" onClick={() => cycle(1)} className="right-4" />
+        <motion.button
+          whileTap={{ scale: 0.94 }}
+          onClick={() => setView((v) => (v + 1) % VIEWS.length)}
+          title="Rotate"
+          className="btn absolute top-4 right-4 z-20 text-[10px]"
+        >
+          ROTATE: {VIEWS[view].toUpperCase()}
+        </motion.button>
       </section>
 
       <section className="panel flex flex-col gap-4 p-4">
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {TABS.map((t) => (
             <button
               key={t}
@@ -90,49 +93,17 @@ export default function CreateLead({ manifest, draft, update, next }: Props) {
         </div>
 
         <div className="panel-quiet flex-1 overflow-auto p-3">
-          {tab === "color" ? (
-            <div className="grid grid-cols-6 gap-3">
-              {opts.map((o) => (
-                <Tile key={o.value} selected={o.value === look.hairColor} onClick={() => set({ hairColor: o.value })}>
-                  <div className="h-16 w-full border-2 border-black" style={{ background: o.value }} />
-                </Tile>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-4 gap-3">
-              {opts.map((o) => (
-                <Tile key={o.value} selected={o.value === look[field]} onClick={() => set({ [field]: o.value })}>
-                  <div className="flex h-40 items-end justify-center overflow-hidden">
-                    <LeadPreview
-                      look={{ ...look, [field]: o.value, ...(tab === "hair" ? { hat: "none" } : {}) }}
-                      height={160}
-                      manifest={manifest}
-                    />
-                  </div>
-                  <span className="mt-1 block font-pixel text-[9px] text-slate-300">{o.label.toUpperCase()}</span>
-                </Tile>
-              ))}
-            </div>
-          )}
-          {tab === "hair" && look.hat !== "none" && (
-            <p className="mt-3 font-ui text-xs text-gold-300">Your hat hides the hair. Pick "None" on the Hat tab to see it.</p>
-          )}
-          {(tab === "hair" || tab === "color") && (
-            <div className="mt-4">
-              <p className="mb-2 font-pixel text-[9px] text-slate-400">HAIR COLOR</p>
-              <div className="flex flex-wrap gap-2">
-                {manifest.hairColors.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => set({ hairColor: c })}
-                    className={`h-8 w-8 border-2 ${c === look.hairColor ? "border-gold-400 outline-2 outline-gold-400" : "border-black"}`}
-                    style={{ background: c }}
-                    aria-label={c}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+          <div className={`grid gap-3 ${tab === "body" ? "grid-cols-2" : "grid-cols-4"}`}>
+            {opts.map((o) => (
+              <Tile key={o} selected={o === look[tab]} onClick={() => set({ [tab]: o })}>
+                <div className={`flex items-end justify-center ${tab === "body" ? "h-72" : "h-60"}`}>
+                  <LeadPreview look={{ ...look, [tab]: o }} height={tab === "body" ? 264 : 220} />
+                </div>
+                <span className="mt-2 block font-pixel text-[9px] text-slate-300">{(LABELS[o] ?? o).toUpperCase()}</span>
+              </Tile>
+            ))}
+          </div>
+          <p className="mt-3 font-ui text-xs text-slate-400">Use ← and → to cycle {tab === "body" ? "bodies" : "outfits"}.</p>
         </div>
 
         <label className="flex items-center gap-3">

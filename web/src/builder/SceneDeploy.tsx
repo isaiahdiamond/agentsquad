@@ -103,7 +103,7 @@ export default function SceneDeploy({ draft, update, back }: Props) {
               className={`flex flex-col bg-navy-900 p-2 ${selected ? "panel" : "border-3 border-navy-500 shadow-[4px_4px_0_#000] hover:border-gold-600"}`}
               style={selected ? { boxShadow: "0 0 30px rgba(245,197,66,0.45), 4px 4px 0 #000" } : undefined}
             >
-              <ArtImage src={s.background} label={s.name.toUpperCase()} color={s.kind === "map" ? "#1f5135" : "#1d3060"} className="aspect-[16/10] w-full object-cover" />
+              <ArtImage src={s.background} label={s.name.toUpperCase()} color={s.kind === "map" ? "#1f5135" : "#1d3060"} className="aspect-video w-full object-cover" />
               <span className={`mt-2 py-2 text-center font-pixel text-sm ${selected ? "text-gold-400" : "text-slate-300"}`}>
                 {s.name.toUpperCase()}
               </span>
@@ -118,13 +118,13 @@ export default function SceneDeploy({ draft, update, back }: Props) {
       <div className="panel flex items-center gap-6 px-6 py-4">
         <p className="w-32 shrink-0 font-pixel text-[11px] text-gold-300">YOUR SQUAD</p>
         <div className="flex flex-col items-center">
-          <div className="flex h-24 items-end overflow-hidden">{draft.look && <LeadPreview look={draft.look} height={90} />}</div>
+          <div className="flex h-24 items-end overflow-hidden"><LeadPreview look={draft.look} height={90} /></div>
           <span className="font-pixel text-[8px] text-gold-400">{draft.name.toUpperCase()}</span>
           <span className="font-ui text-[11px] text-slate-500">lead</span>
         </div>
         {members.map(({ c, model }) => (
           <div key={c.id} className="flex flex-col items-center">
-            <Portrait c={c} className="h-24 w-24 border-2 border-black" />
+            <Portrait c={c} scale={5} className="h-24 w-24 border-2 border-black" />
             <span className="mt-1 font-pixel text-[8px]" style={{ color: c.color }}>
               {c.name.replace(" Agent", "").toUpperCase()}
             </span>
