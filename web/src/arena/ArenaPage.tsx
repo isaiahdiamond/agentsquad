@@ -6,7 +6,7 @@ import Debug from "./Debug"
 import { Rail, TopBar } from "./Hud"
 import MapView from "./MapView"
 import RoomView from "./RoomView"
-import { Stage } from "./Sprite"
+import { H, Stage, W } from "./Sprite"
 import { buildingFor, emptyArena, finishedAt, reduce, saveReport, type Received } from "./store"
 
 export default function ArenaPage() {
@@ -24,17 +24,18 @@ export default function ArenaPage() {
   const [top, setTop] = useState(0)
   const [notice, setNotice] = useState("")
   const [stalled, setStalled] = useState(0)
-  const [stage, setStage] = useState({ w: 1600, h: 900 })
+  const [fit, setFit] = useState(0.5)
   const observer = useRef<ResizeObserver>(null)
   const latest = useRef(arena)
   latest.current = arena
 
   useLayoutEffect(() => setTop(document.querySelector("nav")?.getBoundingClientRect().bottom ?? 0), [])
 
-  const stageRef = useCallback((el: HTMLDivElement | null) => {
+  // One transform scales the native-size stage to fit the area, letterboxed.
+  const areaRef = useCallback((el: HTMLDivElement | null) => {
     observer.current?.disconnect()
     if (!el) return
-    observer.current = new ResizeObserver(() => setStage({ w: el.clientWidth, h: el.clientHeight }))
+    observer.current = new ResizeObserver(() => setFit(Math.min(el.clientWidth / W, el.clientHeight / H) || 0.5))
     observer.current.observe(el)
   }, [])
 
@@ -136,12 +137,10 @@ export default function ArenaPage() {
     <div className="fixed inset-x-0 bottom-0 flex bg-bg" style={{ top }}>
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar arena={arena} squad={squad} connected={connected} title={building && interior ? `${scene.name} · ${building.name}` : scene.name} />
-        <div className="relative flex min-h-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
-          <div
-            ref={stageRef} className="relative overflow-hidden bg-bg"
-            style={{ width: "min(100cqw, calc(100cqh * 16 / 9))", aspectRatio: "16 / 9", containerType: "inline-size" }}
-          >
-            <Stage.Provider value={stage}>
+        <div ref={areaRef} className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+          <div className="relative overflow-hidden bg-bg" style={{ width: W * fit, height: H * fit }}>
+            <Stage.Provider value={{ fit }}>
+            <div className="absolute left-0 top-0 origin-top-left" style={{ width: W, height: H, transform: `scale(${fit})`, imageRendering: "pixelated" }} data-stage>
             {scene.kind === "map" ? (
               <motion.div
                 className="absolute inset-0"
@@ -169,8 +168,16 @@ export default function ArenaPage() {
                   transition={{ duration: 0.45 }}
                 >
                   <RoomView scene={interior} arena={arena} squad={squad} members={inside} main={false} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+            {debug && <Debug scene={interior ?? scene} />}
+            </div>
+            <AnimatePresence>
+              {interior && (
+                <motion.div key="back" className="absolute bottom-4 left-4 z-[700]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                   <button
-                    className="absolute bottom-4 left-4 z-[700] flex items-center gap-2 rounded-xl border border-line-strong bg-panel/90 px-3.5 py-2 text-sm font-semibold text-text shadow-[0_8px_24px_rgba(0,0,0,.45)] backdrop-blur-md transition-colors hover:border-accent"
+                    className="flex items-center gap-2 rounded-xl border border-line-strong bg-panel/90 px-3.5 py-2 text-sm font-semibold text-text shadow-[0_8px_24px_rgba(0,0,0,.45)] backdrop-blur-md transition-colors hover:border-accent"
                     onClick={() => setView(null)}
                   >
                     <svg viewBox="0 0 16 16" className="h-4 w-4"><path d="M10 3L5 8l5 5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -179,7 +186,6 @@ export default function ArenaPage() {
                 </motion.div>
               )}
             </AnimatePresence>
-            {debug && <Debug scene={interior ?? scene} />}
             {notice && (
               <div className="card absolute left-1/2 top-4 z-[900] flex -translate-x-1/2 items-center gap-4 px-4 py-3 text-sm text-text shadow-[0_8px_24px_rgba(0,0,0,.45)]">
                 <span className="h-2 w-2 shrink-0 rounded-full bg-accent" />

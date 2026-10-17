@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react"
-import { AnimatePresence, motion, type MotionValue } from "framer-motion"
+import { AnimatePresence, motion, useTransform, type MotionValue } from "framer-motion"
 import type { AgentState } from "@agentsquad/shared"
 import { spriteSet, useSprites, type SpriteManifest, type SpriteView } from "../ui/sprites"
 import type { Agent, Who } from "./store"
@@ -72,7 +72,7 @@ export function Sprite({ color, seed, lead, raise, bust }: { color: string; seed
   )
 }
 
-type Size = { w: number; h: number }
+export type Size = { w: number; h: number }
 const probed = new Map<string, Size | false>()
 
 // Natural size of an image: undefined while loading, false when the file is missing or broken.
@@ -99,22 +99,30 @@ export function useImage(src?: string) {
   return size === undefined ? undefined : !!size
 }
 
-// Stage size in px. Sprite pixel scale = round(spot.scale * stage height / 900), so spot.scale is the scale on a 1600x900 stage,
-// but never below the spot's own whole scale, so rooms stay 2x on laptop-sized stages.
-export const Stage = createContext({ w: 1600, h: 900 })
+// The stage is the scene art at native size. Everything in it is placed in native pixels; one transform scales it to the screen.
+export const W = 2688
+export const H = 1520
+export const SEAT_LIFT = 0.05
 
-export function pxScale(scale: number, stageH: number) {
-  return Math.max(1, Math.floor(scale), Math.round((scale * stageH) / 900))
+// fit = screen px per native px.
+export const Stage = createContext({ fit: 0.5 })
+
+// Native px per design px for overlays (bubbles, icons, badges): the 1600-wide look on big screens, never under 1x on small ones.
+export function useUi() {
+  const { fit } = useContext(Stage)
+  return Math.max(2, 1 / fit)
 }
 
-export function usePx(s: MotionValue<number>) {
-  const { h } = useContext(Stage)
-  const [k, setK] = useState(() => pxScale(s.get(), h))
-  useEffect(() => {
-    setK(pxScale(s.get(), h))
-    return s.on("change", (v) => setK(pxScale(v, h)))
-  }, [s, h])
-  return k
+// Puts the child's bottom center on (x, y), fractions of the scene. Y-sorted unless z is given.
+export function Placed({ x, y, o, z, children }: { x: MotionValue<number>; y: MotionValue<number>; o?: MotionValue<number>; z?: number; children: React.ReactNode }) {
+  const left = useTransform(x, (v) => v * W)
+  const top = useTransform(y, (v) => v * H)
+  const zy = useTransform(y, (v) => Math.round(v * H))
+  return (
+    <motion.div className="pointer-events-none absolute" style={{ left, top, opacity: o, zIndex: z ?? zy, translateX: "-50%", translateY: "-100%" }}>
+      {children}
+    </motion.div>
+  )
 }
 
 export type Face = { back: boolean; flip: boolean; walking: boolean }
@@ -154,7 +162,7 @@ export function useFacing(x: MotionValue<number>, y: MotionValue<number>) {
 let cached: SpriteManifest | null = null
 
 // The manifest, and whether it has settled (loaded or failed), so nothing flashes the fallback while it loads.
-function useManifest() {
+export function useManifest() {
   const { sprites, error } = useSprites()
   if (sprites) cached = sprites
   const m = sprites ?? cached
@@ -167,29 +175,69 @@ function useSpriteSet(who: Who) {
   return { set, ready }
 }
 
-const H = 96
+export const TALL = 96
 const BOX = 48
+const TYPING: AgentState[] = ["reading", "writing", "running", "searching"]
 
-// One path for every character body: the sprite PNG at integer scale k, or the drawn chibi when the art is missing.
-// Positioned in whole pixels so odd-width sprites never land on half pixels.
-function Body({ who, seed, k, view, flip }: { who: Who; seed: string; k: number; view: SpriteView; flip: boolean }) {
+function Frame({ src, nat, s, flip, shown = true }: { src: string; nat: Size; s: number; flip?: boolean; shown?: boolean }) {
+  return (
+    <img
+      src={src} alt="" draggable={false}
+      className="pixelated absolute bottom-0 left-1/2 max-w-none select-none"
+      style={{ width: nat.w * s, height: nat.h * s, transform: `translateX(-50%)${flip ? " scaleX(-1)" : ""}`, visibility: shown ? "visible" : "hidden" }}
+    />
+  )
+}
+
+// Seated frames: specialists alternate sit[0]/sit[1] every 180ms while typing; the lead has one frame and bobs instead.
+function Seated({ sit, s, typing }: { sit: string[]; s: number; typing: boolean }) {
+  const a = useNatural(sit[0]), b = useNatural(sit[1])
+  const [i, setI] = useState(0)
+  const two = sit.length > 1 && !!b
+  useEffect(() => {
+    setI(0)
+    if (!typing || !two) return
+    const t = setInterval(() => setI((v) => 1 - v), 180)
+    return () => clearInterval(t)
+  }, [typing, two])
+  if (!a) return null
+  const bob = typing && !two
+  return (
+    <motion.div
+      key={bob ? "bob" : "still"} className="absolute inset-0"
+      animate={{ y: bob ? [0, -s, 0] : 0 }}
+      transition={bob ? { duration: 0.36, repeat: Infinity, ease: stepped } : { duration: 0 }}
+    >
+      <Frame src={sit[0]} nat={a} s={s} shown={i === 0 || !two} />
+      {two && b && <Frame src={sit[1]} nat={b} s={s} shown={i === 1} />}
+    </motion.div>
+  )
+}
+
+// One path for every character body: the sprite PNG at scene scale s, or the drawn chibi when the art is missing.
+// Standing and seated are both mounted so sitting down is a 150ms crossfade.
+function Body({ who, seed, s, view, flip, seated, typing }: { who: Who; seed: string; s: number; view: SpriteView; flip: boolean; seated: boolean; typing: boolean }) {
   const { set, ready } = useSpriteSet(who)
   const src = set?.[view]
   const nat = useNatural(src)
+  const sit = set?.sit?.length && nat ? set.sit : null
   if (!ready || (src && nat === undefined)) return null
-  if (src && nat) {
-    return (
-      <img
-        src={src} alt={who.name} draggable={false}
-        className="pixelated absolute bottom-0 max-w-none select-none"
-        style={{ width: nat.w * k, height: nat.h * k, left: Math.round((BOX * k - nat.w * k) / 2), transform: flip ? "scaleX(-1)" : undefined }}
-      />
-    )
-  }
+  const fade = { duration: 0.15 }
   return (
-    <div className="absolute bottom-0 left-1/2 -translate-x-1/2" style={{ width: H * k * (20 / 22) }}>
-      <Sprite color={who.color} seed={seed} lead={who.lead} raise={view === "hand"} />
-    </div>
+    <>
+      <motion.div className="absolute inset-0" initial={false} animate={{ opacity: seated && sit ? 0 : 1 }} transition={fade}>
+        {src && nat ? <Frame src={src} nat={nat} s={s} flip={flip} /> : (
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2" style={{ width: TALL * s * (20 / 22) }}>
+            <Sprite color={who.color} seed={seed} lead={who.lead} raise={view === "hand"} />
+          </div>
+        )}
+      </motion.div>
+      {sit && (
+        <motion.div className="absolute inset-0" initial={false} animate={{ opacity: seated ? 1 : 0 }} transition={fade}>
+          <Seated sit={sit} s={s} typing={typing} />
+        </motion.div>
+      )}
+    </>
   )
 }
 
@@ -302,7 +350,7 @@ export function Bubble({ text, color, at }: { text?: string; color: string; at: 
         <motion.div
           key={at} initial={{ opacity: 0, y: 6, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4 }}
           className="relative mb-2 flex items-start gap-1.5 rounded-xl bg-white px-2.5 py-1.5 font-medium leading-snug text-[#0b0d12] shadow-[0_4px_14px_rgba(0,0,0,.35)]"
-          style={{ fontSize: "max(11px, 0.78cqw)", width: "max-content", maxWidth: "max(160px, 12cqw)" }}
+          style={{ fontSize: 12, width: "max-content", maxWidth: 190 }}
         >
           <span className="mt-[0.45em] h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: color }} />
           {text}
@@ -315,51 +363,69 @@ export function Bubble({ text, color, at }: { text?: string; color: string; at: 
 
 const stepped = (t: number) => (t < 0.5 ? 0 : 1)
 
-// The character plus every status effect, k screen pixels per art pixel. The parent puts the bottom center at the feet.
-export function Actor({ who, agent, seed, k, face = STANDING, bubble = true, icon = true }: { who: Who; agent?: Agent; seed: string; k: number; face?: Face; bubble?: boolean; icon?: boolean }) {
+// The character plus every status effect. x, y put the feet (bottom center) on the scene; s is the scene scale.
+// The body is y-sorted with the desks; the effects (icon, bubble, fire, puff) sit above everything.
+export function Actor({ who, agent, seed, s, x, y, o, face = STANDING, seated = false, bubble = true, icon = true }: {
+  who: Who; agent?: Agent; seed: string; s: number; x: MotionValue<number>; y: MotionValue<number>; o?: MotionValue<number>
+  face?: Face; seated?: boolean; bubble?: boolean; icon?: boolean
+}) {
   const state = agent?.state ?? "idle"
   const waiting = state === "waiting"
   const error = state === "error"
+  const ui = useUi()
   const [bob] = useState(() => 1.1 + Math.random() * 0.5)
   const view: SpriteView = waiting ? "hand" : face.back ? "back" : "front"
-  const badge = 16 + 6 * k
+  const badge = 28
+  const box = { width: BOX * s, height: TALL * s }
   return (
-    <div className="relative" style={{ width: BOX * k, height: H * k }}>
-      <div className="absolute bottom-full left-1/2 flex -translate-x-1/2 flex-col items-center" style={{ marginBottom: 2 * k }}>
-        {bubble && <Bubble text={agent?.narration} color={who.color} at={agent?.narrationAt ?? 0} />}
-        {waiting ? (
+    <>
+      <Placed x={x} y={y} o={o}>
+        <div className="relative" style={box}>
+          {waiting && (
+            <motion.div
+              className="absolute left-1/2 top-1/2 rounded-full"
+              style={{ width: 84 * s, height: 110 * s, marginLeft: -42 * s, marginTop: -55 * s, background: "radial-gradient(closest-side, rgba(253,224,71,.8) 0%, rgba(250,204,21,.4) 50%, rgba(250,204,21,0) 100%)" }}
+              animate={{ opacity: [0.6, 1, 0.6], scale: [0.95, 1.05, 0.95] }} transition={{ duration: 1.2, repeat: Infinity }}
+            />
+          )}
           <motion.div
-            className="flex items-center justify-center rounded-full bg-amber-400 font-extrabold text-[#0b0d12] shadow-[0_0_0_3px_rgba(251,191,36,.35),0_2px_8px_rgba(0,0,0,.35)]"
-            style={{ width: badge, height: badge, fontSize: badge * 0.62 }}
-            animate={{ y: [0, -4, 0] }} transition={{ duration: 0.7, repeat: Infinity }}
-          >!</motion.div>
-        ) : state === "done" ? (
+            className="absolute left-1/2 rounded-[50%] bg-black"
+            style={{ width: 26 * s, height: 7 * s, marginLeft: -13 * s, bottom: -3 * s }}
+            initial={false} animate={{ opacity: seated ? 0 : 0.2 }} transition={{ duration: 0.15 }}
+          />
           <motion.div
-            initial={{ scale: 0 }} animate={{ scale: 1 }}
-            className="flex items-center justify-center rounded-full bg-emerald-500 shadow-[0_2px_8px_rgba(0,0,0,.35)]"
-            style={{ width: badge, height: badge }}
+            key={seated ? "seated" : face.walking ? "walk" : "idle"} className="absolute inset-0"
+            animate={{ y: seated ? 0 : [0, -s, 0] }}
+            transition={seated ? { duration: 0 } : face.walking ? { duration: 0.34, repeat: Infinity, ease: stepped } : { duration: bob, repeat: Infinity, ease: stepped }}
           >
-            <svg viewBox="0 0 10 10" className="w-[62%]"><path d="M2 5.2 L4.2 7.4 L8 2.8" stroke="white" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" fill="none" /></svg>
+            <Body who={who} seed={seed} s={s} view={view} flip={face.flip} seated={seated} typing={seated && TYPING.includes(state)} />
           </motion.div>
-        ) : icon && !error ? <Icon state={state} size={badge} /> : null}
-      </div>
-      {waiting && (
-        <motion.div
-          className="absolute left-1/2 top-1/2 rounded-full"
-          style={{ width: 84 * k, height: 110 * k, marginLeft: -42 * k, marginTop: -55 * k, background: "radial-gradient(closest-side, rgba(253,224,71,.8) 0%, rgba(250,204,21,.4) 50%, rgba(250,204,21,0) 100%)" }}
-          animate={{ opacity: [0.6, 1, 0.6], scale: [0.95, 1.05, 0.95] }} transition={{ duration: 1.2, repeat: Infinity }}
-        />
-      )}
-      <div className="absolute left-1/2 rounded-[50%] bg-black/35" style={{ width: 28 * k, height: 7 * k, marginLeft: -14 * k, bottom: -3 * k }} />
-      <motion.div
-        key={face.walking ? "walk" : "idle"} className="absolute inset-0"
-        animate={{ y: [0, -k, 0] }}
-        transition={face.walking ? { duration: 0.34, repeat: Infinity, ease: stepped } : { duration: bob, repeat: Infinity, ease: stepped }}
-      >
-        <Body who={who} seed={seed} k={k} view={view} flip={face.flip} />
-      </motion.div>
-      {error && <Fire />}
-      {agent && Date.now() - agent.fixedAt < 1500 && <Puff key={agent.fixedAt} />}
-    </div>
+        </div>
+      </Placed>
+      <Placed x={x} y={y} o={o} z={5000}>
+        <div className="relative" style={box}>
+          <div className="absolute bottom-full left-1/2 flex flex-col items-center" style={{ marginBottom: 2 * s, transform: `translateX(-50%) scale(${ui})`, transformOrigin: "50% 100%" }}>
+            {bubble && <Bubble text={agent?.narration} color={who.color} at={agent?.narrationAt ?? 0} />}
+            {waiting ? (
+              <motion.div
+                className="flex items-center justify-center rounded-full bg-amber-400 font-extrabold text-[#0b0d12] shadow-[0_0_0_3px_rgba(251,191,36,.35),0_2px_8px_rgba(0,0,0,.35)]"
+                style={{ width: badge, height: badge, fontSize: badge * 0.62 }}
+                animate={{ y: [0, -4, 0] }} transition={{ duration: 0.7, repeat: Infinity }}
+              >!</motion.div>
+            ) : state === "done" ? (
+              <motion.div
+                initial={{ scale: 0 }} animate={{ scale: 1 }}
+                className="flex items-center justify-center rounded-full bg-emerald-500 shadow-[0_2px_8px_rgba(0,0,0,.35)]"
+                style={{ width: badge, height: badge }}
+              >
+                <svg viewBox="0 0 10 10" className="w-[62%]"><path d="M2 5.2 L4.2 7.4 L8 2.8" stroke="white" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" fill="none" /></svg>
+              </motion.div>
+            ) : icon && !error ? <Icon state={state} size={badge} /> : null}
+          </div>
+          {error && <div className="absolute inset-x-0 top-0" style={{ height: seated ? "55%" : "100%" }}><Fire /></div>}
+          {agent && Date.now() - agent.fixedAt < 1500 && <Puff key={agent.fixedAt} />}
+        </div>
+      </Placed>
+    </>
   )
 }
