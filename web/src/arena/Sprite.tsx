@@ -107,10 +107,11 @@ export const SEAT_LIFT = 0.05
 // fit = screen px per native px.
 export const Stage = createContext({ fit: 0.5 })
 
-// Native px per design px for overlays (bubbles, icons, badges): the 1600-wide look on big screens, never under 1x on small ones.
+// Native px per design px for overlays (bubbles, icons, badges): the 1600-wide look on big screens, held near 1x on laptops,
+// capped so a bubble stays modest on very small stages.
 export function useUi() {
   const { fit } = useContext(Stage)
-  return Math.max(2, 1 / fit)
+  return Math.min(3, Math.max(2, 1 / fit))
 }
 
 // Puts the child's bottom center on (x, y), fractions of the scene. Y-sorted unless z is given.
@@ -181,10 +182,10 @@ const BOX = 48
 const FEET = 14
 const TYPING: AgentState[] = ["reading", "writing", "running", "searching"]
 
-function Frame({ src, nat, s, flip, shown = true }: { src: string; nat: Size; s: number; flip?: boolean; shown?: boolean }) {
+function Frame({ src, alt, nat, s, flip, shown = true }: { src: string; alt: string; nat: Size; s: number; flip?: boolean; shown?: boolean }) {
   return (
     <img
-      src={src} alt="" draggable={false}
+      src={src} alt={alt} draggable={false}
       className="pixelated absolute bottom-0 left-1/2 max-w-none select-none"
       style={{ width: nat.w * s, height: nat.h * s, transform: `translateX(-50%)${flip ? " scaleX(-1)" : ""}`, visibility: shown ? "visible" : "hidden" }}
     />
@@ -192,7 +193,7 @@ function Frame({ src, nat, s, flip, shown = true }: { src: string; nat: Size; s:
 }
 
 // Seated frames: specialists alternate sit[0]/sit[1] every 180ms while typing; the lead has one frame and bobs instead.
-function Seated({ sit, s, typing }: { sit: string[]; s: number; typing: boolean }) {
+function Seated({ sit, alt, s, typing }: { sit: string[]; alt: string; s: number; typing: boolean }) {
   const a = useNatural(sit[0]), b = useNatural(sit[1])
   const [i, setI] = useState(0)
   const two = sit.length > 1 && !!b
@@ -210,8 +211,8 @@ function Seated({ sit, s, typing }: { sit: string[]; s: number; typing: boolean 
       animate={{ y: bob ? [0, -s, 0] : 0 }}
       transition={bob ? { duration: 0.36, repeat: Infinity, ease: stepped } : { duration: 0 }}
     >
-      <Frame src={sit[0]} nat={a} s={s} shown={i === 0 || !two} />
-      {two && b && <Frame src={sit[1]} nat={b} s={s} shown={i === 1} />}
+      <Frame src={sit[0]} alt={alt} nat={a} s={s} shown={i === 0 || !two} />
+      {two && b && <Frame src={sit[1]} alt="" nat={b} s={s} shown={i === 1} />}
     </motion.div>
   )
 }
@@ -222,13 +223,14 @@ function Body({ who, seed, s, view, flip, seated, typing }: { who: Who; seed: st
   const { set, ready } = useSpriteSet(who)
   const src = set?.[view]
   const nat = useNatural(src)
-  const sit = set?.sit?.length && nat ? set.sit : null
+  const sitNat = useNatural(set?.sit?.[0])
+  const sit = set?.sit?.length && nat && sitNat ? set.sit : null
   if (!ready || (src && nat === undefined)) return null
   const fade = { duration: 0.15 }
   return (
     <>
       <motion.div className="absolute inset-0" initial={false} animate={{ opacity: seated && sit ? 0 : 1 }} transition={fade}>
-        {src && nat ? <Frame src={src} nat={nat} s={s} flip={flip} /> : (
+        {src && nat ? <Frame src={src} alt={who.name} nat={nat} s={s} flip={flip} /> : (
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2" style={{ width: TALL * s * (20 / 22) }}>
             <Sprite color={who.color} seed={seed} lead={who.lead} raise={view === "hand"} />
           </div>
@@ -236,7 +238,7 @@ function Body({ who, seed, s, view, flip, seated, typing }: { who: Who; seed: st
       </motion.div>
       {sit && (
         <motion.div className="absolute inset-0" style={{ clipPath: `inset(-50% -50% ${FEET * s}px -50%)` }} initial={false} animate={{ opacity: seated ? 1 : 0 }} transition={fade}>
-          <Seated sit={sit} s={s} typing={typing} />
+          <Seated sit={sit} alt={who.name} s={s} typing={typing} />
         </motion.div>
       )}
     </>
@@ -367,9 +369,9 @@ const stepped = (t: number) => (t < 0.5 ? 0 : 1)
 
 // The character plus every status effect. x, y put the feet (bottom center) on the scene; s is the scene scale.
 // The body is y-sorted with the desks; the effects (icon, bubble, fire, puff) sit above everything.
-export function Actor({ who, agent, seed, s, x, y, o, face = STANDING, seated = false, bubble = true, icon = true }: {
+export function Actor({ who, agent, seed, s, x, y, o, face = STANDING, seated = false, bubble = true, icon = true, raise = 0 }: {
   who: Who; agent?: Agent; seed: string; s: number; x: MotionValue<number>; y: MotionValue<number>; o?: MotionValue<number>
-  face?: Face; seated?: boolean; bubble?: boolean; icon?: boolean
+  face?: Face; seated?: boolean; bubble?: boolean; icon?: boolean; raise?: number
 }) {
   const state = agent?.state ?? "idle"
   const waiting = state === "waiting"
@@ -407,7 +409,7 @@ export function Actor({ who, agent, seed, s, x, y, o, face = STANDING, seated = 
       </Placed>
       <Placed x={x} y={y} o={o} z={5000}>
         <div className="relative" style={box}>
-          <div className="absolute bottom-full left-1/2 flex flex-col items-center" style={{ marginBottom: 2 * s, transform: `translateX(-50%) scale(${ui})`, transformOrigin: "50% 100%" }}>
+          <div className="absolute bottom-full left-1/2 flex flex-col items-center" style={{ marginBottom: 2 * s + raise * ui, transform: `translateX(-50%) scale(${ui})`, transformOrigin: "50% 100%" }}>
             {bubble && <Bubble text={agent?.narration} color={who.color} at={agent?.narrationAt ?? 0} />}
             {waiting ? (
               <motion.div

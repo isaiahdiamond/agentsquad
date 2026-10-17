@@ -37,7 +37,7 @@ function Desk({ spot, s, src, size }: { spot: Spot; s: number; src?: string; siz
 type Target = { to: Spot; sit: boolean; leave?: boolean }
 
 // Walks in a straight line at a steady pace (standing sprite with step bob), then sits if the target is a desk seat.
-function Worker({ type, agent, squad, s, from, target }: { type: string; agent?: Agent; squad: Squad | null; s: number; from: Spot; target: Target }) {
+function Worker({ type, agent, squad, s, from, target, raise }: { type: string; agent?: Agent; squad: Squad | null; s: number; from: Spot; target: Target; raise?: number }) {
   const x = useMotionValue(from.x), y = useMotionValue(from.y), o = useMotionValue(1)
   const [seated, setSeated] = useState(false)
   const { to, sit, leave } = target
@@ -55,7 +55,7 @@ function Worker({ type, agent, squad, s, from, target }: { type: string; agent?:
     }
   }, [to.x, to.y, sit, leave])
   const face = useFacing(x, y)
-  return <Actor who={who(type, squad)} agent={agent} seed={type} s={s} x={x} y={y} o={o} face={face} seated={seated} />
+  return <Actor who={who(type, squad)} agent={agent} seed={type} s={s} x={x} y={y} o={o} face={face} seated={seated} raise={raise} />
 }
 
 // Rooms: a whole-scene room (office, beach) with the lead, or a building interior showing only the agents inside it.
@@ -84,16 +84,14 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
     map.set(a.id, i)
   }
 
-  const station = (i: number): Spot => {
-    const st = desks[i] ?? scene.stations[i % Math.max(1, scene.stations.length)] ?? scene.bench
-    const over = desks.length && i >= desks.length ? Math.floor(i / desks.length) : 0
-    return { ...st, x: st.x + (over * 30 * s) / W }
-  }
+  // More agents than desks: the extras stand in a row next to the bench, never on a desk station.
+  const station = (i: number): Spot => desks[i] ?? { ...scene.bench, x: scene.bench.x + ((i - desks.length + 1) * 30 * s) / W }
   const seat = (st: Spot): Spot => ({ ...st, y: st.y - (deskH * s * SEAT_LIFT) / H })
-  const beside = (st: Spot): Spot => ({ ...st, x: st.x + ((deskW / 2 + 14) * s) / W, y: st.y - (4 * s) / H })
+  // Stand up on the side of the desk facing the middle of the room.
+  const beside = (st: Spot): Spot => ({ ...st, x: st.x + ((st.x > 0.5 ? -1 : 1) * (deskW / 2 + 14) * s) / W, y: st.y - (4 * s) / H })
   const home = (i: number): Spot => {
     const side = i % 2 ? 1 : -1
-    const gap = (leadDesk ? deskW / 2 + 16 : 20) * s + (Math.floor(i / 2) + (side > 0 && leadDesk ? 1 : 0)) * 34 * s
+    const gap = (leadDesk ? deskW / 2 + 16 : 20) * s + (Math.floor(i / 2) + (leadDesk && side === (scene.lead.x > 0.5 ? -1 : 1) ? 1 : 0)) * 34 * s
     return { ...scene.lead, x: scene.lead.x + (side * gap) / W, y: scene.lead.y + (6 * s) / H }
   }
   const targetFor = (a: Agent): Target => {
@@ -135,7 +133,7 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
       {members.map((a) => {
         if (!main && a.doneAt && a.doneAt < opened.current) return null
         const t = targetFor(a)
-        return <Worker key={a.id} type={a.type} agent={a} squad={squad} s={s} from={fresh(a) ? scene.bench : t.to} target={t} />
+        return <Worker key={a.id} type={a.type} agent={a} squad={squad} s={s} from={fresh(a) ? scene.bench : t.to} target={t} raise={((map.get(a.id) ?? 0) % 2) * 52} />
       })}
       {deskSpots(scene).map((d, i) => <Desk key={i} spot={d} s={s} src={src} size={size} />)}
       {!working.length && !main && (
