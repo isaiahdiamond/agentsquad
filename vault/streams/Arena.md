@@ -14,7 +14,7 @@ Match the pixel HUD in the campus mock in [[References]] (top bar, right activit
 
 - [x] Load `scenes.json`, render the chosen scene's background full-bleed at 16:9, letterboxed on other screen shapes.
 - [x] Place the lead at `scene.lead`. Line specialists up from `scene.bench`.
-- [ ] Character component: renders the lead's layered look (outfit, tinted hair, hat) or a specialist's portrait. Scale from the spot.
+- [x] Character component: sprite PNG from `sprites.json` (lead look variant or specialist), integer scale from the spot, feet-anchored. Portraits are head crops of the front sprite.
 - [x] Debug overlay (press `D`): show all spots as dots with labels, so the Art stream can tune coordinates.
 
 ### Campus
@@ -57,3 +57,4 @@ The mock session plays start to finish in the UF scene looking demo-ready, and t
 ## Log
 
 - 2026-10-17: Demo 1 arena done on code-drawn art: campus map (walk to door, badges, waiting/error), interiors via click or `?view=<building>`, bar/beach rooms (`?scene=bar`), HUD, effects, report (also fires on lead `agent_done` with no active specialists). Character component is still the code-drawn chibi; lead layered look and sprite PNGs pending art. Arena.
+- 2026-10-17: Art Pack 01 wired in. Real scene images (stretched 0.5% to 16:9 so spot fractions stay exact), new `scenes.json` (campus Library/Lab/Union, 3 interiors, office, beach; spot scale = sprite pixel scale on a 1600x900 stage: map 1, rooms 3.3, beach 2). Sprites at integer scale with front/back/mirror facing, hand view for waiting, stepped bob; chibi only as fallback. Done agents wait on their own walkway. Arena.

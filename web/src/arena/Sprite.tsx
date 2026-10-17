@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from "react"
-import { AnimatePresence, motion } from "framer-motion"
-import type { AgentState, Look } from "@agentsquad/shared"
-import LeadPreview from "../builder/LeadPreview"
-import ArtImage from "../ui/ArtImage"
+import { createContext, useContext, useEffect, useRef, useState } from "react"
+import { AnimatePresence, motion, type MotionValue } from "framer-motion"
+import type { AgentState } from "@agentsquad/shared"
+import { spriteSet, useSprites, type SpriteManifest, type SpriteView } from "../ui/sprites"
 import type { Agent, Who } from "./store"
 
-// Code-drawn chibi until sprite PNGs land. Swap this one component for <ArtImage src=/art/sprites/<id>.png> later.
+// Code-drawn chibi, only used when sprites.json has no sprite for a character.
 const BODY = [
   "....oooooooo....",
   "...ohhhhhhhho...",
@@ -92,46 +91,113 @@ export function useImage(src?: string) {
   return ok
 }
 
-// The lead's deployed look, scaled to whatever width the parent gives it.
-function LeadLook({ look, crop }: { look: Look; crop?: boolean }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [w, setW] = useState(0)
+// Stage height in px. Sprite pixel scale = round(spot.scale * stage height / 900), so spot.scale is the scale on a 1600x900 stage.
+export const StageH = createContext(900)
+
+export function pxScale(scale: number, stageH: number) {
+  return Math.max(1, Math.round((scale * stageH) / 900))
+}
+
+export function usePx(s: MotionValue<number>) {
+  const h = useContext(StageH)
+  const [k, setK] = useState(() => pxScale(s.get(), h))
   useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const ro = new ResizeObserver(() => setW(el.clientWidth))
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
+    setK(pxScale(s.get(), h))
+    return s.on("change", (v) => setK(pxScale(v, h)))
+  }, [s, h])
+  return k
+}
+
+export type Face = { back: boolean; flip: boolean; walking: boolean }
+
+export const STANDING: Face = { back: false, flip: false, walking: false }
+
+// Which way a moving character faces. The art faces down-right (front) and up-left (back); other directions are mirrored.
+export function useFacing(x: MotionValue<number>, y: MotionValue<number>) {
+  const [face, setFace] = useState(STANDING)
+  const last = useRef({ x: x.get(), y: y.get() })
+  useEffect(() => {
+    let stop: ReturnType<typeof setTimeout>
+    const on = () => {
+      const dx = x.get() - last.current.x
+      const dy = (y.get() - last.current.y) * 0.5625
+      if (Math.hypot(dx, dy) < 0.002) return
+      last.current = { x: x.get(), y: y.get() }
+      const back = dy < -Math.abs(dx) * 0.3
+      setFace((f) => {
+        const flip = Math.abs(dx) > 0.0005 ? (back ? dx > 0 : dx < 0) : f.flip
+        return f.walking && f.back === back && f.flip === flip ? f : { back, flip, walking: true }
+      })
+      clearTimeout(stop)
+      stop = setTimeout(() => setFace((f) => ({ back: false, flip: f.back ? !f.flip : f.flip, walking: false })), 160)
+    }
+    const offX = x.on("change", on)
+    const offY = y.on("change", on)
+    return () => {
+      offX()
+      offY()
+      clearTimeout(stop)
+    }
+  }, [x, y])
+  return face
+}
+
+let cached: SpriteManifest | null = null
+
+function useManifest() {
+  const { sprites } = useSprites()
+  if (sprites) cached = sprites
+  return sprites ?? cached
+}
+
+function spritesFor(m: SpriteManifest | null, who: Who) {
+  if (!who.lead) return spriteSet(m, who.type)
+  return spriteSet(m, "lead", who.look ?? null) ?? spriteSet(m, "lead")
+}
+
+const H = 44
+const BOX = 24
+
+// One path for every character body: the sprite PNG at integer scale k, or the drawn chibi when the art is missing.
+function Body({ who, seed, k, view, flip }: { who: Who; seed: string; k: number; view: SpriteView; flip: boolean }) {
+  const set = spritesFor(useManifest(), who)
+  if (set) {
+    return (
+      <img
+        src={set[view]} alt={who.name} draggable={false}
+        className="absolute bottom-0 left-1/2 max-w-none"
+        style={{ height: H * k, imageRendering: "pixelated", transform: `translateX(-50%)${flip ? " scaleX(-1)" : ""}` }}
+      />
+    )
+  }
   return (
-    <div
-      ref={ref} className="flex w-full justify-center"
-      style={{ aspectRatio: crop ? "1" : "20 / 22", alignItems: crop ? "flex-start" : "flex-end", overflow: crop ? "hidden" : "visible" }}
-    >
-      {w > 0 && <LeadPreview look={look} height={crop ? w * 4 : w * 1.4} />}
+    <div className="absolute bottom-0 left-1/2 -translate-x-1/2" style={{ width: H * k * (20 / 22) }}>
+      <Sprite color={who.color} seed={seed} lead={who.lead} raise={view === "hand"} />
     </div>
   )
 }
 
-// One path for every character body: the deployed lead look, otherwise the drawn chibi.
-function Body({ who, seed, raise, bust }: { who: Who; seed: string; raise?: boolean; bust?: boolean }) {
-  if (who.look) return <LeadLook look={who.look} crop={bust} />
-  return <Sprite color={who.color} seed={seed} lead={who.lead} raise={raise} bust={bust} />
-}
-
+// Head crop of the front sprite, scaled up.
 export function Portrait({ who, seed, className = "" }: { who: Who; seed: string; className?: string }) {
-  const ok = useImage(who.portrait)
-  if (ok && who.portrait) return <ArtImage src={who.portrait} label={who.name} color={who.color} className={`object-cover ${className}`} />
+  const set = spritesFor(useManifest(), who)
+  if (set) {
+    return (
+      <div
+        className={`border-2 border-black/70 ${className}`}
+        style={{ background: `url(${set.front}) 50% 6% / auto 260% no-repeat, ${shade(who.color, 0.35)}`, imageRendering: "pixelated" }}
+      />
+    )
+  }
   return (
     <div className={`overflow-hidden border-2 border-black/70 ${className}`} style={{ background: shade(who.color, 0.35) }}>
       <div className="px-[8%] pt-[10%]">
-        <Body who={who} seed={seed} bust />
+        <Sprite color={who.color} seed={seed} lead={who.lead} bust />
       </div>
     </div>
   )
 }
 
-function Icon({ state }: { state: AgentState }) {
+function Icon({ state, size }: { state: AgentState; size: number }) {
   const px = (x: number, y: number, w: number, h: number, c = "#0b0f1a") => <rect x={x} y={y} width={w} height={h} fill={c} />
   let body: React.ReactNode = null
   if (state === "reading") body = <>{px(1, 2, 4, 7, "#3b82f6")}{px(5, 2, 4, 7, "#60a5fa")}{px(5, 2, 0.6, 7)}{px(1, 9, 8, 1)}</>
@@ -141,7 +207,7 @@ function Icon({ state }: { state: AgentState }) {
   if (state === "thinking") body = <>{[1.5, 5, 8.5].map((x, i) => <motion.circle key={x} cx={x} cy={5} r={1.1} fill="#0b0f1a" animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }} />)}</>
   if (!body) return null
   return (
-    <div className="rounded-[3px] border-2 border-black/80 bg-white/90 p-[2px] shadow-[2px_2px_0_rgba(0,0,0,.5)]" style={{ width: "max(18px, 1.3cqw)" }}>
+    <div className="rounded-[3px] border-2 border-black/80 bg-white/90 p-[2px] shadow-[2px_2px_0_rgba(0,0,0,.5)]" style={{ width: size }}>
       <svg viewBox="0 0 10 10" className="block w-full" shapeRendering="crispEdges">{body}</svg>
     </div>
   )
@@ -166,10 +232,10 @@ export function Fire({ small }: { small?: boolean }) {
     <div className="pointer-events-none absolute inset-0">
       <Flame className="bottom-[2%] left-[-12%] w-[45%]" delay={0.1} />
       <Flame className="bottom-[8%] right-[-14%] w-[42%]" delay={0.3} />
-      <Flame className="bottom-[78%] left-[25%] w-[50%]" delay={0.2} />
+      <Flame className="bottom-[82%] left-[25%] w-[50%]" delay={0.2} />
       {!small && [0, 1, 2].map((i) => (
         <motion.div
-          key={i} className="absolute top-[-25%] rounded-full bg-slate-400/70"
+          key={i} className="absolute top-[-12%] rounded-full bg-slate-400/70"
           style={{ left: `${25 + i * 20}%`, width: "22%", aspectRatio: "1" }}
           animate={{ y: ["0%", "-260%"], opacity: [0, 0.8, 0], scale: [0.5, 1.4] }}
           transition={{ duration: 1.8, repeat: Infinity, delay: i * 0.6, ease: "easeOut" }}
@@ -230,42 +296,50 @@ export function Bubble({ text, color, at }: { text?: string; color: string; at: 
   )
 }
 
-// The character plus every status effect. The parent positions it (feet at the bottom center) and sets its width.
-export function Actor({ who, agent, seed, bubble = true, icon = true }: { who: Who; agent?: Agent; seed: string; bubble?: boolean; icon?: boolean }) {
+const stepped = (t: number) => (t < 0.5 ? 0 : 1)
+
+// The character plus every status effect, k sprite pixels per art pixel. The parent puts the bottom center at the feet.
+export function Actor({ who, agent, seed, k, face = STANDING, bubble = true, icon = true }: { who: Who; agent?: Agent; seed: string; k: number; face?: Face; bubble?: boolean; icon?: boolean }) {
   const state = agent?.state ?? "idle"
   const waiting = state === "waiting"
   const error = state === "error"
   const [bob] = useState(() => 1.1 + Math.random() * 0.5)
+  const view: SpriteView = waiting ? "hand" : face.back ? "back" : "front"
+  const badge = 10 + 4 * k
   return (
-    <div className="relative">
-      <div className="absolute bottom-full left-1/2 flex -translate-x-1/2 flex-col items-center">
+    <div className="relative" style={{ width: BOX * k, height: H * k }}>
+      <div className="absolute bottom-full left-1/2 flex -translate-x-1/2 flex-col items-center" style={{ marginBottom: k }}>
         {bubble && <Bubble text={agent?.narration} color={who.color} at={agent?.narrationAt ?? 0} />}
         {waiting ? (
           <motion.div
             className="mb-[2px] flex items-center justify-center rounded-[3px] border-2 border-black bg-yellow-300 font-pixel text-black shadow-[2px_2px_0_rgba(0,0,0,.5)]"
-            style={{ width: "max(18px, 1.3cqw)", height: "max(20px, 1.5cqw)", fontSize: "max(10px, 0.8cqw)" }}
+            style={{ width: badge, height: badge * 1.15, fontSize: badge * 0.6 }}
             animate={{ y: [0, -4, 0] }} transition={{ duration: 0.7, repeat: Infinity }}
           >!</motion.div>
         ) : state === "done" ? (
           <motion.div
             initial={{ scale: 0 }} animate={{ scale: 1 }}
             className="mb-[2px] flex items-center justify-center rounded-full border-2 border-black bg-green-500 shadow-[2px_2px_0_rgba(0,0,0,.5)]"
-            style={{ width: "max(18px, 1.3cqw)", aspectRatio: "1" }}
+            style={{ width: badge, height: badge }}
           >
             <svg viewBox="0 0 10 10" className="w-[70%]"><path d="M2 5.2 L4.2 7.4 L8 2.8" stroke="white" strokeWidth={1.8} fill="none" /></svg>
           </motion.div>
-        ) : icon && !error ? <Icon state={state} /> : null}
+        ) : icon && !error ? <Icon state={state} size={badge} /> : null}
       </div>
       {waiting && (
         <motion.div
-          className="absolute left-1/2 top-1/2 -z-0 w-[190%] -translate-x-1/2 -translate-y-1/2 rounded-full"
-          style={{ aspectRatio: "1", background: "radial-gradient(circle, rgba(253,224,71,.95) 0%, rgba(250,204,21,.55) 40%, rgba(250,204,21,0) 70%)" }}
+          className="absolute left-1/2 top-1/2 rounded-full"
+          style={{ width: 40 * k, height: 40 * k, marginLeft: -20 * k, marginTop: -20 * k, background: "radial-gradient(circle, rgba(253,224,71,.95) 0%, rgba(250,204,21,.55) 40%, rgba(250,204,21,0) 70%)" }}
           animate={{ opacity: [0.6, 1, 0.6], scale: [0.95, 1.05, 0.95] }} transition={{ duration: 1.2, repeat: Infinity }}
         />
       )}
-      <div className="absolute bottom-[-4%] left-1/2 h-[10%] w-[80%] -translate-x-1/2 rounded-[50%] bg-black/35" />
-      <motion.div className="relative" animate={{ y: ["0%", "-4%", "0%"] }} transition={{ duration: bob, repeat: Infinity, ease: "easeInOut" }}>
-        <Body who={who} seed={seed} raise={waiting} />
+      <div className="absolute left-1/2 rounded-[50%] bg-black/35" style={{ width: 16 * k, height: 4 * k, marginLeft: -8 * k, bottom: -1.5 * k }} />
+      <motion.div
+        key={face.walking ? "walk" : "idle"} className="absolute inset-0"
+        animate={{ y: [0, -k, 0] }}
+        transition={face.walking ? { duration: 0.34, repeat: Infinity, ease: stepped } : { duration: bob, repeat: Infinity, ease: stepped }}
+      >
+        <Body who={who} seed={seed} k={k} view={view} flip={face.flip} />
         {error && <Fire />}
         {agent && Date.now() - agent.fixedAt < 1500 && <Puff key={agent.fixedAt} />}
       </motion.div>
