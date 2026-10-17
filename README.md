@@ -37,6 +37,34 @@ npm run mock
 
 This plays a pretend 60-second session over and over: the lead thinks, hands work to a frontend dev and a test engineer, they read and edit files, a reviewer checks it, and everyone finishes. Open http://localhost:5173/arena and you'll see the events scroll in.
 
+## Watch a real Claude Code session
+
+1. Make a demo project outside this repo (only once):
+
+   ```
+   npm run setup-target -w demo
+   ```
+
+   This copies a tiny todo app to `~/agentsquad-demo-target`.
+
+2. Start AgentSquad pointed at it:
+
+   ```
+   TARGET=~/agentsquad-demo-target npm run dev
+   ```
+
+3. Open http://localhost:5173/builder, build your squad and hit **Deploy Squad**. That writes the agent files, a "Your team" section in the project's `CLAUDE.md`, and hooks in `.claude/settings.local.json`.
+4. In another terminal: `cd ~/agentsquad-demo-target && claude`, then give it a task, e.g. "Use frontend-dev to add a dark mode toggle, test-engineer to write tests, and reviewer to check both."
+5. Watch http://localhost:5173/arena.
+
+To remove everything AgentSquad wrote into the project, run `curl -X POST localhost:4317/undeploy -H 'content-type: application/json' -d '{}'`.
+
+Every session is recorded in `demo/runs/`, and the match report's **Replay** button plays it back.
+
+## Art
+
+No art is in the repo yet. Until it lands, the app draws placeholders in code. The list of files to make, with sizes, is in `vault/Art Requests.md`. Drop a file at its path and it shows up.
+
 ## Pages
 
 - `/builder`: make your squad (placeholder for now)
