@@ -36,6 +36,8 @@ const DUST = [[-0.55, -0.1], [-0.35, -0.45], [-0.1, -0.6], [0.15, -0.55], [0.4, 
 
 // Pixel dust burst around the desk.
 function Poof({ w, h, k }: { w: number; h: number; k: number }) {
+  const [gone, setGone] = useState(false)
+  if (gone) return null
   return (
     <div className="absolute bottom-0 left-1/2">
       {DUST.map(([dx, dy], i) => (
@@ -44,6 +46,7 @@ function Poof({ w, h, k }: { w: number; h: number; k: number }) {
           style={{ width: (i % 3 ? 3 : 4) * k, height: (i % 3 ? 3 : 4) * k, boxShadow: `0 0 0 ${k}px rgba(120,110,95,.55)` }}
           initial={{ x: 0, y: -h * 0.2, opacity: 0.95 }} animate={{ x: dx * w, y: -h * 0.2 + dy * h, opacity: 0 }}
           transition={{ duration: 0.45, ease: "easeOut" }}
+          onAnimationComplete={i ? undefined : () => setGone(true)}
         />
       ))}
     </div>
@@ -76,10 +79,10 @@ function Worker({ id, type, agent, squad, s, from, target, raise, onSit }: {
   id: string; type: string; agent?: Agent; squad: Squad | null; s: number; from: Spot; target: Target; raise?: number; onSit: (id: string) => void
 }) {
   const x = useMotionValue(from.x), y = useMotionValue(from.y), o = useMotionValue(1)
-  const [seated, setSeated] = useState(false)
   const { to, sit, leave } = target
+  const [seated, setSeated] = useState(sit && from.x === to.x && from.y === to.y)
   useEffect(() => {
-    setSeated(false)
+    if (!(sit && x.get() === to.x && y.get() === to.y)) setSeated(false)
     const d = Math.hypot(to.x - x.get(), (to.y - y.get()) * (H / W))
     const opts = { duration: Math.max(0.15, d / SPEED), ease: "linear" as const }
     const cs = [animate(x, to.x, opts), animate(y, to.y, opts)]
@@ -113,19 +116,28 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
   const ds = deskScale(s, size ?? DESK)
   const deskW = (size ?? DESK).w * ds
   const lift = seatLift(s, size ?? DESK)
-  const [sat, setSat] = useState<string[]>([])
+  // Agents already at work when the view opens start seated, with their desks already there.
+  const [sat, setSat] = useState<string[]>(() => ["lead", ...members.filter((a) => !a.doneAt && a.firstAt <= opened.current - 300).map((a) => a.id)])
   const onSit = useCallback((id: string) => setSat((ids) => (ids.includes(id) ? ids : [...ids, id])), [])
 
   // Each working agent keeps the first desk that was free when it arrived; finished agents free theirs.
   const map = taken.current
   for (const id of [...map.keys()]) if (!working.some((a) => a.id === id)) map.delete(id)
   for (const a of working) {
-    if (map.has(a.id)) continue
     const used = new Set(map.values())
     let i = 0
     while (used.has(i)) i++
-    map.set(a.id, i)
+    const cur = map.get(a.id)
+    if (cur === undefined || (cur >= desks.length && i < desks.length)) map.set(a.id, i)
   }
+  // Finished agents leave their desk; a re-tasked agent only gets a desk again once it sits.
+  const doneKey = [lead?.doneAt ?? 0, ...members.map((a) => a.doneAt)].join()
+  useEffect(() => {
+    setSat((ids) => ids.filter((id) => {
+      const a = id === "lead" ? lead : members.find((m) => m.id === id)
+      return a ? !a.doneAt : id === "lead"
+    }))
+  }, [doneKey])
 
   // More agents than desks: the extras stand in a row next to the bench, never on a desk station.
   const station = (i: number): Spot => desks[i] ?? { ...scene.bench, x: scene.bench.x + ((i - desks.length + 1) * 30 * s) / W }
@@ -152,7 +164,8 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
   }
   const fresh = (a: Agent) => a.firstAt > opened.current - 300
   const head = (p: Spot) => ({ x: p.x * W, y: p.y * H - TALL * s * 0.75 })
-  const occupied = working.filter((a) => sat.includes(a.id) && desks[map.get(a.id) ?? -1])
+  const occupied = working.filter((a) => (sat.includes(a.id) || a.state === "waiting") && desks[map.get(a.id) ?? -1])
+  const leadAtDesk = main && leadDesk && !lead?.doneAt && (sat.includes("lead") || lead?.state === "waiting")
 
   if (!size) return <div className="absolute inset-0"><Backdrop scene={scene} /></div>
   return (
@@ -179,8 +192,8 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
         const t = targetFor(a)
         return <Worker key={a.id} id={a.id} type={a.type} agent={a} squad={squad} s={s} from={fresh(a) ? scene.bench : t.to} target={t} raise={((map.get(a.id) ?? 0) % 2) * 52} onSit={onSit} />
       })}
-      <AnimatePresence>
-        {main && leadDesk && sat.includes("lead") && !lead?.doneAt && <Desk key="lead" spot={scene.lead} ds={ds} src={src} size={size} k={s} />}
+      <AnimatePresence initial={false}>
+        {leadAtDesk && <Desk key="lead" spot={scene.lead} ds={ds} src={src} size={size} k={s} />}
         {occupied.map((a) => <Desk key={`desk-${map.get(a.id)}`} spot={desks[map.get(a.id)!]} ds={ds} src={src} size={size} k={s} />)}
       </AnimatePresence>
       {!working.length && !main && (
