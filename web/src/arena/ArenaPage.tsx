@@ -6,6 +6,7 @@ import Debug from "./Debug"
 import { homeOf, useCamera, type Point } from "./camera"
 import { MissionPill, ModeCaption, NavPill, Pill, TeamChips, Toaster, modeOf } from "./Hud"
 import MapView from "./MapView"
+import { Briefing, Complete, NeedsYou, delegated } from "./Panels"
 import RoomView from "./RoomView"
 import { H, Stage, TALL, W } from "./Sprite"
 import { buildingFor, emptyArena, finishedAt, reduce, saveReport, type Received, type Toast } from "./store"
@@ -89,17 +90,54 @@ export default function ArenaPage() {
     return () => clearTimeout(t)
   }, [leadDone, arena.lastAt])
 
-  // Wait 2s for REPORT lines, 1.5s more after each one, never more than 6s.
+  // The Mission complete card opens 1.5s after the turn ends (REPORT lines fill it in as they arrive) and stays until closed.
+  // The report is saved whenever it changes, so /report always shows the latest finished mission.
   const finished = finishedAt(arena) || (stalled && stalled === arena.lastAt ? stalled : 0)
+  const [completeAt, setCompleteAt] = useState(0)
+  const [closedAt, setClosedAt] = useState(0)
   useEffect(() => {
-    if (!finished) return
-    const due = Math.min(finished + 6000, Math.max(finished + 2000, arena.reportAt + 1500))
-    const t = setTimeout(() => {
-      saveReport({ arena: latest.current, squad })
-      navigate("/report")
-    }, due - Date.now())
+    if (!finished) return setCompleteAt(0)
+    const t = setTimeout(() => setCompleteAt(finished), Math.max(0, finished + 1500 - Date.now()))
     return () => clearTimeout(t)
-  }, [finished, arena.reportAt])
+  }, [finished])
+  useEffect(() => {
+    if (completeAt) saveReport({ arena: latest.current, squad })
+  }, [completeAt, arena.reportAt, squad])
+  const showComplete = !!completeAt && completeAt === finished && closedAt !== completeAt
+  const viewReport = () => {
+    saveReport({ arena: latest.current, squad })
+    navigate("/report")
+  }
+  const replayRun = async () => {
+    setClosedAt(completeAt)
+    try {
+      let file = arena.sessionId ? `${arena.sessionId}.jsonl` : undefined
+      if (!file) file = ((await fetch("/api/runs").then((r) => r.json())) as { file: string }[])[0]?.file
+      if (!file) return setNotice("No recorded runs yet.")
+      setParams((p) => {
+        p.set("replay", file)
+        return p
+      }, { replace: true })
+    } catch {
+      setNotice("Could not reach the server.")
+    }
+  }
+
+  // The briefing opens on each prompt and closes 6s after the last delegation (12s if nobody is delegated).
+  const [briefAt, setBriefAt] = useState(0)
+  const [briefOpen, setBriefOpen] = useState(false)
+  const lastSpawn = Math.max(0, ...delegated(arena).map((a) => a.firstAt))
+  useEffect(() => {
+    if (!arena.promptAt || arena.promptAt < openedAt - 2000) return
+    setBriefAt(arena.promptAt)
+    setBriefOpen(true)
+  }, [arena.promptAt])
+  useEffect(() => {
+    if (!briefOpen || briefAt !== arena.promptAt) return
+    const due = lastSpawn ? lastSpawn + 6000 : arena.promptAt + 12000
+    const t = setTimeout(() => setBriefOpen(false), Math.max(0, due - Date.now()))
+    return () => clearTimeout(t)
+  }, [briefOpen, briefAt, lastSpawn])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -133,6 +171,7 @@ export default function ArenaPage() {
     setZoom(b)
   }
   const away = !!(interior || zoom)
+  const waiter = Object.values(arena.agents).sort((a, b) => a.order - b.order).find((a) => !a.doneAt && a.state === "waiting")
 
   // Where an agent is on screen right now; on the map, an agent inside a building is found at its door.
   const locate = (id: string): Point | null => {
@@ -201,7 +240,18 @@ export default function ArenaPage() {
         <div className="pointer-events-auto absolute right-4 top-4">
           <TeamChips arena={arena} squad={squad} onPick={pick} />
         </div>
+        <div className="absolute right-4 top-[72px]">
+          <AnimatePresence>{briefOpen && arena.prompt && <Briefing key={briefAt} arena={arena} squad={squad} onClose={() => setBriefOpen(false)} />}</AnimatePresence>
+        </div>
+        <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center">
+          <AnimatePresence>
+            {showComplete && (
+              <Complete key={completeAt} arena={arena} squad={squad} finished={finished} onClose={() => setClosedAt(completeAt)} onReport={viewReport} onReplay={replayRun} />
+            )}
+          </AnimatePresence>
+        </div>
         <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2">
+          <AnimatePresence>{waiter && <NeedsYou key={waiter.id} agent={waiter} arena={arena} squad={squad} />}</AnimatePresence>
           <Toaster items={[...arena.toasts, ...local]} squad={squad} since={openedAt} />
         </div>
         <div className="pointer-events-auto absolute bottom-4 right-4 flex items-center gap-2">
