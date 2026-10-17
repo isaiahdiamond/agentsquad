@@ -11,8 +11,8 @@ export default defineConfig({
     port: Number(process.env.WEB_PORT ?? 5173),
     strictPort: true,
     proxy: {
-      "/api": { target: `http://localhost:${serverPort}`, rewrite: (path) => path.replace(/^\/api/, "") },
-      "/ws": { target: `ws://localhost:${serverPort}`, ws: true },
+      "/api": { target: `http://127.0.0.1:${serverPort}`, rewrite: (path) => path.replace(/^\/api/, "") },
+      "/ws": { target: `ws://127.0.0.1:${serverPort}`, ws: true },
     },
   },
 })

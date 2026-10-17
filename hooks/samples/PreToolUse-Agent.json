@@ -1,0 +1,19 @@
+{
+  "session_id": "6434c57d-96b5-4ff3-9e25-2142e26ba164",
+  "transcript_path": "/Users/isaiahdiamond/.claude/projects/-Users-isaiahdiamond-agentsquad--claude-worktrees-agent-a553a4862d2e54407/6434c57d-96b5-4ff3-9e25-2142e26ba164.jsonl",
+  "cwd": "/Users/isaiahdiamond/agentsquad/.claude/worktrees/agent-a553a4862d2e54407",
+  "prompt_id": "674d85c3-ad82-4bef-be5d-f36585973b10",
+  "permission_mode": "default",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Agent",
+  "tool_input": {
+    "description": "Read bridge-test README",
+    "prompt": "Read the file /private/tmp/claude-501/-Users-isaiahdiamond-agentsquad/99a6abab-bb72-4e43-a254-a7d307e6bf11/scratchpad/bridge-test/README.md and report its full contents back. Do not read or open any other file.",
+    "subagent_type": "helper",
+    "run_in_background": false
+  },
+  "tool_use_id": "toolu_014569EW5RWypp4bDvnuR3k8"
+}

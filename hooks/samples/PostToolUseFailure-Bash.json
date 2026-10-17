@@ -1,0 +1,20 @@
+{
+  "session_id": "bd52cec3-2e7a-4fe9-bcd1-63f06392d4d8",
+  "transcript_path": "/Users/isaiahdiamond/.claude/projects/-Users-isaiahdiamond-agentsquad--claude-worktrees-agent-a553a4862d2e54407/bd52cec3-2e7a-4fe9-bcd1-63f06392d4d8.jsonl",
+  "cwd": "/Users/isaiahdiamond/agentsquad/.claude/worktrees/agent-a553a4862d2e54407",
+  "prompt_id": "e9626e2d-cf09-4704-ab3a-196bf7d607c7",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUseFailure",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "ls /private/tmp/claude-501/-Users-isaiahdiamond-agentsquad/99a6abab-bb72-4e43-a254-a7d307e6bf11/scratchpad/bridge-test/nonexistent_dir",
+    "description": "List nonexistent_dir in bridge-test scratchpad"
+  },
+  "tool_use_id": "toolu_01BdsCu4LbZmAJJQAAiWuCZt",
+  "error": "Exit code 1\nls: /private/tmp/claude-501/-Users-isaiahdiamond-agentsquad/99a6abab-bb72-4e43-a254-a7d307e6bf11/scratchpad/bridge-test/nonexistent_dir: No such file or directory",
+  "is_interrupt": false,
+  "duration_ms": 98
+}
