@@ -2,7 +2,7 @@
 import { WebSocket } from "ws"
 import type { AgentEvent } from "@agentsquad/shared"
 
-const URL = process.env.WS_URL ?? `ws://localhost:${process.env.PORT ?? 4317}/ws`
+const URL = process.env.WS_URL ?? `ws://127.0.0.1:${process.env.PORT ?? 4317}/ws`
 
 type Step = [seconds: number, event: Omit<AgentEvent, "id" | "ts" | "sessionId">]
 

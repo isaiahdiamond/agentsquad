@@ -76,6 +76,10 @@ const server = http.createServer(async (req, res) => {
       handleHook(await readJson(req), emit, narrator.reports)
       return send(res, 200, { ok: true })
     }
+    const json = (req.headers["content-type"] ?? "").split(";")[0].trim() === "application/json"
+    if ((route === "POST /deploy" || route === "POST /undeploy") && !json) {
+      return send(res, 415, { error: "content-type must be application/json" })
+    }
     if (route === "POST /deploy") return send(res, 200, deploy((await readJson(req)) as any))
     if (route === "POST /undeploy") return send(res, 200, undeploy())
     if (route === "GET /state") {
@@ -112,4 +116,4 @@ wss.on("connection", (socket) => {
   socket.on("message", (data) => broadcast(data.toString(), socket))
 })
 
-server.listen(PORT, () => console.log(`agentsquad server on http://localhost:${PORT} (ws at /ws)`))
+server.listen(PORT, "127.0.0.1", () => console.log(`agentsquad server on http://127.0.0.1:${PORT} (ws at /ws)`))

@@ -6,7 +6,7 @@ setTimeout(() => process.exit(0), 1000).unref()
 try {
   let body = ""
   for await (const chunk of process.stdin) body += chunk
-  await fetch(`http://localhost:${port}/hook`, {
+  await fetch(`http://127.0.0.1:${port}/hook`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body,

@@ -6,6 +6,8 @@ import type { Character, Squad } from "@agentsquad/shared"
 export const ROOT = fileURLToPath(new URL("../../", import.meta.url))
 const STATE_FILE = path.join(ROOT, "demo/state.json")
 const EMIT = path.join(ROOT, "hooks/emit.mjs")
+const SETTINGS = ".claude/settings.local.json"
+const MARK = "# written by agentsquad"
 const START = "<!-- agentsquad:start -->"
 const END = "<!-- agentsquad:end -->"
 const HOOK_EVENTS = [
@@ -47,16 +49,23 @@ function hookCommand() {
 
 const isOurs = (h: any) => typeof h?.command === "string" && h.command.includes(EMIT)
 
+const MODELS = ["haiku", "sonnet", "opus", "inherit"]
+const TOOL_NAME = /^[A-Za-z_*()\-:]+$/
+
+const oneLine = (s: unknown) =>
+  String(s ?? "").replace(/[\u0000-\u001f\u007f\u2028\u2029]/g, " ").replace(/<!--|-->/g, "").replace(/\s+/g, " ").trim()
+
 function agentFile(c: Character) {
-  const lines = ["---", `name: ${c.id}`, `description: ${JSON.stringify(c.description ?? "")}`]
-  if (c.tools?.length) lines.push(`tools: ${c.tools.join(", ")}`)
-  lines.push(`model: ${c.model || "inherit"}`, "---", "", (c.prompt ?? "").trim(), "")
+  const lines = ["---", MARK, `name: ${c.id}`, `description: ${JSON.stringify(oneLine(c.description))}`]
+  const tools = Array.isArray(c.tools) ? c.tools.filter((t) => typeof t === "string" && TOOL_NAME.test(t)) : []
+  if (tools.length) lines.push(`tools: ${tools.join(", ")}`)
+  lines.push(`model: ${MODELS.includes(c.model) ? c.model : "inherit"}`, "---", "", String(c.prompt ?? "").trim(), "")
   return lines.join("\n")
 }
 
 function teamSection(squad: Squad) {
   const hasReviewer = squad.members.some((m) => m.id === "reviewer")
-  const roster = squad.members.map((m) => `- **${m.id}** (${m.name}, ${m.role}): ${(m.description ?? "").replace(/\s+/g, " ").trim()}`)
+  const roster = squad.members.map((m) => `- **${m.id}** (${oneLine(m.name)}, ${oneLine(m.role)}): ${oneLine(m.description)}`)
   const finish = hasReviewer
     ? "- Always have **reviewer** check the changes before you finish. Never finish without it."
     : "- Before finishing, re-read the changed files yourself."
@@ -64,7 +73,7 @@ function teamSection(squad: Squad) {
     START,
     "## Your team",
     "",
-    `You are ${squad.lead.name}, the lead. You have a squad of specialist subagents. Delegate work to them by name with the Agent tool (\`subagent_type\` set to the name in bold) instead of doing it yourself:`,
+    `You are ${oneLine(squad.lead.name)}, the lead. You have a squad of specialist subagents. Delegate work to them by name with the Agent tool (\`subagent_type\` set to the name in bold) instead of doing it yourself:`,
     "",
     ...roster,
     "",
@@ -84,11 +93,15 @@ function withoutSection(text: string) {
 }
 
 function readJson(file: string): any {
+  if (!fs.existsSync(file)) return {}
+  let parsed: unknown
   try {
-    return JSON.parse(fs.readFileSync(file, "utf8"))
+    parsed = JSON.parse(fs.readFileSync(file, "utf8"))
   } catch {
-    return {}
+    throw new Error(`${file} is not valid JSON. Fix it, then deploy again.`)
   }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error(`${file} must contain a JSON object.`)
+  return parsed
 }
 
 function stripHooks(settings: any) {
@@ -123,15 +136,18 @@ export function deploy(squad: Squad) {
     files.push({ path: rel, content })
   }
 
+  const settingsFile = path.join(target, SETTINGS)
+  const settings = stripHooks(readJson(settingsFile))
+
   const agentsDir = path.join(target, ".claude/agents")
   const ids = squad.members.map((m) => m.id)
   for (const old of state.agentFiles) if (!ids.includes(old)) removeAgent(agentsDir, old, state)
   for (const m of squad.members) {
     const file = path.join(agentsDir, `${m.id}.md`)
-    if (!state.agentFiles.includes(m.id) && fs.existsSync(file)) {
-      fs.copyFileSync(file, file + ".agentsquad-bak")
-      state.backedUpAgents.push(m.id)
-    }
+    const bak = file + ".agentsquad-bak"
+    const theirs = fs.existsSync(file) && !fs.readFileSync(file, "utf8").includes(MARK)
+    if (!state.agentFiles.includes(m.id) && theirs && !fs.existsSync(bak)) fs.copyFileSync(file, bak)
+    if (fs.existsSync(bak) && !state.backedUpAgents.includes(m.id)) state.backedUpAgents.push(m.id)
     write(`.claude/agents/${m.id}.md`, agentFile(m))
   }
   state.agentFiles = ids
@@ -142,16 +158,14 @@ export function deploy(squad: Squad) {
   const before = hadClaudeMd ? withoutSection(fs.readFileSync(claudeMd, "utf8")).trim() : ""
   write("CLAUDE.md", (before ? before + "\n\n" : "") + teamSection(squad) + "\n")
 
-  const settingsFile = path.join(target, ".claude/settings.json")
   const backup = settingsFile + ".agentsquad-bak"
   if (!fs.existsSync(settingsFile)) state.createdSettings = true
   else if (!state.createdSettings && !fs.existsSync(backup)) fs.copyFileSync(settingsFile, backup)
-  const settings = stripHooks(readJson(settingsFile))
   settings.hooks ??= {}
   for (const event of HOOK_EVENTS) {
     settings.hooks[event] = [...(settings.hooks[event] ?? []), { matcher: "", hooks: [{ type: "command", command: hookCommand() }] }]
   }
-  write(".claude/settings.json", JSON.stringify(settings, null, 2) + "\n")
+  write(SETTINGS, JSON.stringify(settings, null, 2) + "\n")
 
   saveState(state)
   return { target, files }
@@ -161,7 +175,7 @@ function removeAgent(agentsDir: string, id: string, state: State) {
   const file = path.join(agentsDir, `${id}.md`)
   fs.rmSync(file, { force: true })
   if (state.backedUpAgents.includes(id)) {
-    fs.renameSync(file + ".agentsquad-bak", file)
+    if (fs.existsSync(file + ".agentsquad-bak")) fs.renameSync(file + ".agentsquad-bak", file)
     state.backedUpAgents = state.backedUpAgents.filter((b) => b !== id)
   }
 }
@@ -187,21 +201,32 @@ export function undeploy() {
     removed.push("CLAUDE.md")
   }
 
-  const settingsFile = path.join(target, ".claude/settings.json")
+  const settingsFile = path.join(target, SETTINGS)
   const backup = settingsFile + ".agentsquad-bak"
+  const skipped: string[] = []
   if (fs.existsSync(settingsFile)) {
-    const settings = stripHooks(readJson(settingsFile))
-    const original = fs.existsSync(backup) ? fs.readFileSync(backup, "utf8") : null
-    if (state.createdSettings && !Object.keys(settings).length) fs.rmSync(settingsFile)
-    else if (original !== null && JSON.stringify(readJson(backup)) === JSON.stringify(settings)) fs.writeFileSync(settingsFile, original)
-    else fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + "\n")
-    removed.push(".claude/settings.json")
+    try {
+      const settings = stripHooks(readJson(settingsFile))
+      const original = fs.existsSync(backup) ? fs.readFileSync(backup, "utf8") : null
+      let same = false
+      try {
+        same = original !== null && JSON.stringify(JSON.parse(original)) === JSON.stringify(settings)
+      } catch {}
+      if (state.createdSettings && !Object.keys(settings).length) fs.rmSync(settingsFile)
+      else if (same) fs.writeFileSync(settingsFile, original!)
+      else fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + "\n")
+      removed.push(SETTINGS)
+      fs.rmSync(backup, { force: true })
+    } catch (err) {
+      skipped.push(`${SETTINGS}: ${err instanceof Error ? err.message : err}`)
+    }
+  } else {
+    fs.rmSync(backup, { force: true })
   }
-  fs.rmSync(backup, { force: true })
   try {
     if (!fs.readdirSync(path.join(target, ".claude")).length) fs.rmdirSync(path.join(target, ".claude"))
   } catch {}
 
   saveState(empty())
-  return { target, removed }
+  return { target, removed, skipped }
 }
