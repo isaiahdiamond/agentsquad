@@ -7,6 +7,9 @@ import { Actor, H, TALL, W, useFacing, useManifest, useNatural, useUi, type Size
 import { who, type Agent, type Arena } from "./store"
 
 const SPEED = 0.12
+
+// The lead only takes its desk once it has started doing something.
+const busy = (a: Agent) => !a.doneAt && (a.state !== "idle" || a.tools > 0)
 const DESK = { w: 62, h: 52 }
 
 // Desk image size in art pixels, or the fallback size when the art is missing. Undefined while loading.
@@ -54,9 +57,11 @@ function Poof({ w, h, k }: { w: number; h: number; k: number }) {
 }
 
 // Only exists while someone works at it: poofs in when its agent sits, poofs out after they get up.
-function Desk({ spot, ds, src, size, k }: { spot: Spot; ds: number; src?: string; size: Size; k: number }) {
+// Desks already there when the room opens skip the poof in.
+function Desk({ spot, ds, src, size, k, quiet }: { spot: Spot; ds: number; src?: string; size: Size; k: number; quiet: boolean }) {
   const w = size.w * ds, h = size.h * ds
   const present = useIsPresent()
+  const [poofIn] = useState(!quiet)
   return (
     <motion.div
       className="pointer-events-none absolute"
@@ -67,7 +72,7 @@ function Desk({ spot, ds, src, size, k }: { spot: Spot; ds: number; src?: string
       {src ? <img src={src} alt="" draggable={false} className="pixelated block h-full w-full select-none" /> : (
         <div className="h-full w-full bg-[#6b4a2e]" style={{ borderWidth: 2 * ds, borderColor: "#2a1710", borderTopWidth: 14 * ds, borderTopColor: "#8a6440" }} />
       )}
-      <Poof key={present ? "in" : "out"} w={w} h={h} k={k} />
+      {(poofIn || !present) && <Poof key={present ? "in" : "out"} w={w} h={h} k={k} />}
     </motion.div>
   )
 }
@@ -117,7 +122,7 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
   const deskW = (size ?? DESK).w * ds
   const lift = seatLift(s, size ?? DESK)
   // Agents already at work when the view opens start seated, with their desks already there.
-  const [sat, setSat] = useState<string[]>(() => ["lead", ...members.filter((a) => !a.doneAt && a.firstAt <= opened.current - 300).map((a) => a.id)])
+  const [sat, setSat] = useState<string[]>(() => [...(lead && busy(lead) ? ["lead"] : []), ...members.filter((a) => !a.doneAt && a.firstAt <= opened.current - 300).map((a) => a.id)])
   const onSit = useCallback((id: string) => setSat((ids) => (ids.includes(id) ? ids : [...ids, id])), [])
 
   // Each working agent keeps the first desk that was free when it arrived; finished agents free theirs.
@@ -158,10 +163,15 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
     return isDesk ? { to: seat(st), sit: true } : { to: st, sit: false }
   }
   const leadTarget = (): Target => {
-    if (!leadDesk) return { to: scene.lead, sit: false }
+    if (!leadDesk || !lead || !busy(lead)) return { to: scene.lead, sit: false }
     if (lead && (lead.state === "waiting" || lead.doneAt)) return { to: beside(scene.lead), sit: false }
     return { to: seat(scene.lead), sit: true }
   }
+  const mountedAt = useRef(0)
+  useEffect(() => {
+    mountedAt.current = Date.now()
+  }, [])
+  const quiet = () => !mountedAt.current || Date.now() - mountedAt.current < 100
   const fresh = (a: Agent) => a.firstAt > opened.current - 300
   const head = (p: Spot) => ({ x: p.x * W, y: p.y * H - TALL * s * 0.75 })
   const occupied = working.filter((a) => (sat.includes(a.id) || a.state === "waiting") && desks[map.get(a.id) ?? -1])
@@ -193,8 +203,8 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
         return <Worker key={a.id} id={a.id} type={a.type} agent={a} squad={squad} s={s} from={fresh(a) ? scene.bench : t.to} target={t} raise={((map.get(a.id) ?? 0) % 2) * 52} onSit={onSit} />
       })}
       <AnimatePresence initial={false}>
-        {leadAtDesk && <Desk key="lead" spot={scene.lead} ds={ds} src={src} size={size} k={s} />}
-        {occupied.map((a) => <Desk key={`desk-${map.get(a.id)}`} spot={desks[map.get(a.id)!]} ds={ds} src={src} size={size} k={s} />)}
+        {leadAtDesk && <Desk key="lead" spot={scene.lead} ds={ds} src={src} size={size} k={s} quiet={quiet()} />}
+        {occupied.map((a) => <Desk key={`desk-${map.get(a.id)}`} spot={desks[map.get(a.id)!]} ds={ds} src={src} size={size} k={s} quiet={quiet()} />)}
       </AnimatePresence>
       {!working.length && !main && (
         <div className="absolute inset-x-0 top-[45%] z-[4500] flex justify-center">

@@ -165,7 +165,10 @@ export function who(type: string, squad: Squad | null): Who {
     }
   }
   const c = squad?.members.find((m) => m.id === type) ?? roster.find((r) => r.id === type)
-  if (!c) return { type, name: type, role: "Specialist", color: "#94a3b8", lead: false }
+  if (!c) {
+    const name = type.split(/[-_]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+    return { type, name: /agent$/i.test(name) ? name : `${name} Agent`, role: "Specialist", color: "#94a3b8", lead: false }
+  }
   return { type, name: c.name, role: c.role, color: c.color, lead: false }
 }
 

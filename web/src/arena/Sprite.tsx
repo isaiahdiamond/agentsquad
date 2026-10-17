@@ -169,11 +169,15 @@ export function useManifest() {
   return { m, ready: !!m || !!error }
 }
 
+// Unknown agent types (e.g. general-purpose) borrow the default lead sprite in greyscale, so they stay the right size.
 function useSpriteSet(who: Who) {
   const { m, ready } = useManifest()
-  const set = !m ? null : who.lead ? spriteSet(m, "lead", who.look ?? null) ?? spriteSet(m, "lead") : spriteSet(m, who.type)
-  return { set, ready }
+  const own = !m ? null : who.lead ? spriteSet(m, "lead", who.look ?? null) ?? spriteSet(m, "lead") : spriteSet(m, who.type)
+  const generic = !!m && !own && !who.lead
+  return { set: own ?? (generic ? spriteSet(m, "lead") : null), ready, generic }
 }
+
+const GENERIC = "grayscale(1) brightness(1.05) contrast(0.9)"
 
 export const TALL = 96
 const BOX = 48
@@ -219,7 +223,7 @@ function Seated({ sit, alt, s, typing }: { sit: string[]; alt: string; s: number
 // One path for every character body: the sprite PNG at scene scale s, or the drawn chibi when the art is missing.
 // Standing and seated are both mounted so sitting down is a 150ms crossfade.
 function Body({ who, seed, s, view, flip, seated, typing }: { who: Who; seed: string; s: number; view: SpriteView; flip: boolean; seated: boolean; typing: boolean }) {
-  const { set, ready } = useSpriteSet(who)
+  const { set, ready, generic } = useSpriteSet(who)
   const src = set?.[view]
   const nat = useNatural(src)
   const sitNat = useNatural(set?.sit?.[0])
@@ -227,10 +231,10 @@ function Body({ who, seed, s, view, flip, seated, typing }: { who: Who; seed: st
   if (!ready || (src && nat === undefined)) return null
   const fade = { duration: 0.15 }
   return (
-    <>
+    <div className="absolute inset-0" style={{ filter: generic ? GENERIC : undefined }}>
       <motion.div className="absolute inset-0" initial={false} animate={{ opacity: seated && sit ? 0 : 1 }} transition={fade}>
         {src && nat ? <Frame src={src} alt={who.name} nat={nat} s={s} flip={flip} /> : (
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2" style={{ width: TALL * s * (20 / 22) }}>
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2" style={{ width: 44 * s }}>
             <Sprite color={who.color} seed={seed} lead={who.lead} raise={view === "hand"} />
           </div>
         )}
@@ -240,13 +244,13 @@ function Body({ who, seed, s, view, flip, seated, typing }: { who: Who; seed: st
           <Seated sit={sit} alt={who.name} s={s} typing={typing} />
         </motion.div>
       )}
-    </>
+    </div>
   )
 }
 
 // Head crop of the front sprite at a whole-number scale, size x size px.
 export function Portrait({ who, seed, size, className = "" }: { who: Who; seed: string; size: number; className?: string }) {
-  const { set, ready } = useSpriteSet(who)
+  const { set, ready, generic } = useSpriteSet(who)
   const nat = useNatural(set?.front)
   const k = Math.max(1, Math.round(size / 36))
   return (
@@ -254,7 +258,7 @@ export function Portrait({ who, seed, size, className = "" }: { who: Who; seed: 
       {ready && set && nat ? (
         <img
           src={set.front} alt="" draggable={false} className="pixelated absolute max-w-none select-none"
-          style={{ width: nat.w * k, height: nat.h * k, left: Math.round((size - nat.w * k) / 2), top: -k }}
+          style={{ filter: generic ? GENERIC : undefined,  width: nat.w * k, height: nat.h * k, left: Math.round((size - nat.w * k) / 2), top: -k }}
         />
       ) : ready && nat === false ? (
         <div className="px-[8%] pt-[10%]"><Sprite color={who.color} seed={seed} lead={who.lead} bust /></div>

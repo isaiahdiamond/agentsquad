@@ -73,7 +73,8 @@ function status(a: Agent) {
 }
 
 // The latest text, but never changing more than once per 1.5s: rapid updates settle on the newest one.
-function useSettled(text: string) {
+// Urgent states (waiting, error, done) show at once.
+function useSettled(text: string, urgent: boolean) {
   const [shown, setShown] = useState(text)
   const last = useRef(0)
   useEffect(() => {
@@ -81,9 +82,9 @@ function useSettled(text: string) {
     const t = setTimeout(() => {
       last.current = Date.now()
       setShown(text)
-    }, Math.max(0, last.current + 1500 - Date.now()))
+    }, urgent ? 0 : Math.max(0, last.current + 1500 - Date.now()))
     return () => clearTimeout(t)
-  }, [text, shown])
+  }, [text, shown, urgent])
   return shown
 }
 
@@ -104,15 +105,16 @@ function Dot({ a }: { a?: Agent }) {
   )
 }
 
-function Row({ type, agent, squad }: { type: string; agent?: Agent; squad: Squad | null }) {
+function Row({ type, agent, n, squad }: { type: string; agent?: Agent; n: number; squad: Squad | null }) {
   const w = who(type, squad)
-  const text = useSettled(agent ? status(agent) : "On call")
+  const urgent = !!agent && (!!agent.doneAt || agent.state === "waiting" || agent.state === "error")
+  const text = useSettled(agent ? status(agent) : "On call", urgent)
   return (
     <div className={`flex items-center gap-3 rounded-xl px-2 py-2.5 transition-opacity duration-500 ${agent ? "" : "opacity-45"}`}>
       <Portrait who={w} seed={type} size={36} className="rounded-lg" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-[13px] font-semibold text-text">{w.name}</span>
+          <span className="truncate text-[13px] font-semibold text-text">{n > 1 ? `${w.name} ${n}` : w.name}</span>
           <Dot a={agent} />
         </div>
         <div className="relative mt-0.5 h-[1.35em] overflow-hidden text-[13px] leading-[1.35em]">
@@ -132,21 +134,26 @@ function Row({ type, agent, squad }: { type: string; agent?: Agent; squad: Squad
   )
 }
 
-// One fixed row per squad member (the whole roster when no squad is deployed): lead first, then specialists in roster order. Rows never move; only the status line changes.
+// One fixed row per squad member (the whole roster when no squad is deployed): lead first, then specialists in roster order,
+// then any other type that shows up. A second agent of a type gets its own row under the first. Rows never move.
 export function Rail({ arena, squad }: { arena: Arena; squad: Squad | null }) {
   const [open, setOpen] = useState(false)
   const order = (t: string) => {
     const i = roster.findIndex((r) => r.id === t)
     return i < 0 ? 99 : i
   }
-  const seen = Object.values(arena.agents).map((a) => a.type).filter((t) => t !== "lead")
-  const types = ["lead", ...new Set([...(squad?.members.map((m) => m.id) ?? roster.map((r) => r.id)), ...seen])].sort((a, b) => (a === "lead" ? -1 : b === "lead" ? 1 : order(a) - order(b)))
-  const latest = (t: string) => Object.values(arena.agents).filter((a) => a.type === t).sort((a, b) => b.firstAt - a.firstAt)[0]
+  const agents = Object.values(arena.agents).sort((a, b) => a.order - b.order)
+  const squadTypes = (squad?.members.map((m) => m.id) ?? roster.map((r) => r.id)).sort((a, b) => order(a) - order(b))
+  const types = [...new Set(["lead", ...squadTypes, ...agents.map((a) => a.type)])]
+  const rows = types.flatMap((t) => {
+    const mine = agents.filter((a) => a.type === t)
+    return mine.length ? mine.map((a, i) => ({ key: i ? a.id : t, type: t, agent: a as Agent | undefined, n: i + 1 })) : [{ key: t, type: t, agent: undefined, n: 1 }]
+  })
   return (
     <aside className="flex w-[300px] shrink-0 flex-col border-l border-line bg-panel">
       <h2 className="px-4 pb-1 pt-4 text-sm font-semibold text-text">Team</h2>
       <div className="min-h-0 flex-1 overflow-y-auto px-2">
-        {types.map((t) => <Row key={t} type={t} agent={latest(t)} squad={squad} />)}
+        {rows.map((r) => <Row key={r.key} type={r.type} agent={r.agent} n={r.n} squad={squad} />)}
       </div>
       <button
         className="flex items-center justify-between border-t border-line px-4 py-3 text-sm font-semibold text-text hover:bg-panel-2"
