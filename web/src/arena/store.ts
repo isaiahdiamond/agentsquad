@@ -12,6 +12,8 @@ export type Agent = {
   task?: string
   narration?: string
   narrationAt: number
+  say?: string
+  sayAt: number
   report?: string
   doneText?: string
   files: string[]
@@ -69,7 +71,7 @@ export function reduce(prev: Arena, e: Received): Arena {
 
   const old = s.agents[e.agentId]
   const a: Agent = old ? { ...old } : {
-    id: e.agentId, type: e.agentType, state: "idle", narrationAt: 0, files: [], changed: [], tools: 0,
+    id: e.agentId, type: e.agentType, state: "idle", narrationAt: 0, sayAt: 0, files: [], changed: [], tools: 0,
     firstAt: e.at, lastAt: e.at, pulseAt: 0, fixedAt: 0, doneAt: 0, order: Object.keys(s.agents).length,
   }
   s.agents[e.agentId] = a
@@ -84,6 +86,8 @@ export function reduce(prev: Arena, e: Received): Arena {
     a.doneAt = 0
     a.doneText = undefined
     a.task = e.text
+    a.say = e.text
+    a.sayAt = e.at
     a.state = e.state ?? "thinking"
     if (e.text) feed(`New task: ${e.text}`)
   }
@@ -119,6 +123,7 @@ export function reduce(prev: Arena, e: Received): Arena {
     } else if (!a.doneAt) {
       a.narration = e.text
       a.narrationAt = e.at
+      if (a.state === "waiting" && e.at - a.sayAt < 3000) a.say = e.text
       feed(e.text)
     }
   }
@@ -126,13 +131,19 @@ export function reduce(prev: Arena, e: Received): Arena {
     a.state = "done"
     a.doneAt = e.at
     a.doneText = e.text
+    a.say = e.text || "Done."
+    a.sayAt = e.at
     feed(e.text ? `Done: ${e.text}` : "Done.")
   }
   if (e.kind === "session_end") s.endAt = e.at
 
   if (e.state && !a.doneAt) {
     if (e.state === "error" && a.state !== "error") feed(e.kind !== "narration" && e.text ? `Error: ${e.text}` : `Hit an error${e.target ? ` on ${e.target}` : e.tool ? ` in ${e.tool}` : ""}.`)
-    if (e.state === "waiting" && a.state !== "waiting") feed("Waiting for you.")
+    if (e.state === "waiting" && a.state !== "waiting") {
+      feed("Waiting for you.")
+      a.say = "Needs your OK."
+      a.sayAt = e.at
+    }
     a.state = e.state
   }
   return s

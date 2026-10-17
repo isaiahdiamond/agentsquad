@@ -342,9 +342,10 @@ function Puff() {
 export function Bubble({ text, color, at }: { text?: string; color: string; at: number }) {
   const [shown, setShown] = useState(false)
   useEffect(() => {
-    if (!text) return
+    const left = at + 4000 - Date.now()
+    if (!text || left <= 0) return setShown(false)
     setShown(true)
-    const t = setTimeout(() => setShown(false), 5000)
+    const t = setTimeout(() => setShown(false), left)
     return () => clearTimeout(t)
   }, [text, at])
   return (
@@ -409,7 +410,7 @@ export function Actor({ who, agent, seed, s, x, y, o, face = STANDING, seated = 
       <Placed x={x} y={y} o={o} z={5000}>
         <div className="relative" style={box}>
           <div className="absolute bottom-full left-1/2 flex flex-col items-center" style={{ marginBottom: 2 * s + raise * ui, transform: `translateX(-50%) scale(${ui})`, transformOrigin: "50% 100%" }}>
-            {bubble && <Bubble text={agent?.narration} color={who.color} at={agent?.narrationAt ?? 0} />}
+            {bubble && <Bubble text={agent?.say} color={who.color} at={agent?.sayAt ?? 0} />}
             {waiting ? (
               <motion.div
                 className="flex items-center justify-center rounded-full bg-amber-400 font-extrabold text-[#0b0d12] shadow-[0_0_0_3px_rgba(251,191,36,.35),0_2px_8px_rgba(0,0,0,.35)]"
