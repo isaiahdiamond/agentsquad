@@ -6,8 +6,8 @@ import { activeMs, clearReport, clock, loadReport, who } from "../arena/store"
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-xl bg-panel-2 px-2.5 py-2">
-      <div className="text-[11px] text-muted">{label}</div>
+    <div className="min-w-0 rounded-xl bg-panel-2 px-2 py-2">
+      <div className="truncate text-[11px] text-muted">{label}</div>
       <div className="text-base font-semibold tabular-nums text-text">{value}</div>
     </div>
   )

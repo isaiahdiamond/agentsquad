@@ -6,7 +6,7 @@ The live scene and the match report. This is the demo. Whoever owns it should be
 
 ## Look and feel
 
-Match the pixel HUD in the campus mock in [[References]] (top bar, right activity feed). Render all sprites with `image-rendering: pixelated` at integer scales. The scene art is the background; our UI sits on top as a clean overlay.
+Clean dark product UI per [[References]] (Inter, `#0B0D12`/`#14161D` panels, violet accent); pixel art only in characters and scenes. Render all sprites with `image-rendering: pixelated` at integer scales. The scene art is the background; our UI sits on top as a clean overlay.
 
 ## Tasks
 
@@ -58,3 +58,4 @@ The mock session plays start to finish in the UF scene looking demo-ready, and t
 
 - 2026-10-17: Demo 1 arena done on code-drawn art: campus map (walk to door, badges, waiting/error), interiors via click or `?view=<building>`, bar/beach rooms (`?scene=bar`), HUD, effects, report (also fires on lead `agent_done` with no active specialists). Character component is still the code-drawn chibi; lead layered look and sprite PNGs pending art. Arena.
 - 2026-10-17: Art Pack 01 wired in. Real scene images (stretched 0.5% to 16:9 so spot fractions stay exact), new `scenes.json` (campus Library/Lab/Union, 3 interiors, office, beach; spot scale = sprite pixel scale on a 1600x900 stage: map 1, rooms 3.3, beach 2). Sprites at integer scale with front/back/mirror facing, hand view for waiting, stepped bob; chibi only as fallback. Done agents wait on their own walkway. Arena.
+- 2026-10-17: 96px sprites at whole-number scale snapped to whole pixels (campus 1x, rooms 2x, beach 1x; at 1280x720 rooms round to 1x). Portraits are integer head crops. Campus paths retraced on the brick walks (D overlay numbers each path point); done agents walk back their path and queue on the walk from `bench`. No clean brick route reaches the Union: it leaves on the stub south of the lead and crosses under the big oak's canopy to the Union walk. Broken sprite files fall back to the chibi, no fallback flash before sprites.json, Puff no longer replays on walk/idle. Stations retuned off furniture (office, beach, interiors). HUD, rail, badges, bubbles, Back, notices, debug labels and report restyled to the new UI. Arena.
