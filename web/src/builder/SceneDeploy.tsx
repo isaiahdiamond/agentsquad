@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import type { Character, Scene, Squad } from "@agentsquad/shared"
 import { saveSquad, type Draft } from "./draft"
 import { roster } from "./roster"
-import LeadPreview from "./LeadPreview"
+import { spriteSet, useSprites } from "../ui/sprites"
 import Portrait from "./Portrait"
 import ArtImage from "../ui/ArtImage"
 
@@ -49,7 +49,9 @@ export default function SceneDeploy({ draft, update, back }: Props) {
       .then((r) => r.json())
       .then((all: Scene[]) => {
         const interiors = new Set(all.flatMap((s) => s.buildings?.map((b) => b.interior) ?? []))
-        setScenes(all.filter((s) => !interiors.has(s.id)))
+        const pickable = all.filter((s) => s.kind === "map" || (s.kind === "room" && !interiors.has(s.id)))
+        setScenes(pickable)
+        if (pickable.length && !pickable.some((s) => s.id === draft.scene)) update({ scene: pickable[0].id })
       })
       .catch(() => setError("Could not load scenes.json"))
   }, [])
@@ -88,6 +90,8 @@ export default function SceneDeploy({ draft, update, back }: Props) {
     const c = roster.find((r) => r.id === m.id)
     return c ? [{ c, model: m.model }] : []
   })
+  const { sprites } = useSprites()
+  const lead = { name: draft.name, color: "#f5c542", portrait: spriteSet(sprites, "lead", draft.look)?.front ?? "" }
 
   return (
     <div className="flex flex-col gap-5">
@@ -118,8 +122,8 @@ export default function SceneDeploy({ draft, update, back }: Props) {
       <div className="panel flex items-center gap-6 px-6 py-4">
         <p className="w-32 shrink-0 font-pixel text-[11px] text-gold-300">YOUR SQUAD</p>
         <div className="flex flex-col items-center">
-          <div className="flex h-24 items-end overflow-hidden"><LeadPreview look={draft.look} height={90} /></div>
-          <span className="font-pixel text-[8px] text-gold-400">{draft.name.toUpperCase()}</span>
+          <Portrait c={lead} scale={5} className="h-24 w-24 border-2 border-black" />
+          <span className="mt-1 font-pixel text-[8px] text-gold-400">{draft.name.toUpperCase()}</span>
           <span className="font-ui text-[11px] text-slate-500">lead</span>
         </div>
         {members.map(({ c, model }) => (
