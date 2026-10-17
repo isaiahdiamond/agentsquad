@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { AnimatePresence, motion } from "framer-motion"
 import type { Character, Scene, Squad } from "@agentsquad/shared"
@@ -10,6 +10,8 @@ import ArtImage from "../ui/ArtImage"
 import { ArrowRight, BackButton, Progress } from "./parts"
 
 type DeployedFile = { path: string; content: string }
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 function buildSquad(draft: Draft): Squad {
   const members = draft.members.flatMap((m) => {
@@ -44,8 +46,20 @@ export default function SceneDeploy({ draft, update, back }: Props) {
   const [deploying, setDeploying] = useState(false)
   const [error, setError] = useState("")
   const [files, setFiles] = useState<DeployedFile[] | null>(null)
-  const [pinFiles, setPinFiles] = useState(false)
-  const [hoverFiles, setHoverFiles] = useState(false)
+  const [filesOpen, setFilesOpen] = useState(false)
+  const filesRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!filesOpen) return
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setFilesOpen(false)
+    const onDown = (e: PointerEvent) => !filesRef.current?.contains(e.target as Node) && setFilesOpen(false)
+    window.addEventListener("keydown", onKey)
+    window.addEventListener("pointerdown", onDown)
+    return () => {
+      window.removeEventListener("keydown", onKey)
+      window.removeEventListener("pointerdown", onDown)
+    }
+  }, [filesOpen])
 
   useEffect(() => {
     fetch("/art/scenes/scenes.json")
@@ -100,7 +114,6 @@ export default function SceneDeploy({ draft, update, back }: Props) {
     "CLAUDE.md (team section)",
     ".claude/settings.local.json (hooks)",
   ]
-  const filesOpen = pinFiles || hoverFiles
 
   return (
     <div className="mx-auto flex min-h-screen max-w-[1360px] flex-col px-6 pt-7 pb-10 md:px-11">
@@ -124,7 +137,7 @@ export default function SceneDeploy({ draft, update, back }: Props) {
               whileTap={{ scale: 0.99 }}
               onClick={() => update({ scene: s.id })}
               aria-pressed={selected}
-              className={`group relative h-[min(420px,calc(100vh-400px))] min-h-[200px] overflow-hidden rounded-[var(--radius-card)] border text-left transition-shadow ${
+              className={`group relative h-[min(540px,calc(100vh-400px))] min-h-[200px] overflow-hidden rounded-[var(--radius-card)] border text-left transition-shadow ${
                 selected ? "border-accent shadow-[0_0_0_3px_var(--color-accent),0_0_36px_6px_rgba(139,124,246,0.45)]" : "border-line hover:border-line-strong"
               }`}
             >
@@ -144,10 +157,26 @@ export default function SceneDeploy({ draft, update, back }: Props) {
         })}
       </div>
 
-      <div className="card relative mt-8 flex items-center gap-6 px-6 py-4">
-        <div className="flex gap-2">
-          {[lead, ...members.map(({ c }) => c)].map((c, i) => (
-            <Portrait key={i} c={c} scale={1} top={3} className="h-11 w-11 rounded-full" />
+      <AnimatePresence>
+        {error && (
+          <motion.p
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            role="alert"
+            className="mt-6 self-end rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-[14px] text-red-300"
+          >
+            {error}
+          </motion.p>
+        )}
+      </AnimatePresence>
+      <div className={`card relative flex items-center gap-6 px-6 py-4 ${error ? "mt-3" : "mt-8"}`}>
+        <div className="flex gap-3">
+          {[{ c: lead, model: "lead" }, ...members].map(({ c, model }, i) => (
+            <div key={i} className="flex flex-col items-center gap-1" title={c.name}>
+              <Portrait c={c} scale={1} top={3} className="h-11 w-11 rounded-full" />
+              <span className="text-[11px] font-medium text-faint">{cap(model)}</span>
+            </div>
           ))}
         </div>
         <div className="h-8 w-px bg-line" />
@@ -155,9 +184,9 @@ export default function SceneDeploy({ draft, update, back }: Props) {
           {lead.name} + {members.length} agent{members.length === 1 ? "" : "s"}
         </p>
         <div className="h-8 w-px bg-line" />
-        <div className="relative" onMouseEnter={() => setHoverFiles(true)} onMouseLeave={() => setHoverFiles(false)}>
+        <div ref={filesRef} className="relative">
           <button
-            onClick={() => setPinFiles((v) => !v)}
+            onClick={() => setFilesOpen((v) => !v)}
             aria-expanded={filesOpen}
             className="flex items-center gap-2 font-mono text-[13px] text-muted transition-colors hover:text-text"
           >
@@ -194,9 +223,6 @@ export default function SceneDeploy({ draft, update, back }: Props) {
           {deploying ? "Deploying..." : "Deploy squad"}
         </motion.button>
       </div>
-      {error && (
-        <p className="mt-4 self-center rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-[14px] text-red-300">{error}</p>
-      )}
 
       <AnimatePresence>
         {files && <FilesModal files={files} onClose={() => setFiles(null)} onArena={() => navigate("/arena")} />}
@@ -206,6 +232,12 @@ export default function SceneDeploy({ draft, update, back }: Props) {
 }
 
 function FilesModal({ files, onClose, onArena }: { files: DeployedFile[]; onClose: () => void; onArena: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose()
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [onClose])
+
   return (
     <motion.div
       initial={{ opacity: 0 }}

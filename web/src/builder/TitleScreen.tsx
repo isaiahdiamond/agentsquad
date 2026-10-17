@@ -7,7 +7,7 @@ export default function TitleScreen({ draft, start, reset }: { draft: Draft; sta
   const resumed = draft.members.length > 0
   return (
     <div className="relative flex min-h-screen flex-col">
-      <div className="pixelated absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${BG})` }} />
+      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${BG})` }} />
       <div
         className="absolute inset-0"
         style={{

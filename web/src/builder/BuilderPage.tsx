@@ -24,7 +24,7 @@ export default function BuilderPage() {
           transition={{ duration: 0.2, ease: "easeOut" }}
         >
           {draft.step === "title" && <TitleScreen draft={draft} start={() => go("lead")} reset={() => setDraft({ ...emptyDraft, step: "lead" })} />}
-          {draft.step === "lead" && <CreateLead draft={draft} update={update} next={() => go("squad")} />}
+          {draft.step === "lead" && <CreateLead draft={draft} update={update} back={() => go("title")} next={() => go("squad")} />}
           {draft.step === "squad" && <DraftSquad draft={draft} update={update} back={() => go("lead")} next={() => go("scene")} />}
           {draft.step === "scene" && <SceneDeploy draft={draft} update={update} back={() => go("squad")} />}
         </motion.div>

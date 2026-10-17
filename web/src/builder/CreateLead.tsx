@@ -4,7 +4,7 @@ import type { Look } from "@agentsquad/shared"
 import { useSprites, type SpriteView } from "../ui/sprites"
 import { BODIES, OUTFITS, type Draft } from "./draft"
 import LeadPreview from "./LeadPreview"
-import { ArrowRight, Progress } from "./parts"
+import { ArrowRight, BackButton, Progress } from "./parts"
 
 // Hair, Skin and Headset come back when the recolor art lands (see Decisions, Art Pack 01).
 const TABS = ["body", "outfit"] as const
@@ -21,9 +21,9 @@ const PEDESTAL_TOP = 64
 
 const pick = <T,>(list: T[]) => list[Math.floor(Math.random() * list.length)]
 
-type Props = { draft: Draft; update: (p: Partial<Draft>) => void; next: () => void }
+type Props = { draft: Draft; update: (p: Partial<Draft>) => void; back: () => void; next: () => void }
 
-export default function CreateLead({ draft, update, next }: Props) {
+export default function CreateLead({ draft, update, back, next }: Props) {
   const { sprites } = useSprites()
   // Dev only: ?tab=body and ?view=back|hand open the creator in that state (for screenshots).
   const dev = import.meta.env.DEV ? new URLSearchParams(location.search) : null
@@ -43,7 +43,7 @@ export default function CreateLead({ draft, update, next }: Props) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.altKey || e.metaKey || e.ctrlKey) return
+      if (e.target instanceof HTMLInputElement || e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return
       if (e.key === "ArrowLeft") cycle(-1)
       if (e.key === "ArrowRight") cycle(1)
     }
@@ -53,7 +53,10 @@ export default function CreateLead({ draft, update, next }: Props) {
 
   return (
     <div className="mx-auto flex h-screen min-h-[600px] max-w-[1360px] flex-col gap-5 px-6 pt-6 pb-8 md:px-11">
-      <Progress step="lead" />
+      <div className="flex items-center gap-5">
+        <BackButton onClick={back} />
+        <Progress step="lead" />
+      </div>
 
       <div className="card grid min-h-0 flex-1 grid-cols-[260px_minmax(0,1fr)_minmax(320px,400px)] overflow-hidden xl:grid-cols-[300px_minmax(0,1fr)_420px]">
         <aside className="flex flex-col gap-1 overflow-auto border-r border-line p-6 xl:p-7">
