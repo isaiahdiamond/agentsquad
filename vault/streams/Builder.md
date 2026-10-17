@@ -33,17 +33,19 @@ The reviewer has no Edit or Write. Point this out on its card.
 
 ## Tasks
 
-- [ ] Title screen with a Start button.
-- [ ] Lead creator with layered preview from `looks.json`. Color tab palette-swaps exact pixel colors on a canvas. A hat hides the hair.
-- [ ] Haiku/Sonnet/Opus toggle per drafted agent.
-- [ ] Draft screen with 4 slots, click to add and remove.
-- [ ] Scene picker from `scenes.json`.
-- [ ] Deploy calls `POST /deploy` with the `Squad`; show the returned files; save the squad to localStorage.
-- [ ] "Randomize" button on the lead creator (fun in demos, cheap to build).
-- [ ] Works with placeholder art until the Art stream delivers. Never hardcode an art file path; always read from the manifests.
+- [x] Title screen with a Start button.
+- [x] Lead creator with layered preview from `looks.json`. Color tab palette-swaps exact pixel colors on a canvas. A hat hides the hair.
+- [x] Haiku/Sonnet/Opus toggle per drafted agent.
+- [x] Draft screen with 4 slots, click to add and remove.
+- [x] Scene picker from `scenes.json`.
+- [x] Deploy calls `POST /deploy` with the `Squad`; show the returned files; save the squad to localStorage.
+- [x] "Randomize" button on the lead creator (fun in demos, cheap to build).
+- [x] Works with placeholder art until the Art stream delivers. Never hardcode an art file path; always read from the manifests.
 
 ## Done when
 
 You can build a lead, draft 3 specialists, pick UF Campus, hit deploy, and see real agent files written to `demo/target/.claude/agents/`.
 
 ## Log
+
+- 2026-10-17: Demo 1 flow done on placeholder art: Title, Create Lead (canvas hair palette swap in `LeadPreview.tsx`, reusable by the Arena), Draft Squad with model toggles, Scene & Deploy with files modal and Go to Arena. Draft saved to `localStorage["agentsquad.draft"]`, deployed squad to `localStorage["agentsquad.squad"]`. Dev-only `?step=` and `?draft=<json>` URL params for screenshots. Waiting on real `/deploy` from Bridge to confirm files land in `demo/target/.claude/agents/`. Builder.

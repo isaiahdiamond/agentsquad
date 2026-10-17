@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "mock": "tsx mock.ts",
+    "setup-target": "node setup-target.mjs",
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {

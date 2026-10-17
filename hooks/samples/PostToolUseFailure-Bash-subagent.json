@@ -1,0 +1,22 @@
+{
+  "session_id": "6434c57d-96b5-4ff3-9e25-2142e26ba164",
+  "transcript_path": "/Users/isaiahdiamond/.claude/projects/-Users-isaiahdiamond-agentsquad--claude-worktrees-agent-a553a4862d2e54407/6434c57d-96b5-4ff3-9e25-2142e26ba164.jsonl",
+  "cwd": "/Users/isaiahdiamond/agentsquad/.claude/worktrees/agent-a553a4862d2e54407",
+  "prompt_id": "674d85c3-ad82-4bef-be5d-f36585973b10",
+  "permission_mode": "default",
+  "agent_id": "ad348567d8e99ac13",
+  "agent_type": "helper",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUseFailure",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "cat /private/tmp/claude-501/-Users-isaiahdiamond-agentsquad/99a6abab-bb72-4e43-a254-a7d307e6bf11/scratchpad/bridge-test/missing.txt",
+    "description": "Print contents of missing.txt file"
+  },
+  "tool_use_id": "toolu_01GNmBYhjkESpQfTMjcp2hrw",
+  "error": "Exit code 1\ncat: /private/tmp/claude-501/-Users-isaiahdiamond-agentsquad/99a6abab-bb72-4e43-a254-a7d307e6bf11/scratchpad/bridge-test/missing.txt: No such file or directory",
+  "is_interrupt": false,
+  "duration_ms": 70
+}

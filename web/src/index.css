@@ -58,3 +58,9 @@ body {
   padding: 0.75rem 1.25rem;
 }
 .btn:hover { border-color: var(--color-gold-400); }
+
+.btn-gold:focus-visible,
+.btn:focus-visible {
+  outline: 3px solid var(--color-gold-300);
+  outline-offset: 3px;
+}
