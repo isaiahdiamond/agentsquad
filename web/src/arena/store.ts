@@ -9,8 +9,22 @@ export type LiveAgent = {
 }
 export type Live = {
   sessionId: string; startedAt: number; lastEventAt: number; phase: "connected" | "mission" | "done"
-  mission: { prompt: string; startedAt: number; endedAt: number | null } | null
+  mission: { prompt: string; startedAt: number; endedAt: number | null; result?: MissionResult | null } | null
   agents: LiveAgent[]
+}
+
+// GET /result and its short form in /state live.mission.result (see vault/Contracts.md).
+export type MissionResult = { files: number; url: string | null; preview: string | null; run: string | null }
+export type BuildResult = {
+  sessionId: string
+  target: string
+  missionPrompt: string
+  startedAt: number
+  endedAt: number
+  files: { path: string; agentId: string; action: "created" | "edited" }[]
+  urls: { url: string; source: "bash" | "report" | "command"; up?: boolean }[]
+  preview: { url: string; entry: string; dir: string } | null
+  run: { command: string; cwd: string; ran: boolean } | null
 }
 export type ServerState = { squad: Squad | null; scene: string | null; connected?: boolean; hooksSinceDeploy?: boolean; live?: Live | null }
 
