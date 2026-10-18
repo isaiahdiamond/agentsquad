@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import type { Squad } from "@agentsquad/shared"
 import { Portrait, useSettled } from "./Sprite"
 import { clock, who, type Agent, type Arena, type Toast } from "./store"
-import { nameOf, statusLine, teamOf } from "./world"
+import { nameOf, squadStatus, statusLine, teamOf } from "./world"
 
 export const GLASS = "border border-white/[0.08] bg-[rgba(14,14,16,0.6)] backdrop-blur-[12px]"
 
@@ -195,13 +195,48 @@ function Chip({ type, agent, label, squad, onPick }: { type: string; agent?: Age
 }
 
 // One chip per agent instance (two Frontend agents = two chips), plus one greyed chip per squad member still on call.
-export function TeamChips({ arena, squad, onPick }: { arena: Arena; squad: Squad | null; onPick: (id: string) => void }) {
+export function TeamChips({ arena, squad, onPick, connected = true }: { arena: Arena; squad: Squad | null; onPick: (id: string) => void; connected?: boolean }) {
   const team = teamOf(arena, squad)
+  const groups = squadStatus(arena, squad)
+  const lastPick = useRef<Record<string, string>>({})
+  const statuses = [
+    { key: "needs", label: "Need you", dot: "bg-amber-400" },
+    { key: "working", label: "Working", dot: "bg-sky-400" },
+    { key: "idle", label: "Idle", dot: "bg-zinc-400" },
+    { key: "done", label: "Done", dot: "bg-emerald-400" },
+  ] as const
+  const total = Object.values(groups).reduce((n, group) => n + group.length, 0)
   return (
+    <div className="flex max-w-[calc(100vw-32px)] flex-col items-end gap-2">
     <div className={`flex items-center gap-2 rounded-full p-1.5 ${GLASS}`}>
       {team.map((t) => (
         <Chip key={t.key} type={t.type} agent={t.agent} squad={squad} onPick={onPick} label={t.agent ? nameOf(t.agent, arena, squad) : who(t.type, squad).name} />
       ))}
+    </div>
+    {total > 0 && (
+      <div className={`grid grid-cols-2 items-center gap-2 rounded-2xl p-3 text-[16px] sm:flex sm:flex-wrap ${GLASS} ${connected ? "" : "opacity-60"}`}
+        aria-label={connected ? "Squad status" : "Last known squad status"} title={connected ? "Squad status" : "Reconnecting: last known counts"}>
+        {statuses.map(({ key, label, dot }) => {
+          const group = groups[key]
+          const ids = group.flatMap((slot) => slot.agent ? [slot.agent.id] : [])
+          const names = group.map((slot) => slot.agent ? nameOf(slot.agent, arena, squad) : who(slot.type, squad).name)
+          return (
+            <button key={key} type="button" disabled={!ids.length} title={names.length ? names.join(", ") : `No agents ${label.toLowerCase()}`}
+              aria-label={`${label}: ${group.length} agent${group.length === 1 ? "" : "s"}${ids.length ? ". Click to find them." : ""}`}
+              onClick={() => {
+                const id = ids[(ids.indexOf(lastPick.current[key]) + 1) % ids.length]
+                lastPick.current[key] = id
+                onPick(id)
+              }}
+              className={`flex min-h-11 items-center justify-center gap-2.5 rounded-xl bg-white/[0.04] px-3 py-2 font-semibold transition-colors enabled:hover:bg-white/[0.08] enabled:hover:text-white focus-visible:outline-2 focus-visible:outline-white ${key === "needs" && group.length ? "font-medium text-amber-300" : "text-muted"}`}>
+              <span aria-hidden="true" className={`h-2.5 w-2.5 shrink-0 rounded-full ${group.length ? dot : "bg-white/15"}`} />
+              <span className="text-[20px] font-bold tabular-nums">{group.length}</span><span>{label}</span>
+            </button>
+          )
+        })}
+        {!connected && <span className="text-faint">Last known</span>}
+      </div>
+    )}
     </div>
   )
 }

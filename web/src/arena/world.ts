@@ -104,3 +104,18 @@ export function teamOf(arena: Arena, squad: Squad | null) {
     return mine.length ? mine.map((a) => ({ key: a.id, type: t, agent: a as Agent | undefined })) : [{ key: t, type: t, agent: undefined }]
   })
 }
+
+export function squadStatus(arena: Arena, squad: Squad | null) {
+  const groups: Record<"needs" | "working" | "idle" | "done", ReturnType<typeof teamOf>> = { needs: [], working: [], idle: [], done: [] }
+  // Without a deployed squad, the fallback roster is only a preview—not a
+  // set of real idle agents. Multiple live instances each count once.
+  for (const slot of teamOf(arena, squad)) {
+    const a = slot.agent
+    if (!squad && !a) continue
+    if (a?.doneAt || a?.state === "done") groups.done.push(slot)
+    else if (a?.state === "waiting" || a?.state === "error") groups.needs.push(slot)
+    else if (!a || a.state === "idle") groups.idle.push(slot)
+    else groups.working.push(slot)
+  }
+  return groups
+}

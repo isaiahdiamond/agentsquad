@@ -26,6 +26,13 @@ export type Look = {
   outfit: string         // outfit id for that body, e.g. "blazer"; ignored for characters
   hat: string            // unused ("none")
   skin?: string          // skin tone id from lead.json skinTones, e.g. "s3"; ignored for characters
+  topColor?: string
+  pantsColor?: string
+  bottoms?: "original" | "gym-shorts" | "leggings" | "jorts"
+  shoeColor?: string
+  sleeveColor?: string
+  graphicColor?: string
+  graphic?: "default" | "none" | "uf" | "star" | "letter" | "tour" | "gull" | "sunset" | "checker"
 }
 
 export type LookManifest = {
@@ -57,7 +64,7 @@ export type Squad = {
   scene: string          // scene id
 }
 
-export type Spot = { x: number; y: number; scale: number; kind?: "desk" }  // x, y in 0-1 of the image; kind "desk" = desk station
+export type Spot = { x: number; y: number; scale: number; kind?: "desk" | "chair" }  // x, y in 0-1 of the image; kind "desk" = desk station
 
 export type Building = {
   id: string             // "library", "lab", "studio", "engineering", "court"

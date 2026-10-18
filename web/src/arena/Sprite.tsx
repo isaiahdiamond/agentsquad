@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react"
-import { motion, motionValue, useTransform, type MotionValue } from "framer-motion"
+import { motion, motionValue, useTransform, useReducedMotion, type MotionValue } from "framer-motion"
 import type { AgentState } from "@agentsquad/shared"
+import LeadDougie from "./LeadDougie"
 import { useLeadSprite } from "../ui/lead"
 import { spriteSet, useSprites, type SpriteManifest, type SpriteSet, type SpriteView } from "../ui/sprites"
 import type { Agent, Who } from "./store"
@@ -233,14 +234,16 @@ function Seated({ sit, alt, s, typing }: { sit: string[]; alt: string; s: number
 
 // One path for every character body: the sprite PNG at scene scale s, or the drawn chibi when the art is missing.
 // Standing and seated are both mounted so sitting down is a 150ms crossfade.
-function Body({ who, seed, s, view, flip, seated, typing }: { who: Who; seed: string; s: number; view: SpriteView; flip: boolean; seated: boolean; typing: boolean }) {
+function Body({ who, seed, s, view, flip, seated, typing, showSeatedFeet }: { who: Who; seed: string; s: number; view: SpriteView; flip: boolean; seated: boolean; typing: boolean; showSeatedFeet?: boolean }) {
   const { set, ready, generic } = useSpriteSet(who)
   const src = set?.[view]
   const nat = useNatural(src)
   const sitNat = useNatural(set?.sit?.[0])
   const sit = set?.sit?.length && nat && sitNat ? set.sit : null
   if (!ready || (src && nat === undefined)) return null
-  const fade = { duration: 0.15 }
+  // The lead poses have different facial expressions. Blending them draws
+  // two sets of eyes and hairlines during every sit/stand transition.
+  const fade = { duration: who.lead ? 0 : 0.15 }
   return (
     <div className="absolute inset-0" style={{ filter: generic ? GENERIC : undefined }}>
       <motion.div className="absolute inset-0" initial={false} animate={{ opacity: seated && sit ? 0 : 1 }} transition={fade}>
@@ -251,7 +254,7 @@ function Body({ who, seed, s, view, flip, seated, typing }: { who: Who; seed: st
         )}
       </motion.div>
       {sit && (
-        <motion.div className="absolute inset-0" style={{ clipPath: `inset(-50% -50% ${FEET * s}px -50%)` }} initial={false} animate={{ opacity: seated ? 1 : 0 }} transition={fade}>
+        <motion.div className="absolute inset-0" style={{ clipPath: showSeatedFeet ? undefined : `inset(-50% -50% ${FEET * s}px -50%)` }} initial={false} animate={{ opacity: seated ? 1 : 0 }} transition={fade}>
           <Seated sit={sit} alt={who.name} s={s} typing={typing} />
         </motion.div>
       )}
@@ -384,16 +387,20 @@ export function useSettled(text: string, urgent: boolean) {
 // The character plus every status effect. x, y put the feet (bottom center) on the scene; s is the scene scale.
 // The body is y-sorted with the desks; the nameplate, fire and puff sit above everything. dy lifts the whole character
 // (the portal fall) and squash scales the body from the feet (the landing).
-export function Actor({ who, agent, label, seed, s, x, y, o, dy, squash, face = STANDING, seated = false, plate = true }: {
+export function Actor({ who, agent, label, seed, s, x, y, o, dy, squash, face = STANDING, seated = false, showSeatedFeet = false, drink, party, plate = true }: {
   who: Who; agent?: Agent; label?: string; seed: string; s: number; x: MotionValue<number>; y: MotionValue<number>; o?: MotionValue<number>
-  dy?: MotionValue<number>; squash?: MotionValue<number>; face?: Face; seated?: boolean; plate?: boolean
+  dy?: MotionValue<number>; squash?: MotionValue<number>; face?: Face; seated?: boolean; showSeatedFeet?: boolean; plate?: boolean
+  party?: "chat" | "dance"
+  drink?: "carry" | "sip"
 }) {
+  const reduced = useReducedMotion()
   const state = agent?.state ?? "idle"
   const waiting = state === "waiting"
   const error = state === "error"
   const scope = useContext(Scope)
   const [bob] = useState(() => 1.1 + Math.random() * 0.5)
-  const view: SpriteView = waiting ? "hand" : face.back ? "back" : "front"
+  const dougie = who.lead && party === "dance" && (!who.look || ["a", "b"].includes(who.look.body))
+  const view: SpriteView = waiting || party ? "hand" : face.back ? "back" : "front"
   const box = { width: BOX * s, height: TALL * s }
   const id = agent?.id ?? seed
   const plateEl = useRef<HTMLDivElement | null>(null)
@@ -437,12 +444,25 @@ export function Actor({ who, agent, label, seed, s, x, y, o, dy, squash, face = 
             initial={false} animate={{ opacity: seated ? 0 : 0.2 }} transition={{ duration: 0.15 }}
           />
           <motion.div
-            key={seated ? "seated" : face.walking ? "walk" : "idle"} className="absolute inset-0"
+            key={party ?? (seated ? "seated" : face.walking ? "walk" : "idle")} className="absolute inset-0"
             style={{ filter: waiting ? `drop-shadow(0 0 ${1.5 * s}px #facc15) drop-shadow(0 0 ${5 * s}px rgba(250,204,21,.75))` : undefined }}
-            animate={{ y: seated ? 0 : [0, -s, 0] }}
-            transition={seated ? { duration: 0 } : face.walking ? { duration: 0.34, repeat: Infinity, ease: stepped } : { duration: bob, repeat: Infinity, ease: stepped }}
+            animate={reduced || dougie ? {} : party === "dance" ? { x: [0,-7*s,7*s,0,9*s,-5*s,0], y: [0,-6*s,2*s,-12*s,0,-5*s,0], rotate: [0,-9,8,0,7,-7,0], scaleY: [1,.94,1,.9,1,.95,1], scaleX: [1,.95,1,1.04,1,.96,1] } : { y: seated ? 0 : [0, -s, 0] }}
+            transition={party === "dance" ? { duration: 2.4, repeat: Infinity } : seated ? { duration: 0 } : face.walking ? { duration: 0.34, repeat: Infinity, ease: stepped } : { duration: bob, repeat: Infinity, ease: stepped }}
           >
-            <Body who={who} seed={seed} s={s} view={view} flip={face.flip} seated={seated} typing={seated && TYPING.includes(state)} />
+            {dougie ? <LeadDougie who={who} s={s} /> : <Body who={who} seed={seed} s={s} view={view} flip={face.flip} seated={seated} typing={seated && TYPING.includes(state)} showSeatedFeet={showSeatedFeet} />}
+            {party === "chat" && <div className="absolute -top-6 left-1/2 rounded-xl bg-[#fff2d6] px-3 text-[22px] text-[#493729]">•••</div>}
+            {drink && (
+              <motion.svg aria-hidden="true" viewBox="0 0 16 22" className="absolute" shapeRendering="crispEdges"
+                style={{ width: 12 * s, height: 17 * s, left: BOX * s / 2 + 9 * s, bottom: 38 * s }}
+                animate={{ y: drink === "sip" ? [0, -28 * s, -28 * s, 0] : 0, rotate: drink === "sip" ? [0, -12, -12, 0] : 0 }}
+                transition={drink === "sip" ? { duration: 2.6, repeat: Infinity, times: [0, 0.3, 0.7, 1] } : { duration: 0.2 }}>
+                <path d="M10 8V2h4" fill="none" stroke="#f7f0dc" strokeWidth="2" />
+                <path d="M2 7h12l-2 13H4Z" fill="#f1b742" stroke="#4d3522" strokeWidth="2" />
+                <path d="M4 10h8l-1 6H5Z" fill="#f7d971" />
+                <path d="M3 6h10" stroke="#fff2d6" strokeWidth="2" />
+                <path d="M2 5 5 2 8 5 5 8Z" fill="#b3d76c" stroke="#496641" />
+              </motion.svg>
+            )}
           </motion.div>
         </motion.div>
       </Placed>

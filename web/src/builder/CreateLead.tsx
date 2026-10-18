@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react"
 import { motion } from "framer-motion"
 import type { Look } from "@agentsquad/shared"
-import { isCharacter, leadKey, normalizeLook, useLeadManifest, useLeadSprite, type LeadManifest, type LeadView } from "../ui/lead"
+import { isCharacter, leadKey, lookForBody, normalizeLook, useLeadManifest, useLeadSprite, type LeadManifest, type LeadView } from "../ui/lead"
 import type { Draft } from "./draft"
 import LeadPreview, { LeadHead } from "./LeadPreview"
 import { BackButton, Progress } from "./parts"
@@ -14,10 +14,13 @@ const TAB_ICONS: Record<Tab, () => ReactNode> = {
 }
 
 const LABELS: Record<string, string> = {
-  a: "Body 1", b: "Body 2", dog: "Dog", gator: "Gator",
-  drip: "Drip", blazer: "Blazer", hoodie: "Hoodie", gameday: "Game day", debugger: "Debugger", sundress: "Sundress",
-  bald: "Bald", locs: "Locs", waves: "Waves", afro: "Afro", sidepart: "Side part", fringe: "Fringe",
-  braids: "Braids", straight: "Straight", puff: "Puff", bob: "Bob", buns: "Buns",
+  a: "Male", b: "Female", dog: "Dog", gator: "Gator",
+  drip: "Drip", blazer: "Blazer", hoodie: "Hoodie", gameday: "Game day", sundress: "Sundress",
+  varsity: "Cherry Varsity", arctic: "Arctic Drip",
+  campus: "Campus Hoodie",
+  skate: "Skate Tee",
+  bald: "Bald", locs: "Locs", waves: "Waves", afro: "Afro", sidepart: "Side part", middlepart: "Middle part", fringe: "Fringe",
+  braids: "Braids", straight: "Long straight", puff: "Puff", bob: "Bob", buns: "Buns",
   black: "Black", darkbrown: "Dark brown", brown: "Brown", auburn: "Auburn", ginger: "Ginger",
   blonde: "Blonde", platinum: "Platinum", grey: "Grey", pink: "Pink", blue: "Blue",
 }
@@ -62,7 +65,10 @@ export default function CreateLead({ draft, update, back, next }: Props) {
   const value = String(look[field(current)] ?? "")
 
   const set = (patch: Partial<Look>) => update({ look: normalizeLook({ ...look, ...patch }, m) })
-  const choose = (t: Tab, id: string) => set({ [field(t)]: id })
+  const choose = (t: Tab, id: string) => {
+    if (t === "type" && id !== look.body) update({ look: lookForBody(look, id, m) })
+    else set({ [field(t)]: id })
+  }
   const cycle = (dir: number) => opts.length && choose(current, opts[(opts.indexOf(value) + dir + opts.length) % opts.length])
 
   const randomize = () => {
@@ -82,7 +88,7 @@ export default function CreateLead({ draft, update, back, next }: Props) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return
       if (e.key === "ArrowLeft") cycle(-1)
       if (e.key === "ArrowRight") cycle(1)
     }
@@ -161,7 +167,7 @@ export default function CreateLead({ draft, update, back, next }: Props) {
                   {current === "hair" ? (
                     <LeadHead look={normalizeLook({ ...look, hair: o }, m)} scale={3} top={12} className="absolute inset-x-0 top-0 bottom-8" />
                   ) : (
-                    <LeadPreview look={normalizeLook({ ...look, [field(current)]: o }, m)} scale={2} />
+                    <LeadPreview look={current === "type" ? lookForBody(look, o, m) : normalizeLook({ ...look, [field(current)]: o }, m)} scale={2} />
                   )}
                   <span className="absolute inset-x-0 bottom-2 text-[12px] font-medium text-muted">{label(current, o)}</span>
                 </button>
@@ -169,6 +175,36 @@ export default function CreateLead({ draft, update, back, next }: Props) {
             </div>
           )}
           <p className="mt-5 text-[13px] text-faint">{label(current, value)}. Arrow keys switch options.</p>
+          {current === "outfit" && !character && (
+            <div className="mt-6 rounded-xl border border-line bg-bg p-4">
+              <h3 className="text-sm font-semibold text-white">Make it yours</h3>
+              <p className="mt-1 text-xs text-muted">Pick a base above, then choose your clothing colors and bottoms.</p>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <label className="col-span-2 flex flex-col gap-1 text-xs text-muted">Bottoms style
+                  <select value={look.bottoms ?? "original"} onChange={(e) => set({ bottoms: e.target.value as Look["bottoms"] })}
+                    className="rounded border border-line bg-panel-2 p-2 text-white">
+                    <option value="original">Original bottoms</option>
+                    {look.body === "b" && <option value="gym-shorts">Gym shorts</option>}
+                    {look.body === "b" && <option value="leggings">Yoga pants</option>}
+                    {look.body === "a" && <option value="jorts">Jorts</option>}
+                  </select>
+                </label>
+                {([
+                  ["topColor", "Top", "#333344"], ["pantsColor", "Bottoms", "#253753"],
+                  ["shoeColor", "Shoes", "#F1E8DA"], ["sleeveColor", "Sleeves", "#E5D7BC"],
+                ] as const).map(([field, title, fallback]) => (
+                  <label key={field} className="flex items-center justify-between gap-2 text-xs text-muted">
+                    {title}
+                    <input type="color" aria-label={title + " color"} value={look[field] ?? fallback}
+                      onChange={(e) => set({ [field]: e.target.value })}
+                      className="h-8 w-12 cursor-pointer rounded border border-line bg-panel-2" />
+                  </label>
+                ))}
+              </div>
+              <button type="button" onClick={() => set({ topColor: undefined, pantsColor: undefined, bottoms: "original", shoeColor: undefined, sleeveColor: undefined, graphicColor: undefined, graphic: "default" })}
+                className="mt-4 text-xs text-accent underline">Reset clothing details</button>
+            </div>
+          )}
         </section>
 
         <section className="flex min-h-0 flex-col gap-5 p-6">

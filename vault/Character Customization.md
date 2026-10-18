@@ -1,5 +1,7 @@
 # Lead Character Customization
 
+Removed from the active outfit catalog: superhero (`debugger`), Band Tour Tee (`tour`), Hollister Surf Tee (`coastal`), and PacSun Sunset Tee (`sunset`). Historical descriptions below are not the active catalog; use `lead.json`. Old saved selections normalize to a valid remaining outfit.
+
 The lead is built from layers so options multiply. Specialists stay fixed as they are.
 
 ## Get the art
@@ -33,6 +35,24 @@ Characters are complete looks. When a character is picked, hide Outfit, Skin, Ha
 | debugger: original hero suit, black and teal, `{ }` emblem, cape | drip: black puffer, gold chain, hoops, baggy jeans |
 
 No logos, mascots or team text anywhere.
+
+Additional outfit colorways for both bodies: **Neon Nights** (`neon`, purple hoodie), **Cherry Varsity** (`varsity`, cherry-red blazer), and **Arctic Drip** (`arctic`, icy-blue streetwear). These reuse the original poses and head anchors. Each view may include a `palette` mapping exact source clothing hex colors to replacement hex colors. Skin replacement takes precedence; outlines and hair remain separate. Keep these entries when regenerating the lead manifest.
+
+Streetwear and campus options: **After Hours** (`street`) adds a lime star graphic to a charcoal hoodie; **Campus Hoodie** (`campus`) adds pixel UF lettering to an orange hoodie. Cherry Varsity includes cream sleeves and a collegiate letter patch. Optional per-view `graphics` use head-relative offsets, `#` pixel patterns, and a color; prints are masked to clothing. `sleeveColor` recolors the jacket's outer sleeve regions while preserving skin. These details render in front, wave, and seated views.
+
+The Outfit panel also has independent `topColor`, `pantsColor`, `shoeColor`, `sleeveColor`, and `graphicColor` controls plus `graphic` (`default`, `none`, `uf`, `star`, `letter`). These saved Look overrides recolor clothing regions with source shading, leave skin untouched, and participate in the sprite cache key. Reset clears the overrides. Clothing shapes still come from the selected base outfit.
+
+Tee presets for both bodies: Band Tour Tee (`tour`), Hollister Surf Tee (`coastal`), PacSun Sunset Tee (`sunset`), and Skate Tee (`skate`). These use the existing short-sleeve art with custom palettes and pixel graphics. Independent graphics also include `tour` (lightning), `gull`, `sunset` (waves), and `checker`. They remain compatible with separate color controls.
+
+Independent `bottoms` choices: `original`, `gym-shorts`, and `leggings` (Yoga pants in the UI). Athletic lower halves are composed using the matching front/hand/sit pose and head-relative waist alignment; shorts use the short athletic art and yoga pants use the dark athletic-pants art. The source skin ramp is mapped to the chosen body's skin ramp before skin customization. The Bottoms color control applies afterward. Reset restores original bottoms.
+
+Female athletic bottoms now use dedicated fitted-short and flared-yoga-pant artwork, configured by `athleticBottoms` in lead.json. The transparent sheet has three pose columns (front, hand, sit) and two rows (shorts, yoga pants). The renderer extracts the visible bounds, removes low-alpha edge haze, aligns to the outfit waist, and preserves foreground hands. Short tees/dresses have their torso aligned to the shared waist to remove the old skirt. Clothing palettes do not recolor the replacement layer; independent Bottoms color still applies. Male bottoms retain the earlier athletic source-art path.
+
+Athletic proportions use a consistent waist at head + 55 pixels, with the short-tee/dress torso extended to that waist. Lower-body width is sized from the sheet's waistband (18 native pixels standing, 20 seated, capped to preserve side padding), independently of leg height. This prevents skinny legs under hoodies and oversized legs under short tees.
+
+Male characters also offer `jorts`: pose-matched knee-length washed denim shorts with a waist at head + 55 pixels and an 18% wider relaxed fit, compatible with the independent top and Bottoms colors. The option is only shown for Male and is cleared when changing to Female. Denim extension is confined to the legs so the hands at the waistband retain their skin tone.
+
+Jorts now use dedicated clean denim artwork from `denimBottoms` (three pose columns, one row), replacing the older basketball-art fallback whenever this manifest entry is present. The shared layer compositor aligns both athletic and denim waistbands, suppresses low-alpha edge noise, and restricts the foreground-finger mask to skin hues so clothing fragments do not leak through. Female layers crop off the source artwork's small bare waist strip before composition.
 
 ### Hair
 

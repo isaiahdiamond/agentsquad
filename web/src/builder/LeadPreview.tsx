@@ -48,7 +48,9 @@ export function LeadHead({ look, scale, top = 3, className = "", style }: HeadPr
             width: sprite.width * scale,
             height: sprite.height * scale,
             left: `calc(50% - ${sprite.head[0] * scale}px)`,
-            top: (top - sprite.head[1]) * scale,
+            // Tall styles (puffs, buns, afros) extend above the scalp anchor.
+            // Keep the whole hair layer inside the crop instead of cutting it off.
+            top: Math.max(0, top - sprite.head[1]) * scale,
           }}
         />
       )}

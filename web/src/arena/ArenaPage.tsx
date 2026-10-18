@@ -376,9 +376,9 @@ export default function ArenaPage() {
           <MissionPill arena={arena} finished={finished} connected={connected} />
         </div>
         <div className="pointer-events-auto absolute right-4 top-4">
-          <TeamChips arena={arena} squad={squad} onPick={pick} />
+          <TeamChips arena={arena} squad={squad} onPick={pick} connected={connected} />
         </div>
-        <div className="absolute bottom-[64px] right-4 top-[64px]">
+        <div className="absolute bottom-[64px] right-4 top-[188px] sm:top-[128px]">
           <AnimatePresence>
             {logOpen && <LogDrawer arena={arena} squad={squad} onClose={() => setLogOpen(false)} onBriefing={() => {
               setBriefPinned(true)
@@ -386,7 +386,7 @@ export default function ArenaPage() {
             }} />}
           </AnimatePresence>
         </div>
-        <div className="absolute top-[64px] transition-[right] duration-300" style={{ right: logOpen ? 388 : 16 }}>
+        <div className="absolute top-[188px] sm:top-[128px] transition-[right] duration-300" style={{ right: logOpen ? 388 : 16 }}>
           <AnimatePresence>{briefOpen && arena.prompt && <Briefing key={briefAt} arena={arena} squad={squad} onClose={() => setBriefOpen(false)} />}</AnimatePresence>
         </div>
         <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center">

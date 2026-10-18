@@ -16,7 +16,7 @@ const SPEED = 0.12
 const busy = (a: Agent) => !a.doneAt && (a.state !== "idle" || a.tools > 0)
 const DESK = { w: 62, h: 52 }
 // Scenes without their own desk art borrow one until it lands.
-const BORROWED: Record<string, string> = { club: "office" }
+const BORROWED: Record<string, string> = {}
 
 // Desk image size in art pixels, or the fallback size when the art is missing. Undefined while loading.
 export function useDesk(sceneId: string) {
@@ -32,9 +32,10 @@ export function deskScale(s: number, size: Size) {
   return (TALL * s) / (1.075 * size.w)
 }
 
-// How far above the station a seated agent's feet go, so its hands rest on the desk top (about 90% of the desk's height).
+// The desktop spans roughly 50–100% of the desk's height above its feet.
+// Aim hands into its middle, rather than at the far edge behind the monitor.
 export function seatLift(s: number, size: Size) {
-  return Math.max(0, size.h * deskScale(s, size) * 0.9 - 46 * s)
+  return Math.max(0, size.h * deskScale(s, size) * 0.65 - 46 * s)
 }
 
 export function deskSpots(scene: Scene) {
@@ -65,6 +66,27 @@ function Poof({ w, h, k }: { w: number; h: number; k: number }) {
 // Only exists while someone works at it: poofs in when its agent sits, poofs out after they get up.
 // Desks already there when the room opens skip the poof in.
 function Desk({ spot, ds, src, size, k, quiet }: { spot: Spot; ds: number; src?: string; size: Size; k: number; quiet: boolean }) {
+  if (spot.kind === "chair") return <BeachChair spot={spot} s={k} />
+  return <WorkDesk spot={spot} ds={ds} src={src} size={size} k={k} quiet={quiet} />
+}
+
+// Chairs sit behind the character; unlike desks they leave the legs visible.
+function BeachChair({ spot, s }: { spot: Spot; s: number }) {
+  return (
+    <motion.svg aria-hidden="true" viewBox="0 0 64 100" className="pointer-events-none absolute"
+      style={{ left: spot.x * W - 32 * s, top: spot.y * H - 100 * s, width: 64 * s, height: 100 * s, zIndex: Math.round(spot.y * H) - 1 }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} shapeRendering="crispEdges">
+      <ellipse cx="32" cy="96" rx="30" ry="4" fill="#000" opacity=".18" />
+      <path d="M8 14 L16 94 M48 55 L58 94 M12 92 L52 28" fill="none" stroke="#59432e" strokeWidth="4" />
+      <path d="M8 12 L44 12 L52 62 L16 62 Z" fill="#fff4d5" stroke="#795b3d" strokeWidth="3" />
+      <path d="M15 14 L21 14 L29 60 L23 60 Z M28 14 L34 14 L42 60 L36 60 Z" fill="#ed994d" />
+      <path d="M16 62 L52 62 L59 73 L23 73 Z" fill="#fff4d5" stroke="#795b3d" strokeWidth="3" />
+      <path d="M6 54 L23 60 M44 54 L61 60" stroke="#795b3d" strokeWidth="4" />
+    </motion.svg>
+  )
+}
+
+function WorkDesk({ spot, ds, src, size, k, quiet }: { spot: Spot; ds: number; src?: string; size: Size; k: number; quiet: boolean }) {
   const w = size.w * ds, h = size.h * ds
   const present = useIsPresent()
   const [poofIn] = useState(!quiet)
@@ -83,9 +105,9 @@ function Desk({ spot, ds, src, size, k, quiet }: { spot: Spot; ds: number; src?:
   )
 }
 
-type Target = { to: Spot; sit: boolean; leave?: boolean }
+type Target = { to: Spot; sit: boolean; leave?: boolean; route?: Spot[]; onArrive?: () => void; drink?: "carry" | "sip"; party?: "chat" | "dance" }
 
-// Walks in a straight line at a steady pace (standing sprite with step bob), then sits if the target is a desk seat.
+// Walk to the assigned seat at a steady pace.
 // A portal agent first falls in beside the lead and holds there; every walk waits for that.
 function Worker({ id, type, agent, label, squad, s, from, target, portal, onSit }: {
   id: string; type: string; agent?: Agent; label: string; squad: Squad | null; s: number; from: Spot; target: Target; portal?: Portal; onSit: (id: string) => void
@@ -93,6 +115,9 @@ function Worker({ id, type, agent, label, squad, s, from, target, portal, onSit 
   const x = useMotionValue(portal?.spot.x ?? from.x), y = useMotionValue(portal?.spot.y ?? from.y), o = useMotionValue(1)
   const dy = useMotionValue(0), squash = useMotionValue(1)
   const { to, sit, leave } = target
+  const arrival = useRef(target.onArrive)
+  arrival.current = target.onArrive
+  const routeKey = JSON.stringify(target.route ?? [])
   const [seated, setSeated] = useState(!portal && sit && from.x === to.x && from.y === to.y)
   const gate = useRef<Promise<void> | null>(null)
   const mounted = useRef(true)
@@ -106,27 +131,36 @@ function Worker({ id, type, agent, label, squad, s, from, target, portal, onSit 
   useEffect(() => {
     let alive = true
     const cs: { stop: () => void }[] = []
-    ;(gate.current ?? Promise.resolve()).then(() => {
+    ;(gate.current ?? Promise.resolve()).then(async () => {
       if (!alive) return
       o.set(1)
       if (!(sit && x.get() === to.x && y.get() === to.y)) setSeated(false)
-      const d = Math.hypot(to.x - x.get(), (to.y - y.get()) * (H / W))
-      const opts = { duration: Math.max(0.15, d / SPEED), ease: "linear" as const }
-      const walk = [animate(x, to.x, opts), animate(y, to.y, opts)]
-      cs.push(...walk)
-      Promise.all(walk).then(() => alive && sit && setSeated(true))
-      if (leave) cs.push(animate(o, 0, { delay: opts.duration, duration: 0.5 }))
+      const move = async (point: Spot) => {
+        const d = Math.hypot(point.x - x.get(), (point.y - y.get()) * (H / W))
+        const opts = { duration: Math.max(0.08, d / SPEED), ease: "linear" as const }
+        const walk = [animate(x, point.x, opts), animate(y, point.y, opts)]
+        cs.push(...walk)
+        await Promise.all(walk)
+      }
+      for (const point of target.route ?? [to]) {
+        if (!alive) return
+        await move(point)
+      }
+      if (!alive) return
+      if (sit) setSeated(true)
+      arrival.current?.()
+      if (leave) cs.push(animate(o, 0, { duration: 0.5 }))
     })
     return () => {
       alive = false
       cs.forEach((c) => c.stop())
     }
-  }, [to.x, to.y, sit, leave])
+  }, [to.x, to.y, sit, leave, routeKey])
   useEffect(() => {
     if (seated) onSit(id)
   }, [seated])
   const face = useFacing(x, y)
-  return <Actor who={who(type, squad)} agent={agent} label={label} seed={type} s={s} x={x} y={y} o={o} dy={dy} squash={squash} face={face} seated={seated} />
+  return <Actor who={who(type, squad)} agent={agent} label={label} seed={type} s={s} x={x} y={y} o={o} dy={dy} squash={squash} face={face} seated={seated} showSeatedFeet={to.kind === "chair"} drink={target.drink} party={target.party} />
 }
 
 // Rooms: a whole-scene room (office, club) with the lead, or a building interior showing only the agents inside it.
@@ -134,10 +168,11 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
   const opened = useRef(Date.now())
   const taken = useRef(new Map<string, number>())
   const s = sceneScale(scene)
+  const leadScale = scene.id === "office" ? s * 0.765 : s
   const { src, size } = useDesk(scene.id)
   const lead = Object.values(arena.agents).find((a) => a.type === "lead")
-  const leadDesk = scene.lead.kind === "desk"
-  const desks = scene.stations.filter((st) => st.kind === "desk")
+  const leadDesk = scene.lead.kind === "desk" || scene.lead.kind === "chair"
+  const desks = scene.stations.filter((st) => st.kind === "desk" || st.kind === "chair")
   const working = members.filter((a) => !a.doneAt)
   const done = members.filter((a) => a.doneAt).sort((a, b) => a.doneAt - b.doneAt)
   const ds = deskScale(s, size ?? DESK)
@@ -175,10 +210,11 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
 
   // More agents than desks: the extras stand in a row next to the bench, never on a desk station.
   const station = (i: number): Spot => desks[i] ?? { ...scene.bench, x: scene.bench.x + ((i - desks.length + 1) * 30 * s) / W }
-  const seat = (st: Spot): Spot => ({ ...st, y: st.y - lift / H })
+  const seat = (st: Spot): Spot => ({ ...st, y: st.y - (st.kind === "chair" ? 0 : lift / H) })
   // Stand up on the side of the desk facing the middle of the room.
   const beside = (st: Spot): Spot => ({ ...st, x: st.x + ((st.x > 0.5 ? -1 : 1) * (deskW / 2 + 14 * s)) / W, y: st.y - (4 * s) / H })
   const home = (i: number): Spot => {
+    if (scene.id === "club") return { x: .52 + i * .027, y: .905 - i * .016, scale: s }
     const side = i % 2 ? 1 : -1
     const gap = (leadDesk ? deskW / 2 + 16 * s : 20 * s) + (Math.floor(i / 2) + (leadDesk && side === (scene.lead.x > 0.5 ? -1 : 1) ? 1 : 0)) * 34 * s
     return { ...scene.lead, x: scene.lead.x + (side * gap) / W, y: scene.lead.y + (6 * s) / H }
@@ -188,13 +224,16 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
     const i = map.get(a.id) ?? 0
     const st = station(i)
     const isDesk = !!desks[i]
-    if (a.state === "waiting" && isDesk) return { to: beside(st), sit: false }
+    if (a.state === "waiting" && isDesk && scene.id !== "club") return { to: beside(st), sit: false }
     return isDesk ? { to: seat(st), sit: true } : { to: st, sit: false }
   }
   const leadTarget = (): Target => {
-    if (!leadDesk || !lead || !busy(lead) || gotIt) return { to: scene.lead, sit: false }
-    if (lead && (lead.state === "waiting" || lead.doneAt)) return { to: beside(scene.lead), sit: false }
-    return { to: seat(scene.lead), sit: true }
+    if (!leadDesk || !lead) return { to: scene.lead, sit: false }
+    if (lead.state === "waiting" || lead.doneAt) return { to: scene.id === "club" ? scene.lead : beside(scene.lead), sit: false }
+    if (!busy(lead) || gotIt) return { to: scene.lead, sit: false }
+    const at = seat(scene.lead)
+    // Keep the smaller lead's hands at desktop height while seated.
+    return { to: { ...at, y: at.y - (scene.lead.kind === "desk" ? 46 * (s - leadScale) / H : 0) }, sit: true }
   }
   // During "Got it." and the task bubble the lead stands at its spot facing the camera; then it takes its desk.
   const sayEnd = lead?.sayLines ? lead.sayAt + lead.sayLines.reduce((t, [, ms]) => t + ms, 0) : 0
@@ -216,13 +255,14 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
   const head = (p: Spot) => ({ x: p.x * W, y: p.y * H - TALL * s * 0.75 })
   const occupied = working.filter((a) => (sat.includes(a.id) || a.state === "waiting") && desks[map.get(a.id) ?? -1])
   const leadAtDesk = main && leadDesk && !lead?.doneAt && (sat.includes("lead") || lead?.state === "waiting")
+  const leadDestination = leadTarget()
 
   if (!size) return <div className="absolute inset-0"><Backdrop scene={scene} /></div>
   return (
     <Scope.Provider value={scene.id}>
     <div className="absolute inset-0">
       <Backdrop scene={scene} />
-      {main && <Worker id="lead" type="lead" agent={lead} label="Lead" squad={squad} s={s} from={leadTarget().to} target={leadTarget()} onSit={onSit} />}
+      {main && <Worker id="lead" type="lead" agent={lead} label="Lead" squad={squad} s={leadScale} from={leadTarget().to} target={leadDestination} onSit={onSit} />}
       {members.map((a) => {
         if (!main && a.doneAt && a.doneAt < opened.current) return null
         const t = targetFor(a)
