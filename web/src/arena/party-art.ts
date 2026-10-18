@@ -63,7 +63,7 @@ export function extractPartyArt(image: HTMLImageElement, rows = ROWS, isolate = 
     return { url: frame.toDataURL(), width: frame.width, height: frame.height }
   }))
 }
-export type PartyArt = { base: PartyFrame[]; natural: PartyFrame[]; relaxed: PartyFrame[]; staff: PartyFrame[]; candid: PartyFrame[]; reclining: PartyFrame[] }
+export type PartyArt = { base: PartyFrame[]; natural: PartyFrame[]; relaxed: PartyFrame[]; staff: PartyFrame[]; candid: PartyFrame[]; reclining: PartyFrame[]; swimmers: PartyFrame[] }
 export const NATURAL_ROWS = [[0, 458/1402], [458/1402, 665/1402], [650/1402, 1004/1402], [980/1402, 1240/1402], [1225/1402, 1]]
 export const CANDID_ROWS = [[0, 440/1086], [440/1086, 804/1086], [790/1086, 1]]
 let loading: Promise<PartyArt> | null = null
@@ -78,8 +78,8 @@ function loadSheet(src: string, rows: number[][], isolate = false, columns = 4) 
   })
 }
 function loadPartyArt() {
-  loading ??= Promise.all([loadSheet(PARTY_ART, ROWS), loadSheet(NATURAL_PARTY_ART, NATURAL_ROWS, true), loadSheet("/art/scenes/club-party-relaxed-guests.png", [[0,1]], true), loadSheet("/art/scenes/club-bartenders.png", [[0,1]], true, 2), loadSheet("/art/scenes/club-party-candid-guests.png", CANDID_ROWS, true), loadSheet("/art/scenes/club-pool-facing-recliners.png", [[0,1]], true, 2)])
-    .then(([base, natural, relaxed, staff, candid, reclining]) => ({base, natural, relaxed, staff, candid, reclining}))
+  loading ??= Promise.all([loadSheet(PARTY_ART, ROWS), loadSheet(NATURAL_PARTY_ART, NATURAL_ROWS, true), loadSheet("/art/scenes/club-party-relaxed-guests.png", [[0,1]], true), loadSheet("/art/scenes/club-bartenders.png", [[0,1]], true, 2), loadSheet("/art/scenes/club-party-candid-guests.png", CANDID_ROWS, true), loadSheet("/art/scenes/club-pool-facing-recliners.png", [[0,1]], true, 2), loadSheet("/art/scenes/club-swimmers-natural.png", [[0,1]], true)])
+    .then(([base, natural, relaxed, staff, candid, reclining, swimmers]) => ({base, natural, relaxed, staff, candid, reclining, swimmers}))
     .catch(error => { loading = null; throw error })
   return loading
 }

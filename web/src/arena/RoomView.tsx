@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { AnimatePresence, animate, motion, useIsPresent, useMotionValue } from "framer-motion"
 import type { Scene, Spot, Squad } from "@agentsquad/shared"
@@ -9,6 +10,8 @@ import { sceneScale } from "./MapView"
 import { Actor, H, TALL, W, useFacing, useManifest, useNatural, type Size } from "./Sprite"
 import { who, type Agent, type Arena } from "./store"
 import { Scope, labelOf } from "./world"
+import ClubParty from "./ClubParty"
+import { ClubTraffic, PARTY_SPOTS, partyRoute, clearSegment, type PartyAction } from "./club-navigation"
 
 const SPEED = 0.12
 
@@ -109,8 +112,8 @@ type Target = { to: Spot; sit: boolean; leave?: boolean; route?: Spot[]; onArriv
 
 // Walk to the assigned seat at a steady pace.
 // A portal agent first falls in beside the lead and holds there; every walk waits for that.
-function Worker({ id, type, agent, label, squad, s, from, target, portal, onSit }: {
-  id: string; type: string; agent?: Agent; label: string; squad: Squad | null; s: number; from: Spot; target: Target; portal?: Portal; onSit: (id: string) => void
+function Worker({ id, type, agent, label, squad, s, from, target, portal, onSit, traffic }: {
+  id: string; type: string; agent?: Agent; label: string; squad: Squad | null; s: number; from: Spot; target: Target; portal?: Portal; onSit: (id: string) => void; traffic?: ClubTraffic
 }) {
   const x = useMotionValue(portal?.spot.x ?? from.x), y = useMotionValue(portal?.spot.y ?? from.y), o = useMotionValue(1)
   const dy = useMotionValue(0), squash = useMotionValue(1)
@@ -129,6 +132,11 @@ function Worker({ id, type, agent, label, squad, s, from, target, portal, onSit 
     }
   }, [])
   useEffect(() => {
+    if (!traffic) return
+    traffic.actors.set(id, () => ({x:x.get(),y:y.get(),scale:s}))
+    return () => {traffic.actors.delete(id);traffic.reservations.delete(id)}
+  }, [traffic,id])
+  useEffect(() => {
     let alive = true
     const cs: { stop: () => void }[] = []
     ;(gate.current ?? Promise.resolve()).then(async () => {
@@ -142,7 +150,21 @@ function Worker({ id, type, agent, label, squad, s, from, target, portal, onSit 
         cs.push(...walk)
         await Promise.all(walk)
       }
-      for (const point of target.route ?? [to]) {
+      if (traffic) {
+        const current = (): Spot => ({x:x.get(),y:y.get(),scale:s})
+        while (alive && Math.hypot((x.get()-to.x)*W,(y.get()-to.y)*H)>1) {
+          const route = partyRoute(current(),to,traffic.obstacles(id))
+          if (!route) {await new Promise(resolve=>setTimeout(resolve,350));continue}
+          for (const point of route) {
+            if (!alive) return
+            if (!clearSegment(current(),point,traffic.obstacles(id))) break
+            traffic.reservations.set(id,point)
+            await move(point)
+            traffic.reservations.delete(id)
+          }
+          await new Promise(resolve=>setTimeout(resolve,80))
+        }
+      } else for (const point of target.route ?? [to]) {
         if (!alive) return
         await move(point)
       }
@@ -154,6 +176,7 @@ function Worker({ id, type, agent, label, squad, s, from, target, portal, onSit 
     return () => {
       alive = false
       cs.forEach((c) => c.stop())
+      traffic?.reservations.delete(id)
     }
   }, [to.x, to.y, sit, leave, routeKey])
   useEffect(() => {
@@ -165,12 +188,27 @@ function Worker({ id, type, agent, label, squad, s, from, target, portal, onSit 
 
 // Rooms: a whole-scene room (office, club) with the lead, or a building interior showing only the agents inside it.
 export default function RoomView({ scene, arena, squad, members, main }: { scene: Scene; arena: Arena; squad: Squad | null; members: Agent[]; main: boolean }) {
+  const traffic = useRef(new ClubTraffic()).current
   const opened = useRef(Date.now())
   const taken = useRef(new Map<string, number>())
   const s = sceneScale(scene)
   const leadScale = scene.id === "office" ? s * 0.765 : s
   const { src, size } = useDesk(scene.id)
   const lead = Object.values(arena.agents).find((a) => a.type === "lead")
+  const [partyAgent,setPartyAgent] = useState("lead")
+  const [trip,setTrip] = useState<{id:string; action:PartyAction; phase:"going"|"active"|"return"; token:number}|null>(null)
+  useEffect(()=>setTrip(null),[arena.promptAt,scene.id])
+  useEffect(()=>{
+    if (trip?.phase !== "active") return
+    const token=trip.token
+    const timer=setTimeout(()=>setTrip(value=>value?.token===token?{...value,phase:"return"}:value),trip.action==="dance"?7500:trip.action==="chat"?5500:3200)
+    return ()=>clearTimeout(timer)
+  },[trip?.phase,trip?.token])
+  useEffect(()=>{
+    if (!trip) return
+    const a=trip.id==="lead"?lead:members.find(a=>a.id===trip.id)
+    if(a?.state==="waiting"||a?.state==="error"||(trip.id!=="lead"&&!a))setTrip(null)
+  },[lead?.state,members,trip?.id])
   const leadDesk = scene.lead.kind === "desk" || scene.lead.kind === "chair"
   const desks = scene.stations.filter((st) => st.kind === "desk" || st.kind === "chair")
   const working = members.filter((a) => !a.doneAt)
@@ -251,22 +289,35 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
   const quiet = () => !mountedAt.current || Date.now() - mountedAt.current < 100
   const fresh = (a: Agent) => a.spawnAt > opened.current - 300
   const allPortals = usePortals(members, scene.lead, s, opened.current)
-  const portals = main ? allPortals : new Map<string, Portal>()
+  const portals = main ? scene.id === "club" ? new Map([...allPortals].map(([id,p])=>[id,{...p,spot:scene.bench}])) : allPortals : new Map<string, Portal>()
   const head = (p: Spot) => ({ x: p.x * W, y: p.y * H - TALL * s * 0.75 })
   const occupied = working.filter((a) => (sat.includes(a.id) || a.state === "waiting") && desks[map.get(a.id) ?? -1])
   const leadAtDesk = main && leadDesk && !lead?.doneAt && (sat.includes("lead") || lead?.state === "waiting")
-  const leadDestination = leadTarget()
+  const withParty = (id:string, base:Target):Target => {
+    if(scene.id!=="club"||trip?.id!==id)return base
+    const token=trip.token
+    if(trip.phase==="return")return {...base,drink:trip.action==="drink"?"carry":undefined,onArrive:()=>setTrip(value=>value?.token===token?null:value)}
+    const to=PARTY_SPOTS[trip.action]
+    if(trip.phase==="active")return {to,sit:false,drink:trip.action==="drink"?"sip":undefined,party:trip.action==="drink"?undefined:trip.action}
+    return {to,sit:false,onArrive:()=>setTrip(value=>value?.token===token?{...value,phase:"active"}:value)}
+  }
+  const choices=[{id:"lead",name:squad?.lead.name||"Lead"},...members.map(a=>({id:a.id,name:labelOf(a,arena,squad)}))]
+  const selected=choices.some(a=>a.id===partyAgent)?partyAgent:"lead"
+  const selectedAgent=selected==="lead"?lead:members.find(a=>a.id===selected)
+  const unavailable=selectedAgent?.state==="waiting"||selectedAgent?.state==="error"
+  const leadDestination = withParty("lead",leadTarget())
 
   if (!size) return <div className="absolute inset-0"><Backdrop scene={scene} /></div>
   return (
     <Scope.Provider value={scene.id}>
     <div className="absolute inset-0">
       <Backdrop scene={scene} />
-      {main && <Worker id="lead" type="lead" agent={lead} label="Lead" squad={squad} s={leadScale} from={leadTarget().to} target={leadDestination} onSit={onSit} />}
+      {scene.id==="club" && <ClubParty background={scene.background} chatting={trip?.phase==="active"&&trip.action==="chat"} />}
+      {main && <Worker id="lead" type="lead" agent={lead} label="Lead" squad={squad} s={leadScale} from={leadTarget().to} target={leadDestination} onSit={onSit} traffic={scene.id==="club"?traffic:undefined} />}
       {members.map((a) => {
         if (!main && a.doneAt && a.doneAt < opened.current) return null
-        const t = targetFor(a)
-        return <Worker key={missionKey(a)} id={a.id} type={a.type} agent={a} label={labelOf(a, arena, squad)} squad={squad} s={s} from={fresh(a) ? scene.bench : t.to} target={t} portal={portals.get(a.id)} onSit={onSit} />
+        const t = withParty(a.id,targetFor(a))
+        return <Worker key={missionKey(a)} id={a.id} type={a.type} agent={a} label={labelOf(a, arena, squad)} squad={squad} s={s} from={fresh(a) ? scene.bench : t.to} target={t} portal={portals.get(a.id)} onSit={onSit} traffic={scene.id==="club"?traffic:undefined} />
       })}
       <AnimatePresence initial={false}>
         {leadAtDesk && <Desk key="lead" spot={scene.lead} ds={ds} src={src} size={size} k={s} quiet={quiet()} />}
@@ -278,6 +329,15 @@ export default function RoomView({ scene, arena, squad, members, main }: { scene
       })}
       <Bubbles agents={main && lead ? [lead, ...members] : members} scope={scene.id} squad={squad} portals={portals} />
       <PlateLayout scope={scene.id} />
+      {scene.id==="club"&&main&&createPortal(
+        <div data-chrome className="pointer-events-auto fixed bottom-20 left-1/2 z-[6000] flex w-max max-w-[calc(100vw-24px)] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-2xl border border-[#e4c48b]/60 bg-[#231a18]/95 px-3 py-2 text-[#fff2d6] shadow-xl">
+          <span className="text-[13px] font-semibold">Pool party</span>
+          <select aria-label="Agent joining the party" value={selected} disabled={!!trip} onChange={e=>setPartyAgent(e.target.value)} className="max-w-[140px] rounded-lg border border-[#e4c48b]/50 bg-[#332621] px-2 py-1.5 text-[13px]">{choices.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select>
+          {([["drink","Get a drink"],["chat","Chat with guests"],["dance","Dancing"]]as const).map(([action,label])=><button key={action} disabled={!!trip||unavailable} onClick={()=>setTrip({id:selected,action,phase:"going",token:Date.now()})} className="rounded-lg bg-[#f2b861] px-3 py-1.5 text-[13px] font-semibold text-[#231a18] disabled:opacity-60">{label}</button>)}
+          {trip&&<button onClick={()=>setTrip(null)} className="px-2 text-[12px] underline">End break</button>}
+          <p role="status" className="basis-full text-center text-[11px] text-[#e4cdb0]">{trip?trip.phase==="going"?"Making their way through the party…":trip.phase==="return"?"Returning to their spot…":trip.action==="dance"?"Dancing with the party!":trip.action==="chat"?"Catching up with guests…":"Enjoying a drink…":unavailable?"This agent needs your attention.":"Take a break and join the party."}</p>
+        </div>,document.body
+      )}
       {!working.length && !main && (
         <div className="absolute inset-x-0 top-[45%] z-[4500] flex justify-center">
           <div className="card px-4 py-2.5 text-sm text-muted shadow-[0_8px_24px_rgba(0,0,0,.45)]" style={{ transform: "scale(var(--ui))" }}>Nobody is working in here right now.</div>

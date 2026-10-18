@@ -27,7 +27,7 @@ export function NavPill({ children }: { children?: React.ReactNode }) {
       className={`flex h-9 items-center rounded-full pl-4 pr-1.5 text-[13px] ${GLASS}`}
       onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)}
     >
-      <span className="pr-2.5 font-semibold text-text">agentsquad</span>
+      <span className="pr-2.5 font-semibold text-text">Agent Viz</span>
       <nav className={`flex items-center gap-0.5 overflow-hidden transition-[max-width,opacity] duration-200 ${open ? "max-w-[260px] opacity-100" : "max-w-0 opacity-0"}`}>
         <NavLink to="/builder" className={link}>Builder</NavLink>
         <NavLink to="/arena" className={link}>Arena</NavLink>

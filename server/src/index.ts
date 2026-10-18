@@ -174,6 +174,6 @@ wss.on("connection", (socket) => {
 })
 
 server.listen(PORT, "127.0.0.1", () => {
-  console.log(`agentsquad server on http://127.0.0.1:${PORT} (ws at /ws)`)
+  console.log(`Agent Viz server on http://127.0.0.1:${PORT} (ws at /ws)`)
   console.log(narratorMode())
 })

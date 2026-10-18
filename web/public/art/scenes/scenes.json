@@ -134,7 +134,7 @@
     "id": "club",
     "name": "The Club",
     "kind": "room",
-    "background": "/art/scenes/club.png",
+    "background": "/art/scenes/club-party-base.png",
     "scale": 1.6,
     "lead": { "x": 0.175, "y": 0.625, "scale": 1.6, "kind": "chair" },
     "stations": [

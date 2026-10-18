@@ -95,7 +95,7 @@ export default function SceneDeploy({ draft, update, back }: Props) {
     } catch (err) {
       setError(
         err instanceof TypeError
-          ? "Can't reach the AgentSquad server. Start it with npm run dev and try again."
+          ? "Can't reach the Agent Viz server. Start it with npm run dev and try again."
           : `Deploy failed: ${err instanceof Error ? err.message : String(err)}`,
       )
     } finally {
@@ -272,7 +272,7 @@ function FilesModal({ files, onClose, onArena }: { files: DeployedFile[]; onClos
         </div>
         {files.length === 0 ? (
           <p className="text-[14px] text-muted">
-            The server reported no written files. If this is unexpected, check that the AgentSquad server has a target project set.
+            The server reported no written files. If this is unexpected, check that the Agent Viz server has a target project set.
           </p>
         ) : (
           <>

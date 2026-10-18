@@ -19,7 +19,7 @@ export default function TitleScreen({ draft, start, reset }: { draft: Draft; sta
       />
 
       <header className="relative flex items-center justify-between px-9 py-6">
-        <span className="text-[15px] font-semibold tracking-tight text-white">agentsquad</span>
+        <span className="text-[15px] font-semibold tracking-tight text-white">Agent Viz</span>
         <a
           href="https://docs.claude.com/en/docs/claude-code/sub-agents"
           target="_blank"

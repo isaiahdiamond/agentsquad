@@ -15,7 +15,7 @@ function Nav() {
   if (path.startsWith("/builder") || path.startsWith("/arena")) return null
   return (
     <nav className="flex gap-6 border-b border-line bg-bg px-6 py-2.5 text-sm">
-      <span className="font-semibold text-text">agentsquad</span>
+      <span className="font-semibold text-text">Agent Viz</span>
       <NavLink to="/builder" className={link}>Builder</NavLink>
       <NavLink to="/arena" className={link}>Arena</NavLink>
       <NavLink to="/report" className={link}>Report</NavLink>
